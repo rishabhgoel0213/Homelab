@@ -115,6 +115,7 @@ in
       nix
       nixos-rebuild
       perl
+      sudo
       systemd
       util-linux
     ];

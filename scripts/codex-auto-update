@@ -7,6 +7,11 @@ target="${1:-latest}"
 package_file="${CODEX_PACKAGE_FILE:-$repo/packages/codex.nix}"
 lock_file="${CODEX_UPDATE_LOCK_FILE:-/tmp/homelab-codex-update.lock}"
 update_user="${CODEX_UPDATE_USER:-rishabh}"
+sudo_cmd="${SUDO:-/run/wrappers/bin/sudo}"
+
+if [[ ! -x "$sudo_cmd" ]]; then
+  sudo_cmd="sudo"
+fi
 
 exec 9>"$lock_file"
 if ! flock -n 9; then
@@ -42,8 +47,8 @@ fi
 
 echo "Codex changed from $before_version to $after_version; switching NixOS generation." >&2
 if [[ "$(id -u)" -eq 0 ]]; then
-  nixos-rebuild switch --impure --flake "$repo#$host"
+  runuser -u "$update_user" -- "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
 else
-  sudo nixos-rebuild switch --impure --flake "$repo#$host"
+  "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
 fi
 echo "Codex auto-update applied $after_version. Restart codex-remote-control.service manually when ready." >&2
