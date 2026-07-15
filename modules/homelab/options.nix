@@ -159,6 +159,7 @@ in
 
     vaultwarden.enable = mkEnableOption "Vaultwarden private password vault";
     eden.enable = mkEnableOption "Eden private Switch emulator desktop";
+    jellyfin.enable = mkEnableOption "Jellyfin private media server";
     syncthing.enable = mkEnableOption "Syncthing private file sync";
     samba.enable = mkEnableOption "Private SMB file share";
 

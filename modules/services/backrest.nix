@@ -55,7 +55,11 @@ in
     virtualisation.oci-containers.containers.backrest = {
       image = cfg.backrest.image;
       autoStart = true;
-      ports = [ "127.0.0.1:9898:9898" ];
+      # Tailscale's exit-node policy captures RFC1918 Docker bridge subnets,
+      # breaking both the local proxy path and Backrest's outbound SFTP. Keep
+      # Backrest explicitly loopback-only while avoiding the bridge conflict.
+      cmd = [ "/backrest" "-bind-address" "127.0.0.1:9898" ];
+      extraOptions = [ "--network=host" ];
       volumes = [
         "${cfg.paths.stateRoot}/backrest:/data"
         "${cfg.paths.stateRoot}/backrest/cache:/cache"

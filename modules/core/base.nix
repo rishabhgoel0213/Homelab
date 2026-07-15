@@ -57,7 +57,14 @@ in
     };
   };
 
-  services.tailscale.enable = true;
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "client";
+    extraSetFlags = [
+      "--exit-node=nl-ams-wg-201.mullvad.ts.net"
+      "--exit-node-allow-lan-access=false"
+    ];
+  };
 
   users.users.rishabh = {
     isNormalUser = true;
