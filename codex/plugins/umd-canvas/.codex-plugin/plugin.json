@@ -1,0 +1,34 @@
+{
+  "name": "umd-canvas",
+  "version": "0.1.0",
+  "description": "Read-only UMD Canvas course mirror for Codex.",
+  "author": {
+    "name": "HomelabOps"
+  },
+  "homepage": "https://www.canvas.umd.edu/",
+  "keywords": [
+    "canvas",
+    "umd",
+    "courses",
+    "learning",
+    "mcp"
+  ],
+  "interface": {
+    "displayName": "UMD Canvas",
+    "shortDescription": "Read synchronized courses and learning materials.",
+    "longDescription": "A private, read-only connector to the homelab Canvas mirror. It follows instructor-curated module paths and exposes courses, assignments, announcements, pages, syllabi, and extracted document text without browser automation.",
+    "developerName": "HomelabOps",
+    "category": "Education",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://canvas.internal.therealrishabh.com",
+    "defaultPrompt": [
+      "Show my current Canvas courses.",
+      "Walk me through the instructor-curated modules for a course.",
+      "Find the material I should study for my next assignment."
+    ],
+    "brandColor": "#E21833"
+  },
+  "mcpServers": "./.mcp.json"
+}

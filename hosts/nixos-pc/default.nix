@@ -13,6 +13,7 @@
     ../../modules/core/containers.nix
     ../../modules/core/filesystem.nix
     ../../modules/core/gpu.nix
+    ../../modules/core/remote-phone.nix
     ../../modules/core/secrets.nix
     ../../modules/core/dns.nix
     ../../modules/core/cloudflare.nix
@@ -21,6 +22,7 @@
 
     ../../modules/services/vaultwarden.nix
     ../../modules/services/backrest.nix
+    ../../modules/services/canvas-bridge.nix
     ../../modules/services/eden.nix
     ../../modules/services/jellyfin.nix
     ../../modules/services/public-site.nix
@@ -50,6 +52,8 @@
     };
 
     privateDns.enable = true;
+    remotePhone.enable = true;
+    canvasBridge.enable = true;
 
     backrest = {
       enable = true;

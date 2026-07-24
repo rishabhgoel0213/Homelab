@@ -133,6 +133,8 @@ in
 
     privateDns.enable = mkEnableOption "CoreDNS wildcard DNS for internal tailnet apps";
 
+    remotePhone.enable = mkEnableOption "bounded Remote Phone microphone capture and local transcription";
+
     backrest = {
       enable = mkEnableOption "Backrest private restic web UI";
       repository = mkOption {

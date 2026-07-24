@@ -116,5 +116,23 @@ tailscale-split-dns:
 tailscale-apply-internal-dns:
     scripts/configure-tailscale-internal-dns
 
+remote-phone-doctor:
+    remote-phone-mic doctor
+
+remote-phone-check:
+    remote-phone-mic check
+
+canvas-doctor:
+    canvas-bridge doctor
+
+canvas-pair:
+    canvas-bridge pair
+
+canvas-status:
+    canvas-bridge status
+
+canvas-sync:
+    canvas-bridge sync
+
 github-profile-sync:
     scripts/sync-github-profile

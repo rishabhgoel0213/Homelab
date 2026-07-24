@@ -47,6 +47,13 @@ in
         };
         "restic-password" = { };
       }
+      // lib.optionalAttrs cfg.remotePhone.enable {
+        "remote-phone-token" = {
+          owner = "rishabh";
+          group = "users";
+          mode = "0400";
+        };
+      }
       // lib.optionalAttrs (cfg.backrest.sshTarget != null) {
         "restic-ssh-key" = {
           owner = "root";

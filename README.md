@@ -25,6 +25,10 @@ just route-add demo public http://127.0.0.1:3000
 just route-add vault internal http://127.0.0.1:8222
 just cloudflare-store-token
 just tailscale-store-oauth
+just remote-phone-doctor
+just remote-phone-check
+just canvas-doctor
+just canvas-pair
 just workspace-sync
 just public-site-deploy
 just github-profile-sync
@@ -44,6 +48,8 @@ See `runbooks/backups.md` for Restic backups to a Hetzner Storage Box.
 See `runbooks/bitwarden-sops.md` for selectively promoting Vaultwarden secrets into sops.
 See `runbooks/codex.md` for the managed Codex server integration.
 See `runbooks/computer-use.md` for temporary Codex-controlled desktops.
+See `runbooks/remote-phone.md` for bounded Pixel microphone capture and local transcription.
+See `runbooks/canvas-bridge.md` for the private UMD Canvas mirror and Codex connector.
 See `runbooks/workspace.md` for the shared Codex workspace.
 See `runbooks/beeper.md` for exposing Beeper Desktop MCP to Codex over the tailnet.
 See `runbooks/syncthing.md` for private Finder-friendly file sync setup.
