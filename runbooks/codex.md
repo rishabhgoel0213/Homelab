@@ -28,8 +28,12 @@ just codex-prune-user-install
 
 `codex-store-auth` stores the current Codex `auth.json` and MCP OAuth
 credentials into the SOPS keys `codex-auth.json` and
-`codex-credentials.json`. Nix materializes those secrets back into
-`/srv/state/codex` when the Codex service starts.
+`codex-credentials.json`. These are bootstrap and disaster-recovery snapshots.
+When the Codex service starts, Nix restores them only if the corresponding
+runtime file is missing or empty. Existing files in `/srv/state/codex` remain
+authoritative because Codex rotates refresh credentials in place; overwriting
+them from an older SOPS snapshot can restore an already-used token and force a
+new login.
 
 `codex-bootstrap` seeds config, restores auth from `/run/secrets`, registers
 the local plugin marketplace, and installs enabled plugins declared in

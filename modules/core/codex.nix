@@ -37,12 +37,17 @@ let
     fi
 
     ${lib.optionalString cfg.secrets.enable ''
-      if [[ -r ${lib.escapeShellArg config.sops.secrets."codex-auth.json".path} ]]; then
+      # Codex rotates refresh tokens in place. Restore the SOPS snapshot only
+      # when runtime state is absent so a restart cannot replace the current
+      # token with an older, already-used one.
+      if [[ ! -s ${lib.escapeShellArg "${codexHome}/auth.json"} ]] \
+        && [[ -r ${lib.escapeShellArg config.sops.secrets."codex-auth.json".path} ]]; then
         install -m 0600 -o rishabh -g users \
           ${lib.escapeShellArg config.sops.secrets."codex-auth.json".path} \
           ${lib.escapeShellArg "${codexHome}/auth.json"}
       fi
-      if [[ -r ${lib.escapeShellArg config.sops.secrets."codex-credentials.json".path} ]]; then
+      if [[ ! -s ${lib.escapeShellArg "${codexHome}/.credentials.json"} ]] \
+        && [[ -r ${lib.escapeShellArg config.sops.secrets."codex-credentials.json".path} ]]; then
         install -m 0600 -o rishabh -g users \
           ${lib.escapeShellArg config.sops.secrets."codex-credentials.json".path} \
           ${lib.escapeShellArg "${codexHome}/.credentials.json"}

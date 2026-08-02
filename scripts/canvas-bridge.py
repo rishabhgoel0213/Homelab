@@ -1451,7 +1451,7 @@ PAGE_STYLE = """
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#080d19,#101a31);color:var(--text);font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
 main{width:min(780px,calc(100% - 32px));margin:48px auto}.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.mark{width:42px;height:42px;border-radius:12px;background:var(--accent);display:grid;place-items:center;font-weight:800}.brand h1{font-size:22px;margin:0}.brand p{margin:0;color:var(--muted);font-size:14px}
 .card{background:rgba(20,27,45,.94);border:1px solid var(--line);border-radius:18px;padding:24px;margin:16px 0;box-shadow:0 18px 50px rgba(0,0,0,.22)}h2{font-size:20px;margin:0 0 10px}p{margin:8px 0}.muted{color:var(--muted)}.status{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#202a43;font-size:14px}.dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}.dot.ok{background:var(--ok)}
-button,.button{appearance:none;border:0;border-radius:10px;background:var(--accent);color:white;font-weight:700;padding:11px 16px;cursor:pointer;text-decoration:none;display:inline-block;margin-top:10px}button.secondary,.button.secondary{background:#29334d}input,textarea{width:100%;border:1px solid #3a4665;background:#0d1425;color:white;border-radius:10px;padding:12px;font:inherit;margin:8px 0 4px}textarea{min-height:120px;resize:vertical}label{font-weight:650}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}.metric{background:#0d1425;border-radius:12px;padding:14px}.metric strong{font-size:24px;display:block}.error{border-color:#733241;background:#2a1720}.success{border-color:#285c43;background:#12271d}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}.steps{padding-left:22px}.steps li{margin:10px 0}form.inline{display:inline}footer{color:var(--muted);font-size:13px;margin:24px 4px}
+button,.button{appearance:none;border:0;border-radius:10px;background:var(--accent);color:white;font-weight:700;padding:11px 16px;cursor:pointer;text-decoration:none;display:inline-block;margin-top:10px}button.secondary,.button.secondary{background:#29334d}button:disabled{background:#3a4359;color:#b9c1d1;cursor:not-allowed}.button+.button,button+.button{margin-left:8px}input,textarea{width:100%;border:1px solid #3a4665;background:#0d1425;color:white;border-radius:10px;padding:12px;font:inherit;margin:8px 0 4px}textarea{min-height:120px;resize:vertical}label{font-weight:650}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}.metric{background:#0d1425;border-radius:12px;padding:14px}.metric strong{font-size:24px;display:block}.sync-summary{border-left:3px solid var(--ok);padding:2px 0 2px 13px;margin:14px 0}.sync-summary.running{border-color:var(--warn)}.sync-summary.failed{border-color:var(--accent)}.sync-summary strong{display:block}.error{border-color:#733241;background:#2a1720}.success{border-color:#285c43;background:#12271d}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}.steps{padding-left:22px}.steps li{margin:10px 0}form.inline{display:inline}footer{color:var(--muted);font-size:13px;margin:24px 4px}
 """
 
 
@@ -1461,6 +1461,81 @@ def page(title: str, body: str) -> bytes:
 <meta name="robots" content="noindex,nofollow"><title>{html.escape(title)} · {APP_NAME}</title><style>{PAGE_STYLE}</style></head>
 <body><main><div class="brand"><div class="mark">C</div><div><h1>{APP_NAME}</h1><p>Private, read-only course mirror</p></div></div>
 {body}<footer>Tailnet only · UMD credentials are entered only on UMD pages · v{APP_VERSION}</footer></main></body></html>""".encode()
+
+
+def format_ui_timestamp(value: str | None) -> str:
+    parsed = parse_iso(value)
+    if not parsed:
+        return str(value or "Unknown time")
+    return parsed.astimezone().strftime("%b %-d, %Y at %-I:%M %p %Z")
+
+
+def render_connected_home(status: dict[str, Any], csrf: str) -> str:
+    user = status.get("user") or {}
+    sync = status.get("sync") or {}
+    counts = status["counts"]
+    sync_state = str(sync.get("state") or "")
+    timestamp = sync.get("completed_at") or sync.get("started_at")
+    course_label = "active courses"
+    metric_note = ""
+
+    if sync_state == "running":
+        sync_summary = f"""
+        <div class="sync-summary running"><strong>Sync in progress</strong>
+        <span class="muted">Started {html.escape(format_ui_timestamp(sync.get("started_at")))}.
+        Counts update as each course finishes and may be temporarily incomplete.</span></div>
+        """
+        course_label = "active courses (updating)"
+        metric_note = '<p class="muted">The indexed content remains available while this refresh runs.</p>'
+        sync_action = """
+        <button type="button" disabled aria-disabled="true">Sync in progress</button>
+        <a class="button secondary" href="/">Refresh status</a>
+        """
+    elif sync_state == "error":
+        error = html.escape(str(sync.get("error") or "The sync did not complete."))
+        sync_summary = f"""
+        <div class="sync-summary failed"><strong>Last sync failed</strong>
+        <span class="muted">{html.escape(format_ui_timestamp(timestamp))}</span>
+        <p>{error}</p></div>
+        """
+        metric_note = '<p class="muted">Showing the content currently available in the local index.</p>'
+        sync_action = f"""
+        <form method="post" action="/sync"><input type="hidden" name="csrf" value="{html.escape(csrf)}">
+        <button type="submit">Retry sync</button></form>
+        """
+    elif sync.get("completed_at"):
+        sync_summary = f"""
+        <div class="sync-summary"><strong>Last sync completed</strong>
+        <span class="muted">{html.escape(format_ui_timestamp(sync.get("completed_at")))}</span></div>
+        """
+        sync_action = f"""
+        <form method="post" action="/sync"><input type="hidden" name="csrf" value="{html.escape(csrf)}">
+        <button type="submit">Sync now</button></form>
+        """
+    else:
+        sync_summary = """
+        <div class="sync-summary running"><strong>Not synced yet</strong>
+        <span class="muted">Start the first refresh to index your Canvas courses.</span></div>
+        """
+        sync_action = f"""
+        <form method="post" action="/sync"><input type="hidden" name="csrf" value="{html.escape(csrf)}">
+        <button type="submit">Start sync</button></form>
+        """
+
+    return f"""
+    <section class="card success"><span class="status"><span class="dot ok"></span>Connected</span>
+    <h2 style="margin-top:14px">{html.escape(str(user.get("name") or "UMD Canvas"))}</h2>
+    {sync_summary}
+    <div class="grid"><div class="metric"><strong>{counts['active_courses']}</strong>{course_label}</div>
+    <div class="metric"><strong>{counts['modules']}</strong>modules</div>
+    <div class="metric"><strong>{counts['documents']}</strong>documents</div></div>
+    {metric_note}{sync_action}
+    </section>
+    <section class="card"><h2>Connection controls</h2>
+    <p class="muted">Disconnecting revokes the Canvas token and removes it locally. Already-synchronized course content remains until manually removed from the homelab state directory.</p>
+    <form method="post" action="/disconnect"><input type="hidden" name="csrf" value="{html.escape(csrf)}">
+    <button class="secondary" type="submit">Disconnect Canvas</button></form></section>
+    """
 
 
 class WebSecurity:
@@ -1707,25 +1782,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             <a class="button secondary" href="/auth/instructions">I already completed UMD login</a></section>
             """
         else:
-            user = status.get("user") or {}
-            sync = status.get("sync") or {}
-            counts = status["counts"]
-            sync_note = sync.get("completed_at") or "No completed sync yet"
-            sync_error = f'<p class="muted">Last error: {html.escape(str(sync.get("error")))}</p>' if sync.get("error") else ""
-            body = f"""
-            <section class="card success"><span class="status"><span class="dot ok"></span>Connected</span>
-            <h2 style="margin-top:14px">{html.escape(str(user.get("name") or "UMD Canvas"))}</h2>
-            <p class="muted">Last successful sync: {html.escape(str(sync_note))}</p>{sync_error}
-            <div class="grid"><div class="metric"><strong>{counts['active_courses']}</strong>active courses</div>
-            <div class="metric"><strong>{counts['modules']}</strong>modules</div>
-            <div class="metric"><strong>{counts['documents']}</strong>documents</div></div>
-            <form method="post" action="/sync"><input type="hidden" name="csrf" value="{csrf}"><button type="submit">Sync now</button></form>
-            </section>
-            <section class="card"><h2>Connection controls</h2>
-            <p class="muted">Disconnecting revokes the Canvas token and removes it locally. Already-synchronized course content remains until manually removed from the homelab state directory.</p>
-            <form method="post" action="/disconnect"><input type="hidden" name="csrf" value="{csrf}">
-            <button class="secondary" type="submit">Disconnect Canvas</button></form></section>
-            """
+            body = render_connected_home(status, csrf)
         self.send_bytes(page("Home", body))
 
     def render_instructions(self, csrf: str) -> None:

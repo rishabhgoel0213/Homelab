@@ -193,6 +193,71 @@ class CanvasBridgeTests(unittest.TestCase):
         self.assertNotIn("refresh-secret", rendered)
         self.assertTrue(status["connected"])
 
+    def test_running_sync_ui_labels_transient_counts_and_disables_sync(self):
+        body = self.bridge.render_connected_home(
+            {
+                "connected": True,
+                "user": {"name": "Student"},
+                "counts": {"active_courses": 6, "modules": 71, "documents": 843},
+                "sync": {
+                    "state": "running",
+                    "started_at": "2026-07-26T02:06:26+00:00",
+                    "completed_at": None,
+                    "error": None,
+                    "summary": None,
+                },
+            },
+            "csrf-value",
+        )
+        self.assertIn("Sync in progress", body)
+        self.assertIn("active courses (updating)", body)
+        self.assertIn("may be temporarily incomplete", body)
+        self.assertIn("disabled", body)
+        self.assertNotIn("No completed sync yet", body)
+        self.assertNotIn("Last successful sync", body)
+
+    def test_completed_sync_ui_uses_completed_wording_and_enables_sync(self):
+        body = self.bridge.render_connected_home(
+            {
+                "connected": True,
+                "user": {"name": "Student"},
+                "counts": {"active_courses": 14, "modules": 71, "documents": 843},
+                "sync": {
+                    "state": "idle",
+                    "started_at": "2026-07-26T02:06:26+00:00",
+                    "completed_at": "2026-07-26T02:13:42+00:00",
+                    "error": None,
+                    "summary": {"courses": 14},
+                },
+            },
+            "csrf-value",
+        )
+        self.assertIn("Last sync completed", body)
+        self.assertIn("Sync now", body)
+        self.assertNotIn("active courses (updating)", body)
+        self.assertNotIn("disabled", body)
+
+    def test_failed_sync_ui_does_not_call_failure_a_success(self):
+        body = self.bridge.render_connected_home(
+            {
+                "connected": True,
+                "user": {"name": "Student"},
+                "counts": {"active_courses": 14, "modules": 71, "documents": 843},
+                "sync": {
+                    "state": "error",
+                    "started_at": "2026-07-26T02:06:26+00:00",
+                    "completed_at": "2026-07-26T02:07:00+00:00",
+                    "error": "Connection reset by peer",
+                    "summary": None,
+                },
+            },
+            "csrf-value",
+        )
+        self.assertIn("Last sync failed", body)
+        self.assertIn("Connection reset by peer", body)
+        self.assertIn("Retry sync", body)
+        self.assertNotIn("Last successful sync", body)
+
     def test_cross_host_redirect_drops_bearer_token(self):
         request = urllib.request.Request(
             "https://umd.instructure.com/api/v1/courses",
