@@ -1,6 +1,6 @@
 {
   "name": "beeper",
-  "version": "0.1.0+codex.20260620001133",
+  "version": "0.1.0+codex.20260802223723",
   "description": "Beeper Desktop MCP wrapper for Codex.",
   "author": {
     "name": "HomelabOps"
@@ -33,6 +33,6 @@
     ],
     "brandColor": "#4F46E5",
     "composerIcon": "./assets/beeper-icon.png",
-    "logo": "./assets/beeper-logo.png"
+    "logo": "./assets/beeper-icon.png"
   }
 }

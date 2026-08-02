@@ -1,6 +1,6 @@
 {
   "name": "umd-canvas",
-  "version": "0.1.0",
+  "version": "0.1.0+codex.20260802223729",
   "description": "Read-only UMD Canvas course mirror for Codex.",
   "author": {
     "name": "HomelabOps"
@@ -28,7 +28,9 @@
       "Walk me through the instructor-curated modules for a course.",
       "Find the material I should study for my next assignment."
     ],
-    "brandColor": "#E21833"
+    "brandColor": "#E21833",
+    "composerIcon": "./assets/canvas-icon.png",
+    "logo": "./assets/canvas-icon.png"
   },
   "mcpServers": "./.mcp.json"
 }
