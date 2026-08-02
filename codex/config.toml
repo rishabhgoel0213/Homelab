@@ -17,6 +17,11 @@ trust_level = "trusted"
 [projects."/srv/workspace"]
 trust_level = "trusted"
 
+[marketplaces.homelab-local]
+last_updated = "2026-08-02T21:13:22Z"
+source_type = "local"
+source = "/srv/ops/codex"
+
 [plugins."canva@openai-curated"]
 enabled = true
 

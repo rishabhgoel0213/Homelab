@@ -15,6 +15,12 @@ Codex-owned implementation caches can include paths such as
 The ops repository carries only the local plugin marketplace source at
 `/srv/ops/codex/.agents/plugins/marketplace.json`.
 
+The `homelab-local` marketplace registration is declared in
+`/srv/ops/codex/config.toml`. Keep it there rather than registering it only in
+the live Codex home: service startup replaces the runtime config from the
+repo-owned copy, and the Apps UI cannot enumerate local plugins without the
+marketplace registration even when their cached tools still work.
+
 Useful commands:
 
 ```bash
