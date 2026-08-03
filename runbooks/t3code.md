@@ -34,13 +34,16 @@ advertises the capability only when both `T3CODE_REMOTE_PREVIEW_COMMAND` and
 one deterministic `t3-<thread-id>` desktop:
 
 ```text
-T3 Browser panel -> authenticated frame/input RPC -> Chromium page CDP
+T3 Browser panel -> WebRTC binary frames + authenticated input RPC -> Chromium page CDP
 T3 preview_* tools -------------------------------> the same Chromium page
 Codex Computer Use MCP -> managed thread desktop -> the same Chromium page
 ```
 
 The embedded panel streams only page contents, so T3 owns the visible tab and
-navigation chrome and sizes the browser viewport to the panel. The noVNC route
+navigation chrome and sizes the browser viewport to the panel. WebRTC advertises
+the server's tailnet address and carries unordered, loss-tolerant binary frames;
+input and signaling stay on T3's authenticated WebSocket. The older JSON frame
+stream remains only as an automatic compatibility fallback. The noVNC route
 remains tailnet-only for full-desktop debugging, but is not embedded in T3.
 The desktop launcher keeps CDP on loopback. Pi does not receive the Computer
 Use MCP yet.

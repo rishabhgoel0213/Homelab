@@ -138,6 +138,7 @@ in
         T3CODE_HOME = stateDir;
         T3CODE_REMOTE_PREVIEW_COMMAND = "/run/current-system/sw/bin/codex-desktop";
         T3CODE_REMOTE_PREVIEW_VIEWER_BASE_URL = "https://desktops.internal.therealrishabh.com";
+        T3CODE_REMOTE_PREVIEW_WEBRTC_HOST = homelab.tailnetIp;
       };
       serviceConfig = {
         Type = "simple";
@@ -168,6 +169,10 @@ in
       {
         assertion = builtins.pathExists cfg.sourceCheckout;
         message = "homelab.t3code.sourceCheckout must point to the canonical private T3 Code checkout.";
+      }
+      {
+        assertion = homelab.tailnetIp != null;
+        message = "homelab.t3code.enable requires homelab.tailnetIp for direct WebRTC preview transport.";
       }
     ];
   };
