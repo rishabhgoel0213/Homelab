@@ -15,6 +15,7 @@
     ../../modules/core/base.nix
     ../../modules/core/agents.nix
     ../../modules/core/codex.nix
+    ../../modules/core/pi.nix
     ../../modules/core/computer-use.nix
     ../../modules/core/containers.nix
     ../../modules/core/filesystem.nix
@@ -31,6 +32,7 @@
     ../../modules/services/canvas-bridge.nix
     ../../modules/services/eden.nix
     ../../modules/services/jellyfin.nix
+    ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
     ../../modules/services/syncthing.nix
     ../../modules/services/samba.nix
@@ -71,6 +73,11 @@
     vaultwarden.enable = true;
     eden.enable = true;
     jellyfin.enable = true;
+    t3code = {
+      enable = true;
+      sourceCheckout = "/home/rishabh/Projects/t3code";
+      revision = "d241d12094496caddb2a1907c59c4f0cefa5983d";
+    };
     syncthing.enable = true;
     samba.enable = true;
   };

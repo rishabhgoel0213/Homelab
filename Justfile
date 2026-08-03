@@ -140,5 +140,17 @@ canvas-status:
 canvas-sync:
     canvas-bridge sync
 
+t3code-doctor:
+    scripts/t3code-doctor
+
+t3code-pair:
+    t3code pair --base-dir /srv/state/t3code --ttl 10m
+
+t3code-status:
+    systemctl --no-pager status t3code.service
+
+t3code-logs:
+    journalctl -u t3code.service -f
+
 github-profile-sync:
     scripts/sync-github-profile

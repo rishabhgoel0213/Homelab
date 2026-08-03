@@ -115,6 +115,16 @@ in
         default = "/srv/ops/codex/plugins";
         description = "Repo-local Codex plugin source root.";
       };
+      piAgentDir = mkOption {
+        type = types.str;
+        default = "/srv/state/pi/agent";
+        description = "Managed Pi coding-agent configuration and session directory.";
+      };
+      t3codeState = mkOption {
+        type = types.str;
+        default = "/srv/state/t3code";
+        description = "Managed T3 Code runtime state directory.";
+      };
     };
 
     acme = {

@@ -32,6 +32,7 @@ just remote-phone-doctor
 just remote-phone-check
 just canvas-doctor
 just canvas-pair
+just t3code-doctor
 just agent-index
 just agent-work
 just agent-gc
@@ -57,6 +58,7 @@ can be bootstrapped in this order:
 - [Backups](runbooks/backups.md)
 - [Vaultwarden and sops](runbooks/bitwarden-sops.md)
 - [Codex integration](runbooks/codex.md)
+- [T3 Code and Pi](runbooks/t3code.md)
 - [Codex-controlled desktops](runbooks/computer-use.md)
 - [Remote Phone microphone capture](runbooks/remote-phone.md)
 - [UMD Canvas bridge](runbooks/canvas-bridge.md)

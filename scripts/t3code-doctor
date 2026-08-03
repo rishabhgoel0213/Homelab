@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="/srv/state/t3code"
+settings_path="$state_dir/userdata/settings.json"
+codex_cache="$state_dir/caches/codex.json"
+pi_cache="$state_dir/caches/pi.json"
+
+systemctl is-active --quiet t3code.service
+curl --fail --silent --show-error http://127.0.0.1:3773/ >/dev/null
+curl --fail --silent --show-error https://t3code.internal.therealrishabh.com/ >/dev/null
+
+jq -e '
+  .providerInstances.codex.driver == "codex" and
+  .providerInstances.codex.config.homePath == "/srv/state/codex" and
+  .providerInstances.pi.driver == "pi" and
+  .providerInstances.pi.config.binaryPath == "/run/current-system/sw/bin/pi"
+' "$settings_path" >/dev/null
+
+jq -e '
+  .instanceId == "codex" and
+  .driver == "codex" and
+  .status == "ready" and
+  .auth.status == "authenticated"
+' "$codex_cache" >/dev/null
+
+jq -e '
+  .instanceId == "pi" and
+  .driver == "pi" and
+  .status == "ready"
+' "$pi_cache" >/dev/null
+
+printf 'T3 Code service, internal route, Codex home/auth, and Pi provider are healthy.\n'
