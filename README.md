@@ -32,7 +32,9 @@ just remote-phone-doctor
 just remote-phone-check
 just canvas-doctor
 just canvas-pair
-just workspace-sync
+just agent-index
+just agent-work
+just agent-gc
 just public-site-deploy
 just github-profile-sync
 just rollback
@@ -58,7 +60,7 @@ can be bootstrapped in this order:
 - [Codex-controlled desktops](runbooks/computer-use.md)
 - [Remote Phone microphone capture](runbooks/remote-phone.md)
 - [UMD Canvas bridge](runbooks/canvas-bridge.md)
-- [Shared Codex workspace](runbooks/workspace.md)
+- [Agent environment](runbooks/agents.md)
 - [Beeper Desktop MCP](runbooks/beeper.md)
 - [Syncthing](runbooks/syncthing.md)
 

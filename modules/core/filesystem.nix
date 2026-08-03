@@ -15,8 +15,9 @@ in
     ${shellVar "homelab_group" "users"}
     ${shellVar "homelab_ops_root" cfg.paths.opsRoot}
     ${shellVar "homelab_state_root" cfg.paths.stateRoot}
-    ${shellVar "homelab_workspace_root" cfg.paths.workspaceRoot}
-    ${shellVar "homelab_workspace_source" cfg.paths.workspaceSource}
+    ${shellVar "homelab_agent_cockpit" cfg.paths.agentCockpit}
+    ${shellVar "homelab_agent_state_root" cfg.paths.agentStateRoot}
+    ${shellVar "homelab_agent_work_root" cfg.paths.agentWorkRoot}
     ${shellVar "homelab_user_home" cfg.paths.userHome}
     ${shellVar "homelab_sops_config" "${cfg.paths.opsRoot}/.sops.yaml"}
     ${shellVar "homelab_secrets_file" cfg.paths.secretsFile}
@@ -34,12 +35,6 @@ in
   systemd.tmpfiles.rules = [
     "d ${cfg.paths.opsRoot} 0755 rishabh users - -"
     "d ${cfg.paths.stateRoot} 0755 root root - -"
-    "d ${cfg.paths.workspaceRoot} 0755 rishabh users - -"
-    "d ${cfg.paths.workspaceRoot}/docs 0755 rishabh users - -"
-    "d ${cfg.paths.workspaceRoot}/repos 0755 rishabh users - -"
-    "d ${cfg.paths.workspaceRoot}/scratch 0755 rishabh users - -"
-    "d ${cfg.paths.workspaceRoot}/scripts 0755 rishabh users - -"
-    "d ${cfg.paths.workspaceRoot}/tmp 0755 rishabh users - -"
     "d ${cfg.paths.publicSiteState} 0755 caddy caddy - -"
     "d ${cfg.paths.stateRoot}/backrest 0700 root root - -"
     "d ${cfg.paths.userHome}/.config 0755 rishabh users - -"

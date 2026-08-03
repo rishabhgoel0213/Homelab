@@ -40,12 +40,13 @@ if [[ -f "$homelab_codex_agents_source" ]]; then
     "$homelab_codex_home/AGENTS.md"
 fi
 
-if [[ -r /run/secrets/codex-auth.json ]]; then
+if [[ ! -s "$homelab_codex_home/auth.json" ]] && [[ -r /run/secrets/codex-auth.json ]]; then
   sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
     /run/secrets/codex-auth.json \
     "$homelab_codex_home/auth.json"
 fi
-if [[ -r /run/secrets/codex-credentials.json ]]; then
+if [[ ! -s "$homelab_codex_home/.credentials.json" ]] \
+  && [[ -r /run/secrets/codex-credentials.json ]]; then
   sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
     /run/secrets/codex-credentials.json \
     "$homelab_codex_home/.credentials.json"

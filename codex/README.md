@@ -5,8 +5,9 @@ integration.
 
 - `config.toml` is the Codex config seeded into `/srv/state/codex`; enabled
   plugin blocks in this file are installed during bootstrap.
-- `AGENTS.md` is the global Codex guidance seeded into `/srv/state/codex`.
-  It points server-aware chats at `/srv/workspace`.
+- `AGENTS.md` is the Codex-specific guidance seeded into `/srv/state/codex`.
+  It points server-aware chats at the generated `/home/rishabh/Agent` cockpit
+  and the harness-neutral policy under `/srv/ops/agents`.
 - `plugins/` is reserved for local plugin source owned by this repository.
 - `.agents/plugins/marketplace.json` is the repo-local Codex plugin marketplace
   used by bootstrap for Homelab-owned plugins.

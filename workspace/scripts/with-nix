@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/codex-nix-cache}"
-export NIX_CONFIG="${NIX_CONFIG:-experimental-features = nix-command flakes}"
-
-exec nix "$@"
-

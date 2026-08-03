@@ -65,8 +65,14 @@ codex-prune-user-install:
 codex-desktop *args:
     codex-desktop {{args}}
 
-workspace-sync:
-    scripts/workspace-sync
+agent-index:
+    agent index
+
+agent-work:
+    agent work
+
+agent-gc:
+    agent gc
 
 secrets-edit:
     scripts/secrets-edit

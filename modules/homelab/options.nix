@@ -50,15 +50,20 @@ in
         default = "/srv/state";
         description = "Durable service state root.";
       };
-      workspaceRoot = mkOption {
+      agentCockpit = mkOption {
         type = types.str;
-        default = "/srv/workspace";
-        description = "Shared Codex workspace root for ad hoc projects and server-aware chats.";
+        default = "/home/rishabh/Agent";
+        description = "Generated instruction-only landing directory for interactive agents.";
       };
-      workspaceSource = mkOption {
+      agentStateRoot = mkOption {
         type = types.str;
-        default = "/srv/ops/workspace";
-        description = "Ops-owned scaffold copied into the shared Codex workspace.";
+        default = "/srv/state/agents";
+        description = "Persistent harness-neutral agent metadata root.";
+      };
+      agentWorkRoot = mkOption {
+        type = types.str;
+        default = "/var/tmp/agent-work";
+        description = "Manifest-managed root for expiring ad hoc agent work.";
       };
       secretsFile = mkOption {
         type = types.path;

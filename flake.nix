@@ -24,30 +24,84 @@
     in
     {
       checks.${system} = {
-        canvas-bridge = pkgs.runCommand "canvas-bridge-check" {
-          nativeBuildInputs = [
-            pkgs.python3
-            pkgs.ruff
-          ];
-        } ''
-          ruff check ${./scripts/canvas-bridge.py} ${./tests/test-canvas-bridge.py}
-          python3 -m py_compile ${./scripts/canvas-bridge.py}
-          CANVAS_BRIDGE_SCRIPT=${./scripts/canvas-bridge.py} \
-            python3 ${./tests/test-canvas-bridge.py}
-          touch "$out"
-        '';
+        agent-tools =
+          pkgs.runCommand "agent-tools-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              ruff check ${./scripts/agent.py} ${./tests/test-agent-tools.py}
+              python3 -m py_compile ${./scripts/agent.py} ${./tests/test-agent-tools.py}
+              AGENT_TOOL_SCRIPT=${./scripts/agent.py} \
+                python3 ${./tests/test-agent-tools.py}
+              touch "$out"
+            '';
 
-        remote-phone-mic = pkgs.runCommand "remote-phone-mic-check" {
-          nativeBuildInputs = [
-            pkgs.ruff
-            pythonWithWebsocket
-          ];
-        } ''
-          ruff check ${./scripts/remote-phone-mic.py} ${./tests/test-remote-phone-mic.py}
-          python3 -m py_compile ${./scripts/remote-phone-mic.py}
-          REMOTE_PHONE_SCRIPT=${./scripts/remote-phone-mic.py} \
-            python3 ${./tests/test-remote-phone-mic.py}
-          touch "$out"
+        canvas-bridge =
+          pkgs.runCommand "canvas-bridge-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              ruff check ${./scripts/canvas-bridge.py} ${./tests/test-canvas-bridge.py}
+              python3 -m py_compile ${./scripts/canvas-bridge.py}
+              CANVAS_BRIDGE_SCRIPT=${./scripts/canvas-bridge.py} \
+                python3 ${./tests/test-canvas-bridge.py}
+              touch "$out"
+            '';
+
+        remote-phone-mic =
+          pkgs.runCommand "remote-phone-mic-check"
+            {
+              nativeBuildInputs = [
+                pkgs.ruff
+                pythonWithWebsocket
+              ];
+            }
+            ''
+              ruff check ${./scripts/remote-phone-mic.py} ${./tests/test-remote-phone-mic.py}
+              python3 -m py_compile ${./scripts/remote-phone-mic.py}
+              REMOTE_PHONE_SCRIPT=${./scripts/remote-phone-mic.py} \
+                python3 ${./tests/test-remote-phone-mic.py}
+              touch "$out"
+            '';
+      };
+
+      devShells.${system}.default = pkgs.mkShell {
+        packages = with pkgs; [
+          age
+          bashInteractive
+          coreutils
+          curl
+          deadnix
+          direnv
+          fd
+          findutils
+          gh
+          git
+          jq
+          just
+          nil
+          nixfmt-rfc-style
+          openssh
+          ripgrep
+          rsync
+          sops
+          ssh-to-age
+          statix
+          tmux
+          wget
+        ];
+
+        shellHook = ''
+          export XDG_CACHE_HOME="''${XDG_CACHE_HOME:-/tmp/codex-nix-cache}"
+          export NIX_CONFIG="''${NIX_CONFIG:-experimental-features = nix-command flakes}"
         '';
       };
 

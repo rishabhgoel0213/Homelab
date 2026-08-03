@@ -41,8 +41,9 @@ authoritative because Codex rotates refresh credentials in place; overwriting
 them from an older SOPS snapshot can restore an already-used token and force a
 new login.
 
-`codex-bootstrap` seeds config, restores auth from `/run/secrets`, registers
-the local plugin marketplace, and installs enabled plugins declared in
+`codex-bootstrap` seeds config, restores auth from `/run/secrets` only when the
+corresponding runtime file is missing or empty, registers the local plugin
+marketplace, and installs enabled plugins declared in
 `/srv/ops/codex/config.toml`. The curated Cloudflare plugin owns the Cloudflare
 API MCP server.
 

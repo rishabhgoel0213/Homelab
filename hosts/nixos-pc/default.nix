@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
@@ -8,6 +13,7 @@
     ../../modules/homelab/ingress.nix
 
     ../../modules/core/base.nix
+    ../../modules/core/agents.nix
     ../../modules/core/codex.nix
     ../../modules/core/computer-use.nix
     ../../modules/core/containers.nix
