@@ -9,7 +9,7 @@ check:
     nix flake check --impure
 
 build:
-    sudo nixos-rebuild build --no-build-output --impure --flake .#{{host}}
+    sudo nixos-rebuild build --no-link --impure --flake .#{{host}}
 
 test:
     sudo nixos-rebuild test --impure --flake .#{{host}}

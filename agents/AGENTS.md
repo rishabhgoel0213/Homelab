@@ -46,6 +46,9 @@ checkout already exists before cloning another copy.
 
 - Inspect the real target repository and preserve unrelated user changes.
 - Use the narrowest relevant checks before applying a system change.
+- Keep build outputs out of the checkout: use `just build` for the host or pass
+  `--no-link` to direct `nix build` commands so they do not create `result`
+  symlinks.
 - Use `just switch` only when the user wants the host configuration applied.
 - Do not restart Codex or another live service unless the user requests it or a
   restart is unavoidably part of the requested operation.

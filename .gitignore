@@ -1,5 +1,7 @@
 result
 /secrets/
 /.agents/
+/.codex/
+/.ruff_cache/
 __pycache__/
 *.py[cod]
