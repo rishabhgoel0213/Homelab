@@ -351,7 +351,14 @@ class Broker:
         args = params.get("arguments") or {}
 
         if name == "desktop_start":
-            return tool_text(json.dumps(start_desktop(args), indent=2))
+            start_args = dict(args)
+            if DEFAULT_DESKTOP_ID:
+                # A T3 Codex session owns one deterministic desktop. Ignore an
+                # agent-supplied id so desktop_start and all later input remain
+                # attached to the browser rendered by that thread's panel.
+                start_args["id"] = DEFAULT_DESKTOP_ID
+                start_args["reuse"] = True
+            return tool_text(json.dumps(start_desktop(start_args), indent=2))
         if name == "desktop_list":
             return tool_text(json.dumps(load_desktops(), indent=2))
         if name == "desktop_status":
@@ -388,10 +395,6 @@ class Broker:
         return tool_text(f"Unknown tool: {name}", is_error=True)
 
     def resolve_desktop_id(self, args):
-        desktop_id = args.get("desktop_id")
-        if desktop_id:
-            return str(desktop_id)
-
         if DEFAULT_DESKTOP_ID:
             try:
                 status = json.loads(run_launcher(["status", "--json", DEFAULT_DESKTOP_ID]))
@@ -409,6 +412,10 @@ class Broker:
             raise RuntimeError(
                 f"Default desktop is not running: {DEFAULT_DESKTOP_ID}. Call desktop_start first."
             )
+
+        desktop_id = args.get("desktop_id")
+        if desktop_id:
+            return str(desktop_id)
 
         desktops = live_desktops()
         if len(desktops) == 1:
@@ -470,7 +477,7 @@ def integer_property(description):
 
 
 def desktop_id_property():
-    return string_property("Desktop id from desktop_start or desktop_list. If omitted, the only running desktop is used; if none exists, a browser desktop is started automatically.")
+    return string_property("Desktop id from desktop_start or desktop_list. In a managed T3 session, the thread desktop is always used. Otherwise, omitting this uses the only running desktop or starts a browser desktop automatically.")
 
 
 def object_schema(properties, required_names=None):
@@ -484,7 +491,7 @@ def tools():
     return [
         {
             "name": "desktop_start",
-            "description": "Start a temporary Linux desktop capsule with Xvfb, VNC, noVNC, AT-SPI, and Open Computer Use support.",
+            "description": "Start a temporary Linux desktop capsule with Xvfb, VNC, noVNC, AT-SPI, and Open Computer Use support. In a managed T3 session this always reuses the browser panel's thread desktop.",
             "inputSchema": object_schema({
                 "id": string_property("Optional stable desktop id."),
                 "reuse": {"type": "boolean", "description": "Reuse a running desktop with the requested id, or replace a stopped one."},

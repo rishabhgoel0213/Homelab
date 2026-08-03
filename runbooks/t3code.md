@@ -34,13 +34,16 @@ advertises the capability only when both `T3CODE_REMOTE_PREVIEW_COMMAND` and
 one deterministic `t3-<thread-id>` desktop:
 
 ```text
-T3 Browser iframe -> desktops.internal -> noVNC -> Chromium
-T3 preview_* tools ---------------------> Chromium CDP
-Codex Computer Use MCP -----------------> the same desktop and Chromium window
+T3 Browser panel -> authenticated frame/input RPC -> Chromium page CDP
+T3 preview_* tools -------------------------------> the same Chromium page
+Codex Computer Use MCP -> managed thread desktop -> the same Chromium page
 ```
 
-The desktop launcher keeps CDP on loopback and the noVNC hub remains
-tailnet-only. Pi does not receive the Computer Use MCP yet.
+The embedded panel streams only page contents, so T3 owns the visible tab and
+navigation chrome and sizes the browser viewport to the panel. The noVNC route
+remains tailnet-only for full-desktop debugging, but is not embedded in T3.
+The desktop launcher keeps CDP on loopback. Pi does not receive the Computer
+Use MCP yet.
 
 ## Private source pin
 

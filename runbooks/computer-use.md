@@ -160,9 +160,10 @@ browser desktop automatically. If multiple desktops are running, pass
 `desktop_id` explicitly.
 
 When `CODEX_COMPUTER_USE_DEFAULT_DESKTOP_ID` is set, that deterministic desktop
-takes precedence over the single-desktop heuristic. T3 sets it on Codex
-sessions so Computer Use attaches to the same thread-bound browser shown in the
-T3 Browser panel.
+takes precedence over both the single-desktop heuristic and any desktop id an
+agent supplies. `desktop_start` also reuses that managed id. T3 sets it on Codex
+sessions so Computer Use controls the same thread-bound browser rendered by the
+T3 Browser panel instead of silently creating a second desktop.
 
 ## Verification
 
