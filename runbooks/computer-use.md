@@ -30,6 +30,7 @@ Codex
   -> codex-computer-use-mcp
     -> codex-desktop start/list/stop
       -> Xvfb + DBus + AT-SPI + openbox + x11vnc + noVNC
+      -> loopback-only Chromium DevTools Protocol for T3 preview automation
       -> open-computer-use mcp inside that desktop session
 ```
 
@@ -65,6 +66,15 @@ Start a browser desktop:
 ```bash
 codex-desktop start
 ```
+
+Start or reuse a deterministic browser desktop:
+
+```bash
+codex-desktop start --reuse --id t3-<thread-id> --profile browser
+```
+
+Browser manifests include `cdpUrl` and `cdpPort`. Both are loopback-only and
+are intended for trusted server-side automation, not direct network exposure.
 
 Start a blank desktop:
 
@@ -148,6 +158,11 @@ If a Computer Use tool is called without `desktop_id` and exactly one desktop is
 running, that desktop is used. If no desktop is running, the broker starts a
 browser desktop automatically. If multiple desktops are running, pass
 `desktop_id` explicitly.
+
+When `CODEX_COMPUTER_USE_DEFAULT_DESKTOP_ID` is set, that deterministic desktop
+takes precedence over the single-desktop heuristic. T3 sets it on Codex
+sessions so Computer Use attaches to the same thread-bound browser shown in the
+T3 Browser panel.
 
 ## Verification
 

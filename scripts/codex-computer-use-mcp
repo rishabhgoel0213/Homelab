@@ -11,6 +11,7 @@ from pathlib import Path
 VERSION = "0.1.0"
 LAUNCHER = os.environ.get("CODEX_DESKTOP_COMMAND", "codex-desktop")
 OPEN_COMPUTER_USE = os.environ.get("OPEN_COMPUTER_USE_COMMAND", "open-computer-use")
+DEFAULT_DESKTOP_ID = os.environ.get("CODEX_COMPUTER_USE_DEFAULT_DESKTOP_ID")
 
 
 KEY_ALIASES = {
@@ -111,6 +112,8 @@ def live_desktops():
 
 def start_desktop(args):
     command = ["start", "--json"]
+    if args.get("reuse"):
+        command.append("--reuse")
     for key, flag in [
         ("id", "--id"),
         ("profile", "--profile"),
@@ -389,6 +392,24 @@ class Broker:
         if desktop_id:
             return str(desktop_id)
 
+        if DEFAULT_DESKTOP_ID:
+            try:
+                status = json.loads(run_launcher(["status", "--json", DEFAULT_DESKTOP_ID]))
+            except Exception:
+                status = None
+            if status and status.get("status") == "running" and status.get("ready"):
+                return DEFAULT_DESKTOP_ID
+            if os.environ.get("CODEX_COMPUTER_USE_AUTO_START", "1") != "0":
+                desktop = start_desktop({
+                    "id": DEFAULT_DESKTOP_ID,
+                    "profile": "browser",
+                    "reuse": True,
+                })
+                return desktop["id"]
+            raise RuntimeError(
+                f"Default desktop is not running: {DEFAULT_DESKTOP_ID}. Call desktop_start first."
+            )
+
         desktops = live_desktops()
         if len(desktops) == 1:
             return desktops[0]["id"]
@@ -466,6 +487,7 @@ def tools():
             "description": "Start a temporary Linux desktop capsule with Xvfb, VNC, noVNC, AT-SPI, and Open Computer Use support.",
             "inputSchema": object_schema({
                 "id": string_property("Optional stable desktop id."),
+                "reuse": {"type": "boolean", "description": "Reuse a running desktop with the requested id, or replace a stopped one."},
                 "profile": {"type": "string", "enum": ["browser", "terminal", "blank", "none"], "description": "Initial app profile. Defaults to browser."},
                 "width": integer_property("Desktop width in pixels. Defaults to 1440."),
                 "height": integer_property("Desktop height in pixels. Defaults to 1000."),

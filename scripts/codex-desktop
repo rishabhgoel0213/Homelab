@@ -13,13 +13,14 @@ default_listen_host="${CODEX_DESKTOP_LISTEN_HOST:-127.0.0.1}"
 default_public_host="${CODEX_DESKTOP_PUBLIC_HOST:-$default_listen_host}"
 default_vnc_base="${CODEX_DESKTOP_VNC_BASE_PORT:-5900}"
 default_web_base="${CODEX_DESKTOP_WEB_BASE_PORT:-6900}"
+default_cdp_base="${CODEX_DESKTOP_CDP_BASE_PORT:-9200}"
 at_spi_bus_launcher="${CODEX_AT_SPI_BUS_LAUNCHER:-at-spi-bus-launcher}"
 novnc_web_root="${CODEX_NOVNC_WEB_ROOT:-}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  codex-desktop start [--json] [--id ID] [--profile browser|terminal|blank|none]
+  codex-desktop start [--json] [--reuse] [--id ID] [--profile browser|terminal|blank|none]
                       [--width PX] [--height PX] [--ttl SECONDS]
                       [--listen-host HOST] [--public-host HOST] [-- COMMAND...]
   codex-desktop list [--json]
@@ -106,6 +107,7 @@ write_manifest() {
     --arg expiresAt "$expires_at" \
     --arg vncUrl "vnc://$public_host:$vnc_port" \
     --arg webUrl "http://$public_host:$web_port/vnc.html?host=$public_host&port=$web_port" \
+    --arg cdpUrl "http://127.0.0.1:$cdp_port" \
     --argjson ready "$ready" \
     --argjson width "$width" \
     --argjson height "$height" \
@@ -113,6 +115,7 @@ write_manifest() {
     --argjson displayNumber "$display_number" \
     --argjson vncPort "$vnc_port" \
     --argjson webPort "$web_port" \
+    --argjson cdpPort "$cdp_port" \
     '{
       id: $id,
       status: $status,
@@ -129,8 +132,10 @@ write_manifest() {
       publicHost: $publicHost,
       vncPort: $vncPort,
       webPort: $webPort,
+      cdpPort: $cdpPort,
       vncUrl: $vncUrl,
       webUrl: $webUrl,
+      cdpUrl: $cdpUrl,
       startedAt: $startedAt,
       expiresAt: $expiresAt
     }' > "$manifest.tmp"
@@ -322,6 +327,9 @@ run_session() {
       --disable-dev-shm-usage \
       --disable-gpu \
       --force-renderer-accessibility \
+      --remote-debugging-address=127.0.0.1 \
+      --remote-debugging-port="$cdp_port" \
+      --remote-allow-origins=* \
       --ozone-platform=x11 \
       --window-size="${width},${height}" \
       about:blank > "$dir/chromium.log" 2>&1 &
@@ -334,6 +342,21 @@ run_session() {
   else
     echo "Unknown desktop profile: $profile" >&2
     exit 1
+  fi
+
+  if [[ "$profile" == "browser" ]]; then
+    local cdp_ready=0
+    for _ in $(seq 1 80); do
+      if ! port_is_free "$cdp_port"; then
+        cdp_ready=1
+        break
+      fi
+      sleep 0.25
+    done
+    if (( cdp_ready == 0 )); then
+      echo "Chromium CDP did not begin listening on 127.0.0.1:$cdp_port" >&2
+      exit 1
+    fi
   fi
 
   touch "$dir/ready"
@@ -363,6 +386,7 @@ start_desktop() {
   ensure_state
 
   local output_json=0
+  local reuse=0
   id="codex-$(date +%Y%m%d%H%M%S)-$RANDOM"
   profile="browser"
   width=1440
@@ -376,6 +400,10 @@ start_desktop() {
     case "$1" in
       --json)
         output_json=1
+        shift
+        ;;
+      --reuse)
+        reuse=1
         shift
         ;;
       --id)
@@ -427,22 +455,53 @@ start_desktop() {
   local dir
   dir="$(desktop_dir "$id")"
   if [[ -e "$dir" ]]; then
-    echo "Desktop already exists: $id" >&2
-    exit 1
+    if (( reuse == 0 )); then
+      echo "Desktop already exists: $id" >&2
+      exit 1
+    fi
+    local existing_manifest="$dir/manifest.json"
+    if [[ -f "$existing_manifest" ]]; then
+      refresh_manifest "$existing_manifest"
+      local existing_status existing_ready
+      existing_status="$(jq -r '.status // "unknown"' "$existing_manifest")"
+      existing_ready="$(jq -r '.ready // false' "$existing_manifest")"
+      if [[ "$existing_status" == "running" && "$existing_ready" == "true" ]]; then
+        if (( output_json )); then
+          cat "$existing_manifest"
+        else
+          jq -r '"Reused \(.id) on DISPLAY=\(.display); noVNC=\(.webUrl); VNC=\(.vncUrl)"' "$existing_manifest"
+        fi
+        return 0
+      fi
+      if [[ ! "$existing_status" =~ ^(stopped|exited)$ ]]; then
+        echo "Desktop exists but is not reusable: $id ($existing_status)" >&2
+        exit 1
+      fi
+      local existing_display
+      existing_display="$(jq -r '.displayNumber // empty' "$existing_manifest")"
+      if [[ -n "$existing_display" ]]; then
+        rm -f "$desktops_dir/.display-$existing_display"
+      fi
+    fi
+    rm -rf "$dir"
   fi
 
   display_number=""
   vnc_port=""
   web_port=""
+  cdp_port=""
   for candidate in $(seq 90 190); do
     local candidate_vnc=$((default_vnc_base + candidate))
     local candidate_web=$((default_web_base + candidate))
+    local candidate_cdp=$((default_cdp_base + candidate))
     if [[ ! -e "$desktops_dir/.display-$candidate" ]] \
       && port_is_free "$candidate_vnc" \
-      && port_is_free "$candidate_web"; then
+      && port_is_free "$candidate_web" \
+      && port_is_free "$candidate_cdp"; then
       display_number="$candidate"
       vnc_port="$candidate_vnc"
       web_port="$candidate_web"
+      cdp_port="$candidate_cdp"
       break
     fi
   done
@@ -470,6 +529,7 @@ start_desktop() {
     quote_env display_number "$display_number"
     quote_env vnc_port "$vnc_port"
     quote_env web_port "$web_port"
+    quote_env cdp_port "$cdp_port"
     quote_env started_epoch "$started_epoch"
   } > "$dir/session.env"
 

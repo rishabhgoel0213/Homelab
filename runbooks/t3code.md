@@ -26,6 +26,22 @@ Pi uses `/run/current-system/sw/bin/pi` with `PI_CODING_AGENT_DIR` set to
 and future customizations therefore persist in one managed location. Pi MCP
 integration is intentionally not configured yet.
 
+## Remote browser preview
+
+The web UI's Browser tab is backed by the managed Computer Use runtime. T3
+advertises the capability only when both `T3CODE_REMOTE_PREVIEW_COMMAND` and
+`T3CODE_REMOTE_PREVIEW_VIEWER_BASE_URL` are configured. Each T3 thread maps to
+one deterministic `t3-<thread-id>` desktop:
+
+```text
+T3 Browser iframe -> desktops.internal -> noVNC -> Chromium
+T3 preview_* tools ---------------------> Chromium CDP
+Codex Computer Use MCP -----------------> the same desktop and Chromium window
+```
+
+The desktop launcher keeps CDP on loopback and the noVNC hub remains
+tailnet-only. Pi does not receive the Computer Use MCP yet.
+
 ## Private source pin
 
 The package builds the exact revision declared by
@@ -48,6 +64,7 @@ just t3code-doctor
 just t3code-pair
 just t3code-status
 just t3code-logs
+codex-desktop list
 ```
 
 `just t3code-pair` mints a ten-minute pairing token. Open the internal URL and
