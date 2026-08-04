@@ -62,9 +62,6 @@ codex-migrate-state:
 codex-prune-user-install:
     scripts/codex-prune-user-install
 
-codex-desktop *args:
-    codex-desktop {{args}}
-
 agent-index:
     agent index
 

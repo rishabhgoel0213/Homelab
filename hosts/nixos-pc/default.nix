@@ -16,7 +16,6 @@
     ../../modules/core/agents.nix
     ../../modules/core/codex.nix
     ../../modules/core/pi.nix
-    ../../modules/core/computer-use.nix
     ../../modules/core/containers.nix
     ../../modules/core/filesystem.nix
     ../../modules/core/gpu.nix
@@ -76,7 +75,7 @@
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";
-      revision = "ebb8d15ad121337b1d03d98703bfbae6fd849629";
+      revision = "4807b6ce636e1d2e34bf7adf05dd17a6a9a20141";
     };
     syncthing.enable = true;
     samba.enable = true;
