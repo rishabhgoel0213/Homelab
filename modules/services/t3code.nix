@@ -104,6 +104,8 @@ in
 
     systemd.tmpfiles.rules = [
       "d ${stateDir} 0700 rishabh users - -"
+      "d ${stateDir}/legacy-workspaces 0700 rishabh users - -"
+      "d ${stateDir}/legacy-workspaces/homelab 0700 rishabh users - -"
     ];
 
     systemd.services.t3code = {
