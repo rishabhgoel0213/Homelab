@@ -33,6 +33,7 @@ just remote-phone-check
 just canvas-doctor
 just canvas-pair
 just t3code-doctor
+just local-model-doctor mach1-additive-35b
 just agent-index
 just agent-work
 just agent-gc
@@ -59,6 +60,7 @@ can be bootstrapped in this order:
 - [Vaultwarden and sops](runbooks/bitwarden-sops.md)
 - [Codex integration](runbooks/codex.md)
 - [T3 Code and Pi](runbooks/t3code.md)
+- [Local models in Pi](runbooks/local-models.md)
 - [Remote Phone microphone capture](runbooks/remote-phone.md)
 - [UMD Canvas bridge](runbooks/canvas-bridge.md)
 - [Agent environment](runbooks/agents.md)

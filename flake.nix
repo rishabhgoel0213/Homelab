@@ -25,6 +25,22 @@
     in
     {
       checks.${system} = {
+        mach1-additive =
+          pkgs.runCommand "mach1-additive-check"
+            {
+              nativeBuildInputs = [ pkgs.nodejs_24 ];
+            }
+            ''
+              node --check ${./local-models/mach1/app/server.mjs}
+              node --check ${./local-models/mach1/app/web/runtime.js}
+              node --check ${./local-models/mach1/app/web/reasoning.mjs}
+              node --check ${./local-models/mach1/app/web/tool-calls.mjs}
+              node --check ${./local-models/mach1/download-model.mjs}
+              node ${./local-models/mach1}/tests/test-tool-calls.mjs
+              node ${./local-models/mach1}/tests/test-reasoning.mjs
+              touch "$out"
+            '';
+
         agent-tools =
           pkgs.runCommand "agent-tools-check"
             {

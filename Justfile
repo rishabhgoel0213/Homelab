@@ -149,5 +149,11 @@ t3code-status:
 t3code-logs:
     journalctl -u t3code.service -f
 
+local-model-fetch model:
+    sudo systemctl start "$(nix eval --raw --impure .#nixosConfigurations.{{host}}.config.homelab.pi.localModels.{{model}}.fetchUnit)"
+
+local-model-doctor model="":
+    local-model-doctor "{{model}}"
+
 github-profile-sync:
     scripts/sync-github-profile

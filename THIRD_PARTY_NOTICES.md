@@ -21,3 +21,16 @@ or distribute Canvas Android source code or binaries. The names of network
 endpoints and request parameters are used solely for interoperability. Canvas
 Android remains governed by its own license; this notice does not relicense
 this repository.
+
+## Mach-1 Additive 35B
+
+The local Mach-1 service interoperates with the packed checkpoint published by
+Syzygy Research and includes the JavaScript/WebGPU runtime served by Syzygy's
+public Mach-1 browser demo on 2026-08-05.
+
+- Model: [SyzygyResearch/Mach-1-Additive-35B](https://huggingface.co/SyzygyResearch/Mach-1-Additive-35B)
+- Runtime source: [Syzygy Mach-1 browser demo](https://withsyzygy.com/mach-1)
+- Model repository license: Apache License 2.0
+
+The vendored `fzstd` 0.1.1 module is Copyright (c) 2020 Arjun Barrett and is
+distributed under the MIT License included in that source file.
