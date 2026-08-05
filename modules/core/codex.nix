@@ -94,7 +94,7 @@ in
       Type = "simple";
       User = "rishabh";
       Group = "users";
-      WorkingDirectory = cfg.paths.agentCockpit;
+      WorkingDirectory = codexHome;
       ExecStartPre = "${prepareCodexHome}";
       ExecStart = "${codexBin} app-server --remote-control --listen unix://";
       Restart = "always";

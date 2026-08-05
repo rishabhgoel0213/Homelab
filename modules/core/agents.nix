@@ -6,17 +6,26 @@
 
 let
   cfg = config.homelab;
-  cockpit = cfg.paths.agentCockpit;
   stateRoot = cfg.paths.agentStateRoot;
   workRoot = cfg.paths.agentWorkRoot;
   codexHome = cfg.paths.codexHome;
+  piAgentDir = cfg.paths.piAgentDir;
+  searchRoot = "${stateRoot}/search";
+  conversationSearch = pkgs.callPackage ../../packages/cass.nix { };
   agentTools = pkgs.writeShellApplication {
     name = "agent";
-    runtimeInputs = [ pkgs.python3 ];
+    runtimeInputs = [
+      pkgs.python3
+      conversationSearch
+    ];
     text = ''
       export AGENT_STATE_ROOT=${stateRoot}
       export AGENT_WORK_ROOT=${workRoot}
       export CODEX_HOME=${codexHome}
+      export PI_CODING_AGENT_DIR=${piAgentDir}
+      export CASS_BIN=${conversationSearch}/bin/cass
+      export CASS_DATA_DIR=${searchRoot}
+      export CASS_DB=${searchRoot}/archive.sqlite3
       exec python3 ${../../scripts/agent.py} "$@"
     '';
   };
@@ -33,6 +42,7 @@ in
 {
   environment.systemPackages = [
     agentTools
+    conversationSearch
     withNix
   ];
 
@@ -44,19 +54,17 @@ in
   };
 
   systemd.tmpfiles.rules = [
-    "d ${cockpit} 0555 rishabh users - -"
-    "L+ ${cockpit}/AGENTS.md - - - - /etc/agents/AGENTS.md"
-    "L+ ${cockpit}/ENVIRONMENT.md - - - - /etc/agents/ENVIRONMENT.md"
-    "L+ ${cockpit}/MEMORY.md - - - - /etc/agents/MEMORY.md"
-    "L+ ${cockpit}/README.md - - - - /etc/agents/README.md"
-    "L+ ${cockpit}/history - - - - ${stateRoot}"
     "d ${stateRoot} 0700 rishabh users - -"
+    "d ${searchRoot} 0700 rishabh users - -"
     "d ${workRoot} 0700 rishabh users - -"
   ];
 
   systemd.services.agent-conversation-index = {
-    description = "Build the metadata-only agent conversation index";
-    after = [ "systemd-tmpfiles-setup.service" ];
+    description = "Refresh cross-harness agent conversation indexes";
+    after = [
+      "systemd-tmpfiles-setup.service"
+      "pi-state.service"
+    ];
     serviceConfig = {
       Type = "oneshot";
       User = "rishabh";
@@ -67,13 +75,16 @@ in
       PrivateDevices = true;
       ProtectClock = true;
       ProtectControlGroups = true;
-      ProtectHome = true;
+      ProtectHome = "read-only";
       ProtectHostname = true;
       ProtectKernelLogs = true;
       ProtectKernelModules = true;
       ProtectKernelTunables = true;
       ProtectSystem = "strict";
-      ReadOnlyPaths = [ codexHome ];
+      ReadOnlyPaths = [
+        codexHome
+        piAgentDir
+      ];
       ReadWritePaths = [ stateRoot ];
       RestrictAddressFamilies = [ "AF_UNIX" ];
       RestrictNamespaces = true;
@@ -85,10 +96,13 @@ in
   };
 
   systemd.paths.agent-conversation-index = {
-    description = "Refresh the agent conversation index when Codex metadata changes";
+    description = "Refresh the agent conversation index when native session stores change";
     wantedBy = [ "paths.target" ];
     pathConfig = {
-      PathChanged = "${codexHome}/session_index.jsonl";
+      PathChanged = [
+        "${codexHome}/session_index.jsonl"
+        "${piAgentDir}/sessions"
+      ];
       Unit = "agent-conversation-index.service";
     };
   };
@@ -98,7 +112,7 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "5m";
-      OnUnitActiveSec = "15m";
+      OnUnitInactiveSec = "15m";
       Persistent = true;
       Unit = "agent-conversation-index.service";
     };

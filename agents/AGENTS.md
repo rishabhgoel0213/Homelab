@@ -1,15 +1,13 @@
 # Agent Operating Policy
 
-This is the neutral landing policy for interactive agents on `nixos-pc`.
-`/srv/ops` is the source of truth for this file. The generated cockpit at
-`/home/rishabh/Agent` is intentionally not a project or a general-purpose
-storage directory.
+This is the harness-neutral policy for interactive agents on `nixos-pc`.
+`/srv/ops` is the source of truth; the deployed copy is `/etc/agents/AGENTS.md`.
 
 ## Start Here
 
-- Read `/home/rishabh/Agent/ENVIRONMENT.md` before server, NixOS, service,
+- Read `/etc/agents/ENVIRONMENT.md` before server, NixOS, service,
   network, Codex, backup, or secret work.
-- Read `/home/rishabh/Agent/MEMORY.md` for the small set of deliberately
+- Read `/etc/agents/MEMORY.md` for the small set of deliberately
   persistent cross-conversation decisions.
 - Read the nearest project-local `AGENTS.md` after moving into a project.
 
@@ -27,8 +25,8 @@ storage directory.
   with `agent new <short-name>` and work in the returned path.
 
 Do not create task output, clones, downloads, build trees, or temporary files
-directly in `/home/rishabh/Agent` or `/home/rishabh`. Check whether a canonical
-checkout already exists before cloning another copy.
+directly in `/home/rishabh`. Check whether a canonical checkout already exists
+before cloning another copy.
 
 ## Finish Work Deliberately
 

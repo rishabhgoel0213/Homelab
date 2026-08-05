@@ -8,7 +8,7 @@
 let
   cfg = config.homelab;
   piAgentDir = cfg.paths.piAgentDir;
-  piPackage = pkgs.pi-coding-agent;
+  piPackage = pkgs.callPackage ../../packages/pi-coding-agent.nix { };
   piBin = "${piPackage}/bin/pi";
   piWrapper = pkgs.writeShellScriptBin "pi" ''
     export PI_CODING_AGENT_DIR=${lib.escapeShellArg piAgentDir}
@@ -32,6 +32,9 @@ let
     install -m 0600 -o rishabh -g users \
       ${../../pi/AGENTS.md} \
       ${lib.escapeShellArg "${piAgentDir}/AGENTS.md"}
+    install -m 0600 -o rishabh -g users \
+      ${../../pi/extensions/agent-history.ts} \
+      ${lib.escapeShellArg "${piAgentDir}/extensions/agent-history.ts"}
   '';
 in
 {

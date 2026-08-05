@@ -9,7 +9,8 @@ the user explicitly asks to preserve something here.
 - Keep infrastructure declarative in `/srv/ops` and runtime state in
   `/srv/state`.
 - Keep the agent cockpit free of task output.
-- Treat native harness session stores as the complete conversation record; the
-  shared index contains metadata only.
+- Treat native harness session stores as the authoritative conversation record.
+  The shared metadata and full-text indexes are derived and rebuildable.
 - Temporary work expires unless it is deliberately promoted or retained.
-- There are currently no configured local harnesses besides Codex.
+- Codex and Pi are configured local harnesses. Shared history ingestion is
+  source-neutral; Pi is the first configured cross-harness destination.

@@ -50,11 +50,6 @@ in
         default = "/srv/state";
         description = "Durable service state root.";
       };
-      agentCockpit = mkOption {
-        type = types.str;
-        default = "/home/rishabh/Agent";
-        description = "Generated instruction-only landing directory for interactive agents.";
-      };
       agentStateRoot = mkOption {
         type = types.str;
         default = "/srv/state/agents";

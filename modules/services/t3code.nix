@@ -136,12 +136,13 @@ in
         PI_CODING_AGENT_DIR = piAgentDir;
         SHELL = "${pkgs.bash}/bin/bash";
         T3CODE_HOME = stateDir;
+        T3CODE_MANAGED_TASK_ROOT = homelab.paths.agentWorkRoot;
       };
       serviceConfig = {
         Type = "simple";
         User = "rishabh";
         Group = "users";
-        WorkingDirectory = homelab.paths.agentCockpit;
+        WorkingDirectory = stateDir;
         ExecStartPre = prepareState;
         ExecStart = "${package}/bin/t3code serve --host 127.0.0.1 --port ${toString cfg.port} --base-dir ${stateDir}";
         Restart = "on-failure";

@@ -6,14 +6,13 @@ This Codex home is managed by `/srv/ops`. The source for this file is
 
 ## Server Context
 
-- Use `/home/rishabh/Agent` as the clean default landing directory for ad hoc
-  Codex chats.
-- Read `/home/rishabh/Agent/AGENTS.md` and
-  `/home/rishabh/Agent/ENVIRONMENT.md` before server, NixOS, Cloudflare,
+- T3-created ad hoc chats use isolated workspaces under `/var/tmp/agent-work`.
+- Read `/etc/agents/AGENTS.md` and `/etc/agents/ENVIRONMENT.md` before server,
+  NixOS, Cloudflare,
   Tailscale, Codex, backup, route, or service work.
 - Route durable work to `/srv/ops`, `/home/rishabh/Projects`, or
   `/home/rishabh/Documents`. Use `agent new <short-name>` for expiring ad hoc
-  work; never add task output directly to the agent cockpit.
+  work.
 - Treat `/srv/ops` as the source of truth for durable server configuration.
 - Treat `/srv/state` as runtime state. Do not edit service state directly unless
   a runbook calls for it or the user explicitly asks.
