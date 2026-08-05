@@ -2,9 +2,11 @@
 
 import json
 import os
+import socketserver
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -126,6 +128,8 @@ else:
                 "AGENT_STATE_ROOT": str(self.state),
                 "AGENT_WORK_ROOT": str(self.work),
                 "AGENT_POLICY_ROOT": str(self.policy),
+                "AGENT_SITE_REGISTRY": str(self.state / "sites.json"),
+                "AGENT_SITE_DOMAIN": "internal.example.test",
                 "CODEX_HOME": str(self.codex),
                 "PI_CODING_AGENT_DIR": str(self.pi),
                 "CASS_BIN": str(self.fake_cass),
@@ -139,13 +143,14 @@ else:
     def tearDown(self):
         self.temporary.cleanup()
 
-    def run_agent(self, *arguments):
+    def run_agent(self, *arguments, cwd=None):
         return subprocess.run(
             [sys.executable, str(SCRIPT), *arguments],
             check=True,
             capture_output=True,
             text=True,
             env=self.environment,
+            cwd=cwd,
         )
 
     def test_indexes_only_session_metadata_for_codex_and_pi(self):
@@ -219,6 +224,57 @@ else:
         unmanaged.mkdir(parents=True)
         self.run_agent("gc", "--apply", "--quiet")
         self.assertTrue(unmanaged.exists())
+
+    def test_temporary_site_lifecycle_is_scoped_to_managed_task(self):
+        created = Path(self.run_agent("new", "Site task", "--ttl", "1").stdout.strip())
+        nested = created / "app"
+        nested.mkdir()
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self):
+                self.request.recv(1024)
+
+        with socketserver.TCPServer(("127.0.0.1", 0), Handler) as server:
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            port = server.server_address[1]
+            exposed = self.run_agent(
+                "site", "expose", str(port), "--name", "demo", "--ttl", "30m", cwd=nested
+            )
+            url = exposed.stdout.strip()
+            self.assertRegex(url, r"^https://task-demo-[0-9a-f]{8}\.internal\.example\.test$")
+
+            registry = json.loads((self.state / "sites.json").read_text(encoding="utf-8"))
+            self.assertEqual(port, registry["sites"][0]["port"])
+            self.assertEqual(str(created), registry["sites"][0]["work_dir"])
+            self.assertIn(url.removeprefix("https://"), self.run_agent("site", "list").stdout)
+
+            self.run_agent("site", "stop", "demo", cwd=nested)
+            registry = json.loads((self.state / "sites.json").read_text(encoding="utf-8"))
+            self.assertEqual([], registry["sites"])
+
+    def test_temporary_site_rejects_unmanaged_cwd_and_unreachable_port(self):
+        outside = subprocess.run(
+            [sys.executable, str(SCRIPT), "site", "expose", "9"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=self.environment,
+            cwd=self.root,
+        )
+        self.assertNotEqual(0, outside.returncode)
+
+        created = Path(self.run_agent("new", "No server", "--ttl", "1").stdout.strip())
+        unreachable = subprocess.run(
+            [sys.executable, str(SCRIPT), "site", "expose", "9", "--ttl", "4h"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=self.environment,
+            cwd=created,
+        )
+        self.assertNotEqual(0, unreachable.returncode)
+        self.assertIn("nothing is accepting connections", unreachable.stderr)
 
 
 if __name__ == "__main__":

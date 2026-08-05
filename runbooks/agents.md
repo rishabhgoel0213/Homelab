@@ -74,6 +74,36 @@ agent release /var/tmp/agent-work/<task> --days 30
 `/var/tmp/agent-work` with valid manifests. It ignores untracked files,
 unmanaged directories, symlinks, and retained work.
 
+## Temporary Internal Sites
+
+From inside a managed task directory, start a web server on loopback and expose
+its port through a short-lived tailnet-only hostname:
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1
+agent site expose 8000 --name preview --ttl 4h
+```
+
+The command prints a URL such as
+`https://task-preview-12345678.internal.therealrishabh.com`. Open it in any
+browser connected to the tailnet. The gateway supports ordinary HTTP and
+WebSocket traffic, so common development servers and hot reload work without a
+durable route or a NixOS switch. The upstream must listen on `127.0.0.1`;
+registrations can last from five minutes to seven days and stop working as soon
+as they expire or their managed task directory disappears.
+
+Inspect or stop sites with:
+
+```bash
+agent site list
+agent site stop preview
+```
+
+Stopping the local web server does not remove the registration immediately, but
+the gateway returns a 502 until the server returns. `agent-site-gc.timer` prunes
+expired and orphaned registrations every 15 minutes. Unregistered internal
+hostnames continue to return 404.
+
 ## Durable Destinations
 
 - Infrastructure and this policy: `/srv/ops`.

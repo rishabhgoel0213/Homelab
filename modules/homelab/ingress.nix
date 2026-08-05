@@ -86,9 +86,15 @@ let
         "homelab-internal-wildcard-catchall" = {
           hostName = "*.${cfg.internalDomain}";
           useACMEHost = cfg.domain;
-          extraConfig = ''
-            respond "No internal route is published for this hostname." 404
-          '';
+          extraConfig =
+            if cfg.agentSites.enable then
+              ''
+                reverse_proxy 127.0.0.1:${toString cfg.agentSites.port}
+              ''
+            else
+              ''
+                respond "No internal route is published for this hostname." 404
+              '';
         };
       }
     else

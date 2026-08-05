@@ -21,6 +21,7 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
+      pythonWithAiohttp = pkgs.python3.withPackages (ps: [ ps.aiohttp ]);
     in
     {
       checks.${system} = {
@@ -28,15 +29,19 @@
           pkgs.runCommand "agent-tools-check"
             {
               nativeBuildInputs = [
-                pkgs.python3
+                pythonWithAiohttp
                 pkgs.ruff
               ];
             }
             ''
-              ruff check ${./scripts/agent.py} ${./tests/test-agent-tools.py}
-              python3 -m py_compile ${./scripts/agent.py} ${./tests/test-agent-tools.py}
+              ruff check ${./scripts/agent.py} ${./scripts/agent-site-gateway.py} \
+                ${./tests/test-agent-tools.py} ${./tests/test-agent-site-gateway.py}
+              python3 -m py_compile ${./scripts/agent.py} ${./scripts/agent-site-gateway.py} \
+                ${./tests/test-agent-tools.py} ${./tests/test-agent-site-gateway.py}
               AGENT_TOOL_SCRIPT=${./scripts/agent.py} \
                 python3 ${./tests/test-agent-tools.py}
+              AGENT_SITE_GATEWAY_SCRIPT=${./scripts/agent-site-gateway.py} \
+                python3 ${./tests/test-agent-site-gateway.py}
               touch "$out"
             '';
 

@@ -30,6 +30,7 @@
     ../../modules/services/backrest.nix
     ../../modules/services/canvas-bridge.nix
     ../../modules/services/eden.nix
+    ../../modules/services/agent-sites.nix
     ../../modules/services/jellyfin.nix
     ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
@@ -59,6 +60,7 @@
     };
 
     privateDns.enable = true;
+    agentSites.enable = true;
     remotePhone.enable = true;
     canvasBridge.enable = true;
 

@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import base64
+import fcntl
 import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -20,6 +22,7 @@ from typing import Any
 
 SESSION_ID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 SLUG_RE = re.compile(r"[^a-z0-9]+")
+SITE_TTL_RE = re.compile(r"^(\d+)([mhd])$")
 
 
 def env_path(name: str, default: str) -> Path:
@@ -40,6 +43,13 @@ def history_paths() -> tuple[Path, Path, Path, Path]:
     cass_data_dir = env_path("CASS_DATA_DIR", str(state_root / "search"))
     cass_db = env_path("CASS_DB", str(cass_data_dir / "archive.sqlite3"))
     return pi_agent_dir, cass_bin, cass_data_dir, cass_db
+
+
+def site_paths() -> tuple[Path, str]:
+    state_root, _, _, _ = paths()
+    registry = env_path("AGENT_SITE_REGISTRY", str(state_root / "sites.json"))
+    domain = os.environ.get("AGENT_SITE_DOMAIN", "internal.therealrishabh.com").strip(".")
+    return registry, domain
 
 
 def now_utc() -> datetime:
@@ -89,6 +99,20 @@ def atomic_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
             for record in records:
                 handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")))
                 handle.write("\n")
+        temporary.chmod(0o600)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def atomic_json(path: Path, value: dict[str, Any]) -> None:
+    ensure_private_directory(path.parent)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2, sort_keys=True)
+            handle.write("\n")
         temporary.chmod(0o600)
         temporary.replace(path)
     finally:
@@ -421,6 +445,176 @@ def resolve_managed_work_dir(raw: str) -> Path:
     if read_manifest(candidate) is None:
         raise ValueError(f"missing or invalid {manifest_path(candidate)}")
     return candidate
+
+
+def current_managed_work_dir() -> Path:
+    _, work_root, _, _ = paths()
+    root = work_root.resolve()
+    current = Path.cwd().resolve()
+    try:
+        relative = current.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"run this command inside a managed work directory beneath {root}") from error
+    if not relative.parts:
+        raise ValueError(f"run this command inside a managed work directory beneath {root}")
+    return resolve_managed_work_dir(str(root / relative.parts[0]))
+
+
+def parse_site_ttl(value: str) -> timedelta:
+    match = SITE_TTL_RE.fullmatch(value.lower())
+    if match is None:
+        raise ValueError("--ttl must use an integer followed by m, h, or d (for example, 30m or 4h)")
+    amount = int(match.group(1))
+    unit = match.group(2)
+    seconds = amount * {"m": 60, "h": 3600, "d": 86400}[unit]
+    if seconds < 300 or seconds > 7 * 86400:
+        raise ValueError("--ttl must be between 5m and 7d")
+    return timedelta(seconds=seconds)
+
+
+def load_site_registry(path: Path) -> list[dict[str, Any]]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid temporary-site registry: {path}") from error
+    sites = value.get("sites") if isinstance(value, dict) else None
+    if not isinstance(sites, list):
+        raise ValueError(f"invalid temporary-site registry: {path}")
+    return [site for site in sites if isinstance(site, dict)]
+
+
+def valid_site_entries(entries: list[dict[str, Any]], current_time: datetime) -> list[dict[str, Any]]:
+    _, work_root, _, _ = paths()
+    root = work_root.resolve()
+    valid = []
+    for entry in entries:
+        expires_at = entry.get("expires_at")
+        work_dir_raw = entry.get("work_dir")
+        task_id = entry.get("task_id")
+        if not isinstance(expires_at, str) or not isinstance(work_dir_raw, str) or not isinstance(task_id, str):
+            continue
+        try:
+            if parse_time(expires_at) <= current_time:
+                continue
+            untrusted_work_dir = Path(work_dir_raw)
+            if untrusted_work_dir.is_symlink():
+                continue
+            work_dir = untrusted_work_dir.resolve()
+        except (OSError, ValueError):
+            continue
+        if work_dir.parent != root or not work_dir.is_dir():
+            continue
+        manifest = read_manifest(work_dir)
+        if manifest is None or manifest.get("id") != task_id:
+            continue
+        valid.append(entry)
+    return valid
+
+
+class SiteRegistryLock:
+    def __init__(self, registry: Path):
+        self.path = registry.with_suffix(registry.suffix + ".lock")
+        self.handle: Any = None
+
+    def __enter__(self) -> "SiteRegistryLock":
+        ensure_private_directory(self.path.parent)
+        self.handle = self.path.open("a+")
+        self.path.chmod(0o600)
+        fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        if self.handle is not None:
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+            self.handle.close()
+
+
+def write_site_registry(path: Path, entries: list[dict[str, Any]]) -> None:
+    atomic_json(path, {"schema": 1, "sites": entries})
+
+
+def command_site_expose(args: argparse.Namespace) -> int:
+    if args.port <= 0 or args.port > 65535:
+        raise ValueError("port must be between 1 and 65535")
+    ttl = parse_site_ttl(args.ttl)
+    work_dir = current_managed_work_dir()
+    manifest = read_manifest(work_dir) or {}
+    task_id = manifest.get("id")
+    if not isinstance(task_id, str) or SESSION_ID_RE.fullmatch(task_id) is None:
+        raise ValueError(f"managed work manifest has no valid id: {manifest_path(work_dir)}")
+    try:
+        with socket.create_connection(("127.0.0.1", args.port), timeout=1):
+            pass
+    except OSError as error:
+        raise ValueError(f"nothing is accepting connections on 127.0.0.1:{args.port}") from error
+
+    registry, domain = site_paths()
+    site_name = safe_slug(args.name)[:32]
+    host = f"task-{site_name}-{task_id[:8]}.{domain}"
+    created = now_utc()
+    entry = {
+        "schema": 1,
+        "name": site_name,
+        "host": host,
+        "port": args.port,
+        "task_id": task_id,
+        "work_dir": str(work_dir),
+        "created_at": isoformat(created),
+        "expires_at": isoformat(created + ttl),
+    }
+    with SiteRegistryLock(registry):
+        entries = valid_site_entries(load_site_registry(registry), created)
+        entries = [existing for existing in entries if existing.get("host") != host]
+        entries.append(entry)
+        write_site_registry(registry, entries)
+    print(f"https://{host}")
+    return 0
+
+
+def command_site_list(_args: argparse.Namespace) -> int:
+    registry, _ = site_paths()
+    with SiteRegistryLock(registry):
+        entries = valid_site_entries(load_site_registry(registry), now_utc())
+        write_site_registry(registry, entries)
+    print("EXPIRES               PORT   HOST")
+    for entry in sorted(entries, key=lambda item: str(item.get("expires_at"))):
+        print(f"{str(entry.get('expires_at'))[:20]:<21} {entry.get('port')!s:<6} {entry.get('host')}")
+    return 0
+
+
+def command_site_stop(args: argparse.Namespace) -> int:
+    work_dir = current_managed_work_dir()
+    manifest = read_manifest(work_dir) or {}
+    task_id = manifest.get("id")
+    registry, domain = site_paths()
+    target = args.site.removeprefix("https://").rstrip("/")
+    if "." not in target:
+        target = f"task-{safe_slug(target)[:32]}-{str(task_id)[:8]}.{domain}"
+    with SiteRegistryLock(registry):
+        entries = valid_site_entries(load_site_registry(registry), now_utc())
+        remaining = [
+            entry
+            for entry in entries
+            if not (entry.get("host") == target and entry.get("task_id") == task_id)
+        ]
+        if len(remaining) == len(entries):
+            raise ValueError(f"no temporary site named {args.site!r} belongs to this task")
+        write_site_registry(registry, remaining)
+    print(f"Stopped https://{target}")
+    return 0
+
+
+def command_site_prune(args: argparse.Namespace) -> int:
+    registry, _ = site_paths()
+    with SiteRegistryLock(registry):
+        entries = load_site_registry(registry)
+        valid = valid_site_entries(entries, now_utc())
+        write_site_registry(registry, valid)
+    if not args.quiet:
+        print(f"Removed {len(entries) - len(valid)} expired or orphaned temporary site registrations.")
+    return 0
 
 
 def directory_size(path: Path) -> int:
@@ -769,6 +963,26 @@ def parser() -> argparse.ArgumentParser:
     handoff.add_argument("--max-chars", type=int, default=30000)
     handoff.add_argument("--json", action="store_true")
     handoff.set_defaults(func=command_handoff)
+
+    site = commands.add_parser("site", help="publish short-lived task-local web servers")
+    site_commands = site.add_subparsers(dest="site_command", required=True)
+
+    site_expose = site_commands.add_parser("expose", help="publish a loopback port on a temporary internal URL")
+    site_expose.add_argument("port", type=int)
+    site_expose.add_argument("--name", default="preview")
+    site_expose.add_argument("--ttl", default="4h")
+    site_expose.set_defaults(func=command_site_expose)
+
+    site_list = site_commands.add_parser("list", help="list active temporary internal URLs")
+    site_list.set_defaults(func=command_site_list)
+
+    site_stop = site_commands.add_parser("stop", help="remove one temporary internal URL")
+    site_stop.add_argument("site", help="site name, hostname, or URL")
+    site_stop.set_defaults(func=command_site_stop)
+
+    site_prune = site_commands.add_parser("prune", help="remove expired and orphaned temporary URLs")
+    site_prune.add_argument("--quiet", action="store_true")
+    site_prune.set_defaults(func=command_site_prune)
 
     new = commands.add_parser("new", help="create an expiring isolated work directory")
     new.add_argument("name")

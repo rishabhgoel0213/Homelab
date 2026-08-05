@@ -22,6 +22,8 @@ let
       export AGENT_STATE_ROOT=${stateRoot}
       export AGENT_WORK_ROOT=${workRoot}
       export AGENT_POLICY_ROOT=/etc/agents
+      export AGENT_SITE_REGISTRY=${stateRoot}/sites.json
+      export AGENT_SITE_DOMAIN=${cfg.internalDomain}
       export CODEX_HOME=${codexHome}
       export PI_CODING_AGENT_DIR=${piAgentDir}
       export CASS_BIN=${conversationSearch}/bin/cass
