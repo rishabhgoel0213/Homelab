@@ -20,6 +20,10 @@ class AgentToolTests(unittest.TestCase):
         self.work = self.root / "work"
         self.codex = self.root / "codex"
         self.pi = self.root / "pi"
+        self.policy = self.root / "policy"
+        self.policy.mkdir()
+        for name in ("AGENTS.md", "ENVIRONMENT.md", "MEMORY.md", "README.md"):
+            (self.policy / name).write_text(f"canonical {name}\n", encoding="utf-8")
         session_id = "019fc434-e6e7-7ef2-9b80-4b876eab8ef1"
         self.codex_session = self.codex / "sessions" / "2026" / "08" / "02" / f"rollout-{session_id}.jsonl"
         self.codex_session.parent.mkdir(parents=True)
@@ -121,6 +125,7 @@ else:
             {
                 "AGENT_STATE_ROOT": str(self.state),
                 "AGENT_WORK_ROOT": str(self.work),
+                "AGENT_POLICY_ROOT": str(self.policy),
                 "CODEX_HOME": str(self.codex),
                 "PI_CODING_AGENT_DIR": str(self.pi),
                 "CASS_BIN": str(self.fake_cass),
@@ -186,6 +191,13 @@ else:
     def test_managed_work_lifecycle_is_safe_by_default(self):
         created = Path(self.run_agent("new", "Example task", "--ttl", "1").stdout.strip())
         self.assertTrue(created.is_dir())
+        for name in ("AGENTS.md", "ENVIRONMENT.md", "MEMORY.md", "README.md"):
+            self.assertEqual(f"canonical {name}\n", (created / name).read_text(encoding="utf-8"))
+        (created / "MEMORY.md").unlink()
+        self.run_agent("policy-sync", "--quiet")
+        self.assertEqual(
+            "canonical MEMORY.md\n", (created / "MEMORY.md").read_text(encoding="utf-8")
+        )
         self.run_agent("keep", str(created))
         manifest_path = created / ".agent-work.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

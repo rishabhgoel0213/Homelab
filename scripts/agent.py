@@ -59,6 +59,27 @@ def ensure_private_directory(path: Path) -> None:
     path.chmod(0o700)
 
 
+def copy_agent_policy_files(work_dir: Path) -> int:
+    policy_root = env_path("AGENT_POLICY_ROOT", "/etc/agents")
+    if not policy_root.is_dir():
+        raise ValueError(f"agent policy root does not exist: {policy_root}")
+    policy_files = sorted(
+        path for path in policy_root.iterdir() if path.is_file() and path.suffix.lower() == ".md"
+    )
+    if not policy_files:
+        raise ValueError(f"agent policy root contains no Markdown files: {policy_root}")
+
+    copied = 0
+    for source in policy_files:
+        target = work_dir / source.name
+        if target.exists() or target.is_symlink():
+            continue
+        shutil.copyfile(source, target)
+        target.chmod(0o644)
+        copied += 1
+    return copied
+
+
 def atomic_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     ensure_private_directory(path.parent)
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -596,18 +617,38 @@ def command_new(args: argparse.Namespace) -> int:
     name = f"{created.date().isoformat()}-{safe_slug(args.name)}-{identifier[:8]}"
     work_dir = work_root / name
     work_dir.mkdir(mode=0o700)
-    manifest = {
-        "schema": 1,
-        "id": identifier,
-        "name": args.name,
-        "harness": args.harness,
-        "conversation_id": args.conversation or "",
-        "created_at": isoformat(created),
-        "expires_at": isoformat(created + timedelta(days=args.ttl)),
-        "retention": "expire",
-    }
-    write_manifest(work_dir, manifest)
+    try:
+        copy_agent_policy_files(work_dir)
+        manifest = {
+            "schema": 1,
+            "id": identifier,
+            "name": args.name,
+            "harness": args.harness,
+            "conversation_id": args.conversation or "",
+            "created_at": isoformat(created),
+            "expires_at": isoformat(created + timedelta(days=args.ttl)),
+            "retention": "expire",
+        }
+        write_manifest(work_dir, manifest)
+    except (OSError, ValueError):
+        shutil.rmtree(work_dir)
+        raise
     print(work_dir)
+    return 0
+
+
+def command_policy_sync(args: argparse.Namespace) -> int:
+    _, work_root, _, _ = paths()
+    ensure_private_directory(work_root)
+    directories = 0
+    copied = 0
+    for entry in sorted(work_root.iterdir()):
+        if not entry.is_dir() or entry.is_symlink() or read_manifest(entry) is None:
+            continue
+        directories += 1
+        copied += copy_agent_policy_files(entry)
+    if not args.quiet:
+        print(f"Copied {copied} missing policy files across {directories} managed work directories.")
     return 0
 
 
@@ -738,6 +779,12 @@ def parser() -> argparse.ArgumentParser:
 
     work = commands.add_parser("work", help="list managed and unmanaged task work")
     work.set_defaults(func=command_work)
+
+    policy_sync = commands.add_parser(
+        "policy-sync", help="copy missing canonical policy files into managed work directories"
+    )
+    policy_sync.add_argument("--quiet", action="store_true")
+    policy_sync.set_defaults(func=command_policy_sync)
 
     keep = commands.add_parser("keep", help="retain a managed work directory")
     keep.add_argument("path")

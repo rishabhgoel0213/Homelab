@@ -139,6 +139,7 @@ in
         SHELL = "${pkgs.bash}/bin/bash";
         T3CODE_HOME = stateDir;
         T3CODE_MANAGED_TASK_ROOT = homelab.paths.agentWorkRoot;
+        T3CODE_AGENT_POLICY_ROOT = "/etc/agents";
       };
       serviceConfig = {
         Type = "simple";

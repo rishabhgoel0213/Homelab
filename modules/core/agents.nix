@@ -21,6 +21,7 @@ let
     text = ''
       export AGENT_STATE_ROOT=${stateRoot}
       export AGENT_WORK_ROOT=${workRoot}
+      export AGENT_POLICY_ROOT=/etc/agents
       export CODEX_HOME=${codexHome}
       export PI_CODING_AGENT_DIR=${piAgentDir}
       export CASS_BIN=${conversationSearch}/bin/cass
