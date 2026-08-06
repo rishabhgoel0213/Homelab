@@ -32,6 +32,7 @@
     ../../modules/services/eden.nix
     ../../modules/services/agent-sites.nix
     ../../modules/services/jellyfin.nix
+    ../../modules/services/bonsai-ternary.nix
     ../../modules/services/mach1-additive.nix
     ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
@@ -75,6 +76,7 @@
     vaultwarden.enable = true;
     eden.enable = true;
     jellyfin.enable = true;
+    bonsaiTernary.enable = true;
     mach1Additive.enable = true;
     t3code = {
       enable = true;

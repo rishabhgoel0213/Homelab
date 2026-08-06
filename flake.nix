@@ -25,6 +25,20 @@
     in
     {
       checks.${system} = {
+        bonsai-ternary =
+          pkgs.runCommand "bonsai-ternary-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodejs_24
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              shellcheck ${./local-models/bonsai/download-model.sh}
+              node --check ${./local-models/bonsai/proxy.mjs}
+              touch "$out"
+            '';
+
         mach1-additive =
           pkgs.runCommand "mach1-additive-check"
             {

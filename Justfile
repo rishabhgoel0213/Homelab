@@ -152,6 +152,11 @@ t3code-logs:
 local-model-fetch model:
     sudo systemctl start "$(nix eval --raw --impure .#nixosConfigurations.{{host}}.config.homelab.pi.localModels.{{model}}.fetchUnit)"
 
+local-model-use model:
+    sudo systemctl start "$(nix eval --raw --impure .#nixosConfigurations.{{host}}.config.homelab.pi.localModels.{{model}}.serviceUnit)"
+    curl --fail --silent --show-error --retry 120 --retry-delay 1 --retry-all-errors "$(nix eval --raw --impure .#nixosConfigurations.{{host}}.config.homelab.pi.localModels.{{model}}.healthUrl)" >/dev/null
+    local-model-doctor "{{model}}"
+
 local-model-doctor model="":
     local-model-doctor "{{model}}"
 

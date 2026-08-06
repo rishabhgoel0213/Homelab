@@ -6,8 +6,8 @@
 }:
 
 let
-  version = "0.146.0";
-  srcHash = "sha256-/kTIOX/klxm1nq2bJsBqS8f1jZZp2ilaTeULQFPJgDk=";
+  version = "0.146.1";
+  srcHash = "sha256-aXK/hUz61STkD8xcVqvBzP1RYDu+kw7v1ufVZHyzN84=";
   cargoHash = "sha256-N9jbH/cgAyu2QxneSnpkdaF0MgV3ZtDmN9q6rr9u+hE=";
 in
 codex.overrideAttrs (_old: rec {

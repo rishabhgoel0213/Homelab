@@ -34,3 +34,13 @@ public Mach-1 browser demo on 2026-08-05.
 
 The vendored `fzstd` 0.1.1 module is Copyright (c) 2020 Arjun Barrett and is
 distributed under the MIT License included in that source file.
+
+## Ternary Bonsai 27B
+
+The local Bonsai service downloads the packed GGUF checkpoint published by
+Prism ML and builds Prism ML's llama.cpp fork for its Q2_0_g128 CUDA kernels.
+
+- Model: [prism-ml/Ternary-Bonsai-27B-gguf](https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf)
+- Runtime: [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp)
+- Model repository license: Apache License 2.0
+- Runtime license: MIT License

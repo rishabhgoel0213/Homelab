@@ -33,6 +33,7 @@ just remote-phone-check
 just canvas-doctor
 just canvas-pair
 just t3code-doctor
+just local-model-use bonsai-ternary-27b
 just local-model-doctor mach1-additive-35b
 just agent-index
 just agent-work

@@ -51,6 +51,45 @@ cached prompt tokens. Non-streaming API responses expose `prefill_ms`,
 The service binds only to `127.0.0.1:8000`. It uses Docker host networking
 because the host's Tailscale exit-node routing captures Docker bridge traffic.
 
+## Ternary Bonsai 27B
+
+Bonsai uses Prism ML's pinned CUDA llama.cpp fork and the publisher's native
+Q2_0_g128 GGUF. The 7.165 GB checkpoint is stored outside Git under
+`/srv/state/local-models/bonsai-ternary-27b`. Download and activate it with:
+
+```bash
+just local-model-fetch bonsai-ternary-27b
+just local-model-use bonsai-ternary-27b
+just local-model-doctor bonsai-ternary-27b
+```
+
+Then launch Pi with:
+
+```bash
+pi --model homelab-local/bonsai-ternary-27b
+```
+
+The service advertises a 100,000-token context and an 8,192-token output
+limit. It uses the model publisher's recommended 4-bit GPU KV cache to keep
+that context inside 12 GB VRAM. This is a small context-state precision
+tradeoff, not an additional weight quantization; the shipped model's published
+quality and long-context measurements use the same 4-bit KV operating point.
+
+Mach-1 and Bonsai cannot reside together on this 12 GB GPU. Starting either
+model automatically stops the other through a systemd conflict. Use
+`just local-model-use <model-id>` to switch; the default boot model remains
+Mach-1. Bonsai's llama.cpp slot cache automatically reuses a matching Pi
+system/tool prefix across launches while the service remains running.
+
+A loopback-only compatibility proxy maps Pi's reasoning level to Bonsai's
+native `enable_thinking` chat-template argument. `--thinking off` produces a
+direct answer; any non-off Pi thinking level enables the model's reasoning and
+streams it through `reasoning_content`.
+
+The Bonsai API binds only to `127.0.0.1:8001`. Non-streaming responses include
+llama.cpp's `timings` object, which reports prompt-evaluation and generation
+throughput directly.
+
 ## Adding another model
 
 Implement the runtime in its own service module, normalize its endpoint to an
