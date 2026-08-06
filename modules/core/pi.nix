@@ -257,5 +257,48 @@ in
         ExecStart = preparePiHome;
       };
     };
+
+    systemd.services.pi-auto-update = {
+      description = "Automatically update the managed Pi package";
+      wants = [ "network-online.target" ];
+      after = [
+        "network-online.target"
+        "codex-auto-update.service"
+      ];
+      path = with pkgs; [
+        bash
+        coreutils
+        gawk
+        git
+        gnugrep
+        jq
+        nix
+        nixos-rebuild
+        perl
+        sudo
+        systemd
+        util-linux
+      ];
+      environment = {
+        PI_OPS_ROOT = homelab.paths.opsRoot;
+        HOST = config.networking.hostName;
+      };
+      serviceConfig = {
+        Type = "oneshot";
+        WorkingDirectory = homelab.paths.opsRoot;
+        ExecStart = "${homelab.paths.opsRoot}/scripts/pi-auto-update";
+      };
+    };
+
+    systemd.timers.pi-auto-update = {
+      description = "Daily managed Pi package update";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "*-*-* 05:30:00";
+        Persistent = true;
+        RandomizedDelaySec = "10m";
+        Unit = "pi-auto-update.service";
+      };
+    };
   };
 }

@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${PI_OPS_ROOT:-/srv/ops}"
+host="${HOST:-nixos-pc}"
+package_file="${PI_PACKAGE_FILE:-$repo/packages/pi-coding-agent.nix}"
+target="${1:-latest}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+need git
+need jq
+need nix
+need perl
+
+if [[ ! -f "$package_file" ]]; then
+  echo "Missing package file: $package_file" >&2
+  exit 1
+fi
+
+if [[ "$target" == "latest" ]]; then
+  tag="$(
+    git ls-remote --tags --refs https://github.com/earendil-works/pi.git 'refs/tags/v*' \
+      | awk -F/ '{print $NF}' \
+      | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+      | sort -V \
+      | tail -1
+  )"
+else
+  tag="${target#refs/tags/}"
+  if [[ "$tag" != v* ]]; then
+    tag="v$tag"
+  fi
+fi
+
+if [[ -z "${tag:-}" ]]; then
+  echo "Could not determine Pi tag." >&2
+  exit 1
+fi
+
+version="${tag#v}"
+src_url="https://github.com/earendil-works/pi/releases/download/$tag/pi-linux-x64.tar.gz"
+current_version="$(
+  perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file"
+)"
+
+if [[ "${PI_UPDATE_FORCE:-0}" != "1" && "$current_version" == "$version" ]] \
+  && ! grep -q 'lib\.fakeHash' "$package_file"; then
+  echo "Pi package already at $version." >&2
+  exit 0
+fi
+
+echo "Updating Pi package to $tag" >&2
+src_hash="$(nix store prefetch-file --json "$src_url" | jq -r .hash)"
+if [[ -z "$src_hash" || "$src_hash" == "null" ]]; then
+  echo "Could not determine Pi source hash." >&2
+  exit 1
+fi
+
+backup="$(mktemp)"
+cp -- "$package_file" "$backup"
+succeeded=0
+restore_on_failure() {
+  status=$?
+  if [[ "$succeeded" -ne 1 ]]; then
+    cp -- "$backup" "$package_file"
+    echo "Pi update failed; restored $package_file." >&2
+  fi
+  rm -f -- "$backup"
+  exit "$status"
+}
+trap restore_on_failure EXIT
+
+perl -0pi -e \
+  "s{version = \"[^\"]+\";}{version = \"$version\";};
+   s{hash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{hash = \"$src_hash\";}" \
+  "$package_file"
+
+(
+  cd "$repo"
+  nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel"
+)
+
+succeeded=1
+echo "Pi package updated to $version." >&2

@@ -53,6 +53,12 @@ codex-update:
 codex-auto-update:
     sudo scripts/codex-auto-update
 
+pi-update:
+    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command scripts/update-pi
+
+pi-auto-update:
+    sudo scripts/pi-auto-update
+
 codex-store-auth:
     scripts/codex-store-auth
 

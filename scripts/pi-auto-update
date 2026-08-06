@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${CODEX_OPS_ROOT:-/srv/ops}"
+repo="${PI_OPS_ROOT:-/srv/ops}"
 host="${HOST:-nixos-pc}"
 target="${1:-latest}"
-package_file="${CODEX_PACKAGE_FILE:-$repo/packages/codex.nix}"
-lock_file="${PACKAGE_UPDATE_LOCK_FILE:-${CODEX_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}}"
-update_user="${CODEX_UPDATE_USER:-rishabh}"
+package_file="${PI_PACKAGE_FILE:-$repo/packages/pi-coding-agent.nix}"
+lock_file="${PACKAGE_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}"
+update_user="${PI_UPDATE_USER:-rishabh}"
+update_home="${PI_UPDATE_HOME:-/home/rishabh}"
 sudo_cmd="${SUDO:-/run/wrappers/bin/sudo}"
 
 if [[ ! -x "$sudo_cmd" ]]; then
@@ -29,26 +30,27 @@ before_version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$pa
 
 if [[ "$(id -u)" -eq 0 ]]; then
   runuser -u "$update_user" -- env \
-    CODEX_OPS_ROOT="$repo" \
-    CODEX_PACKAGE_FILE="$package_file" \
+    HOME="$update_home" \
+    PI_OPS_ROOT="$repo" \
+    PI_PACKAGE_FILE="$package_file" \
     HOST="$host" \
-    "$repo/scripts/update-codex" "$target"
+    "$repo/scripts/update-pi" "$target"
 else
-  "$repo/scripts/update-codex" "$target"
+  "$repo/scripts/update-pi" "$target"
 fi
 
 after_hash="$(sha256sum "$package_file" | awk '{print $1}')"
 after_version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file")"
 
 if [[ "$before_hash" == "$after_hash" ]]; then
-  echo "Codex is already current at $after_version." >&2
+  echo "Pi is already current at $after_version." >&2
   exit 0
 fi
 
-echo "Codex changed from $before_version to $after_version; switching NixOS generation." >&2
+echo "Pi changed from $before_version to $after_version; switching NixOS generation." >&2
 if [[ "$(id -u)" -eq 0 ]]; then
   runuser -u "$update_user" -- "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
 else
   "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
 fi
-echo "Codex auto-update applied $after_version. Restart codex-remote-control.service manually when ready." >&2
+echo "Pi auto-update applied $after_version. New Pi sessions will use the updated package." >&2

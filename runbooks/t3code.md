@@ -26,6 +26,23 @@ Pi uses `/run/current-system/sw/bin/pi` with `PI_CODING_AGENT_DIR` set to
 and future customizations therefore persist in one managed location. Pi MCP
 integration is intentionally not configured yet.
 
+## Pi package updates
+
+```bash
+just pi-update
+just pi-auto-update
+```
+
+`pi-update` updates `packages/pi-coding-agent.nix` to the latest stable `v*`
+release and verifies the new tarball by building the host configuration. If the
+fetch or build fails, it restores the previous package pin.
+
+`pi-auto-update` runs the same update and switches the NixOS generation only
+when the package file changes. New Pi sessions then use the updated package;
+existing sessions are not interrupted. `pi-auto-update.timer` runs each morning
+at 05:30 with a short randomized delay, after the Codex update window. Both
+automatic updaters share a lock so NixOS switches cannot overlap.
+
 ## Private source pin
 
 The package builds the exact revision declared by
