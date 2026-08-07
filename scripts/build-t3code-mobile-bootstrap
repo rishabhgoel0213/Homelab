@@ -49,6 +49,7 @@ export EXPO_NO_DOTENV=1
 export EXPO_NO_GIT_STATUS=1
 export T3CODE_MOBILE_UPDATES_URL="$updates_url"
 export GRADLE_USER_HOME="$state_dir/gradle"
+export JAVA_HOME="$(nix eval --raw nixpkgs#jdk17.outPath)"
 
 cd "$checkout/apps/mobile"
 nix shell --impure --expr "$android_shell" -c bash -euo pipefail -c '
