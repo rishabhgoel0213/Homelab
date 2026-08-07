@@ -83,6 +83,11 @@ stdenv.mkDerivation (finalAttrs: {
       export T3CODE_MOBILE_UPDATES_URL=${lib.escapeShellArg mobileUpdatesUrl}
 
       mobileDist="$PWD/mobile-dist"
+      # Resolve the fingerprint from the generated native project, matching
+      # the locally built bootstrap APK rather than managed-workflow inputs.
+      pnpm --filter @t3tools/mobile exec expo prebuild \
+        --clean \
+        --platform android
       pnpm --filter @t3tools/mobile exec expo export \
         --platform android \
         --output-dir "$mobileDist" \

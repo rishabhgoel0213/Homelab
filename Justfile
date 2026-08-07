@@ -155,6 +155,9 @@ t3code-status:
 t3code-logs:
     journalctl -u t3code.service -f
 
+t3code-mobile-bootstrap:
+    scripts/build-t3code-mobile-bootstrap
+
 local-model-fetch model:
     sudo systemctl start "$(nix eval --raw --impure .#nixosConfigurations.{{host}}.config.homelab.pi.localModels.{{model}}.fetchUnit)"
 

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+checkout="/home/rishabh/Projects/t3code"
+state_dir="/srv/state/t3code-mobile"
+updates_url="https://updates.internal.therealrishabh.com/api/manifest"
+apk_path="$state_dir/t3code-preview.apk"
+keystore_path="$state_dir/preview.keystore"
+
+expected_revision="$(
+  nix eval --raw --impure \
+    .#nixosConfigurations.nixos-pc.config.homelab.t3code.revision
+)"
+actual_revision="$(git -C "$checkout" rev-parse HEAD)"
+if [[ "$actual_revision" != "$expected_revision" ]]; then
+  echo "T3 Code checkout is at $actual_revision; expected $expected_revision" >&2
+  exit 1
+fi
+if [[ ! -x "$checkout/apps/mobile/node_modules/.bin/expo" ]]; then
+  echo "T3 Code dependencies are missing; run pnpm install in $checkout first" >&2
+  exit 1
+fi
+
+install -d -m 0750 "$state_dir"
+
+android_shell='let
+  pkgs = import <nixpkgs> { config.android_sdk.accept_license = true; };
+  android = pkgs.androidenv.composeAndroidPackages {
+    platformVersions = [ "36" ];
+    buildToolsVersions = [ "36.0.0" ];
+    includeNDK = true;
+    ndkVersions = [ "27.1.12297006" ];
+    includeCmake = true;
+    cmakeVersions = [ "3.22.1" ];
+  };
+in pkgs.symlinkJoin {
+  name = "t3code-android-build-env";
+  paths = [ android.androidsdk pkgs.jdk17 pkgs.nodejs_24 pkgs.git ];
+}'
+
+export APP_VARIANT=preview
+export EXPO_NO_DOTENV=1
+export EXPO_NO_GIT_STATUS=1
+export T3CODE_MOBILE_UPDATES_URL="$updates_url"
+export GRADLE_USER_HOME="$state_dir/gradle"
+
+cd "$checkout/apps/mobile"
+nix shell --impure --expr "$android_shell" -c bash -euo pipefail -c '
+  export ANDROID_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v adb)")")")"
+  export ANDROID_SDK_ROOT="$ANDROID_HOME"
+  node node_modules/expo/bin/cli prebuild --clean --platform android
+  if [[ -f "'"$keystore_path"'" ]]; then
+    cp "'"$keystore_path"'" android/app/debug.keystore
+  else
+    install -m 0600 android/app/debug.keystore "'"$keystore_path"'"
+  fi
+  cd android
+  ./gradlew --no-daemon --stacktrace \
+    -PreactNativeArchitectures=arm64-v8a \
+    assembleRelease
+'
+
+install -m 0644 android/app/build/outputs/apk/release/app-release.apk "$apk_path"
+echo "$apk_path"
