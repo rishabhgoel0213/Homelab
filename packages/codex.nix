@@ -6,9 +6,9 @@
 }:
 
 let
-  version = "0.146.1";
-  srcHash = "sha256-aXK/hUz61STkD8xcVqvBzP1RYDu+kw7v1ufVZHyzN84=";
-  cargoHash = "sha256-N9jbH/cgAyu2QxneSnpkdaF0MgV3ZtDmN9q6rr9u+hE=";
+  version = "0.147.0";
+  srcHash = "sha256-NKeOxp9vLcx7tpghqhpS3ocPqUDP2PircNwkJNpHBPo=";
+  cargoHash = "sha256-MJuM2QLxvL+r/Gw8QXLjtsLS25QGVCqcqU5GJssSoQ4=";
 in
 codex.overrideAttrs (_old: rec {
   pname = "codex";
@@ -28,6 +28,17 @@ codex.overrideAttrs (_old: rec {
     hash = cargoHash;
   };
 
+  # Codex delegates code-mode shell execution to this companion process.
+  # Keep both binaries in the package so a version bump cannot leave T3
+  # sessions with a working app server but a broken shell bridge.
+  cargoBuildFlags = [
+    "--package"
+    "codex-cli"
+    "--package"
+    "codex-code-mode-host"
+  ];
+  cargoCheckFlags = cargoBuildFlags;
+
   postPatch = ''
     for webrtc_build_rs in "$cargoDepsCopy"/*/webrtc-sys-*/build.rs; do
       if [[ -e "$webrtc_build_rs" ]]; then
@@ -40,5 +51,9 @@ codex.overrideAttrs (_old: rec {
         substituteInPlace Cargo.toml --replace-fail "$cargo_toml_line" ""
       fi
     done
+  '';
+
+  postInstall = (_old.postInstall or "") + ''
+    test -x "$out/bin/codex-code-mode-host"
   '';
 })
