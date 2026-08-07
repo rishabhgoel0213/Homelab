@@ -1,0 +1,16 @@
+// Google Maven currently returns 404 for historical Android Gradle Plugin
+// artifacts. Keep normal repositories, but add two established mirrors first.
+def addAndroidMirrors = { repositories ->
+  repositories.maven { url = uri("https://mirrors.cloud.tencent.com/nexus/repository/maven-public") }
+  repositories.maven { url = uri("https://maven.aliyun.com/repository/google") }
+}
+
+settingsEvaluated { settings ->
+  addAndroidMirrors(settings.pluginManagement.repositories)
+  addAndroidMirrors(settings.dependencyResolutionManagement.repositories)
+}
+
+allprojects {
+  addAndroidMirrors(buildscript.repositories)
+  addAndroidMirrors(repositories)
+}

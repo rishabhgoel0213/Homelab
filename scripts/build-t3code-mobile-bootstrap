@@ -63,6 +63,7 @@ nix shell --impure --expr "$android_shell" -c bash -euo pipefail -c '
   fi
   cd android
   ./gradlew --no-daemon --stacktrace \
+    --init-script /srv/ops/scripts/t3code-android-mirrors.init.gradle \
     -PreactNativeArchitectures=arm64-v8a \
     assembleRelease
 '
