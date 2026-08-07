@@ -31,6 +31,7 @@ android_shell='let
     };
   };
   android = pkgs.androidenv.composeAndroidPackages {
+    platformToolsVersion = "36.0.2";
     platformVersions = [ "36" ];
     buildToolsVersions = [ "36.0.0" ];
     includeNDK = true;
