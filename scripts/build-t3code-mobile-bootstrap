@@ -24,7 +24,12 @@ fi
 install -d -m 0750 "$state_dir"
 
 android_shell='let
-  pkgs = import <nixpkgs> { config.android_sdk.accept_license = true; };
+  pkgs = import <nixpkgs> {
+    config = {
+      android_sdk.accept_license = true;
+      allowUnfree = true;
+    };
+  };
   android = pkgs.androidenv.composeAndroidPackages {
     platformVersions = [ "36" ];
     buildToolsVersions = [ "36.0.0" ];
