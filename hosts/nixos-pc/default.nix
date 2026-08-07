@@ -34,6 +34,7 @@
     ../../modules/services/jellyfin.nix
     ../../modules/services/bonsai-ternary.nix
     ../../modules/services/mach1-additive.nix
+    ../../modules/services/jupyterlab.nix
     ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
     ../../modules/services/syncthing.nix
@@ -78,10 +79,11 @@
     jellyfin.enable = true;
     bonsaiTernary.enable = true;
     mach1Additive.enable = true;
+    jupyterlab.enable = true;
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";
-      revision = "b0573e27cf9992692072e347dcfc6d1166730ea7";
+      revision = "56a1880790c167555ce01fc4178f50eb9a8dfe64";
     };
     syncthing.enable = true;
     samba.enable = true;

@@ -15,6 +15,10 @@ let
   };
   desiredSettings = pkgs.writeText "t3code-settings.json" (
     builtins.toJSON {
+      browserEditors = {
+        jupyterLabUrl =
+          if cfg.browserEditorUrls.jupyterlab == null then "" else cfg.browserEditorUrls.jupyterlab;
+      };
       providers = {
         codex = {
           enabled = true;
@@ -96,6 +100,12 @@ in
     revision = lib.mkOption {
       type = lib.types.strMatching "[0-9a-f]{40}";
       description = "Exact Git revision of the private T3 Code fork to build.";
+    };
+
+    browserEditorUrls.jupyterlab = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Optional JupyterLab origin advertised as a browser-based editor.";
     };
   };
 
