@@ -55,12 +55,38 @@ if [[ "${CODEX_UPDATE_FORCE:-0}" != "1" && "$current_version" == "$version" ]] &
 fi
 
 echo "Updating Codex package to $tag" >&2
-src_hash="$(nix store prefetch-file --json --unpack "$src_url" | jq -r .hash)"
+src_prefetch_json="$(nix store prefetch-file --json --unpack "$src_url")"
+src_hash="$(jq -r .hash <<<"$src_prefetch_json")"
+src_store_path="$(jq -r .storePath <<<"$src_prefetch_json")"
+cargo_lock="$(find "$src_store_path" -path '*/codex-rs/Cargo.lock' -print -quit)"
+
+if [[ -z "$cargo_lock" ]]; then
+  echo "Could not find codex-rs/Cargo.lock in $src_store_path." >&2
+  exit 1
+fi
+
+rusty_v8_version="$(
+  perl -0ne 'if (/\[\[package\]\]\s+name = "v8"\s+version = "([^"]+)"/s) { print $1; exit }' "$cargo_lock"
+)"
+if [[ -z "$rusty_v8_version" ]]; then
+  echo "Could not determine the rusty_v8 crate version from $cargo_lock." >&2
+  exit 1
+fi
+
+rusty_v8_target="x86_64-unknown-linux-gnu"
+rusty_v8_base="https://github.com/openai/codex/releases/download/rusty-v8-v$rusty_v8_version"
+rusty_v8_archive_url="$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$rusty_v8_target.a.gz"
+rusty_v8_binding_url="$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$rusty_v8_target.rs"
+rusty_v8_archive_hash="$(nix store prefetch-file --json "$rusty_v8_archive_url" | jq -r .hash)"
+rusty_v8_binding_hash="$(nix store prefetch-file --json "$rusty_v8_binding_url" | jq -r .hash)"
 
 perl -0pi -e \
   "s{version = \"[^\"]+\";}{version = \"$version\";};
    s{srcHash = \"sha256-[^\"]+\";}{srcHash = \"$src_hash\";};
-   s{cargoHash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{cargoHash = lib.fakeHash;}" \
+   s{cargoHash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{cargoHash = lib.fakeHash;};
+   s{rustyV8Version = \"[^\"]+\";}{rustyV8Version = \"$rusty_v8_version\";};
+   s{(rustyV8Archive = fetchurl \\{.*?hash = )\"sha256-[^\"]+\";}{\${1}\"$rusty_v8_archive_hash\";}s;
+   s{(rustyV8Binding = fetchurl \\{.*?hash = )\"sha256-[^\"]+\";}{\${1}\"$rusty_v8_binding_hash\";}s" \
   "$package_file"
 
 set +e
