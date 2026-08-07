@@ -9,9 +9,13 @@ let
   inherit (config) homelab;
   cfg = config.homelab.t3code;
   stateDir = homelab.paths.t3codeState;
+  mobileStateDir = "${homelab.paths.stateRoot}/t3code-mobile";
   piAgentDir = homelab.paths.piAgentDir;
+  updatesFqdn = "updates.${homelab.internalSubdomain}.${homelab.domain}";
+  mobileUpdatesUrl = "https://${updatesFqdn}/api/manifest";
   package = pkgs.callPackage ../../packages/t3code.nix {
     inherit (cfg) revision sourceCheckout;
+    inherit mobileUpdatesUrl;
   };
   desiredSettings = pkgs.writeText "t3code-settings.json" (
     builtins.toJSON {
@@ -91,6 +95,12 @@ in
       description = "Loopback port used by the T3 Code server.";
     };
 
+    mobileUpdatesPort = lib.mkOption {
+      type = lib.types.port;
+      default = 3774;
+      description = "Loopback port used by the private Expo Updates server.";
+    };
+
     sourceCheckout = lib.mkOption {
       type = lib.types.str;
       default = "/home/rishabh/Projects/t3code";
@@ -116,6 +126,7 @@ in
       "d ${stateDir} 0700 rishabh users - -"
       "d ${stateDir}/legacy-workspaces 0700 rishabh users - -"
       "d ${stateDir}/legacy-workspaces/homelab 0700 rishabh users - -"
+      "d ${mobileStateDir} 0750 rishabh users - -"
     ];
 
     systemd.services.t3code = {
@@ -164,12 +175,47 @@ in
       };
     };
 
+    systemd.services.t3code-updates = {
+      description = "Private Expo Updates server for T3 Code Android";
+      wantedBy = [ "multi-user.target" ];
+      wants = [ "network-online.target" ];
+      after = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "simple";
+        User = "rishabh";
+        Group = "users";
+        ExecStart = lib.concatStringsSep " " [
+          "${pkgs.python3}/bin/python"
+          (lib.escapeShellArg ../../scripts/t3code-updates-server.py)
+          "--host 127.0.0.1"
+          "--port ${toString cfg.mobileUpdatesPort}"
+          "--updates-root ${lib.escapeShellArg "${package}/share/t3code/mobile-updates"}"
+          "--bootstrap-apk ${lib.escapeShellArg "${mobileStateDir}/t3code-preview.apk"}"
+          "--public-url ${lib.escapeShellArg "https://${updatesFqdn}"}"
+        ];
+        Restart = "on-failure";
+        RestartSec = "5s";
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectHome = true;
+        ProtectSystem = "strict";
+      };
+    };
+
     homelab.routes.t3code = {
       enable = true;
       host = "t3code";
       visibility = "internal";
       upstream = "http://127.0.0.1:${toString cfg.port}";
       description = "Private T3 Code UI for managed Codex and Pi agents";
+    };
+
+    homelab.routes.t3code-updates = {
+      enable = true;
+      host = "updates";
+      visibility = "internal";
+      upstream = "http://127.0.0.1:${toString cfg.mobileUpdatesPort}";
+      description = "Private Expo OTA updates and bootstrap APK for T3 Code Android";
     };
 
     assertions = [

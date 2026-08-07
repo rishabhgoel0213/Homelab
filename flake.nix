@@ -91,6 +91,18 @@
               touch "$out"
             '';
 
+        t3code-updates =
+          pkgs.runCommand "t3code-updates-check"
+            {
+              nativeBuildInputs = [ pkgs.python3 ];
+            }
+            ''
+              python3 -m py_compile ${./scripts/t3code-updates-server.py}
+              T3CODE_UPDATES_SERVER_SCRIPT=${./scripts/t3code-updates-server.py} \
+                python3 ${./tests/test-t3code-updates-server.py}
+              touch "$out"
+            '';
+
         remote-phone-mic =
           pkgs.runCommand "remote-phone-mic-check"
             {

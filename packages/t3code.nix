@@ -2,6 +2,7 @@
   cacert,
   fetchPnpmDeps,
   fetchurl,
+  jq,
   lib,
   makeWrapper,
   node-gyp,
@@ -13,6 +14,7 @@
   stdenv,
   sourceCheckout,
   revision,
+  mobileUpdatesUrl ? null,
 }:
 
 let
@@ -46,7 +48,8 @@ stdenv.mkDerivation (finalAttrs: {
     pnpm
     pnpmConfigHook
     python3
-  ];
+  ]
+  ++ lib.optional (mobileUpdatesUrl != null) jq;
 
   # The server and web build do not use Electron. Its workspace dependency is
   # still present in the lockfile, so keep its install hook offline.
@@ -74,6 +77,27 @@ stdenv.mkDerivation (finalAttrs: {
     pnpm --filter @t3tools/web build
     pnpm --filter t3 build:bundle
 
+    ${lib.optionalString (mobileUpdatesUrl != null) ''
+      export APP_VARIANT=preview
+      export EXPO_NO_DOTENV=1
+      export T3CODE_MOBILE_UPDATES_URL=${lib.escapeShellArg mobileUpdatesUrl}
+
+      mobileDist="$PWD/mobile-dist"
+      pnpm --filter @t3tools/mobile exec expo export \
+        --platform android \
+        --output-dir "$mobileDist" \
+        --clear
+      pnpm --filter @t3tools/mobile exec expo config --type public --json \
+        > "$mobileDist/expoConfig.json"
+      runtimeVersion="$(${lib.getExe jq} -r .runtimeVersion < <(
+        pnpm --filter @t3tools/mobile exec expo-updates \
+          runtimeversion:resolve --platform android
+      ))"
+      test -n "$runtimeVersion"
+      test "$runtimeVersion" != null
+      printf '%s\n' "$runtimeVersion" > "$mobileDist/runtime-version"
+    ''}
+
     runHook postBuild
   '';
 
@@ -91,6 +115,14 @@ stdenv.mkDerivation (finalAttrs: {
 
     makeWrapper ${lib.getExe nodejs_24} "$out/bin/t3code" \
       --add-flags "$out/libexec/t3code/dist/bin.mjs"
+
+    ${lib.optionalString (mobileUpdatesUrl != null) ''
+      runtimeVersion="$(< mobile-dist/runtime-version)"
+      updateDir="$out/share/t3code/mobile-updates/$runtimeVersion/${revision}"
+      mkdir -p "$updateDir"
+      cp -R mobile-dist/. "$updateDir/"
+      rm "$updateDir/runtime-version"
+    ''}
 
     runHook postInstall
   '';
