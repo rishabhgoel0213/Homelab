@@ -83,7 +83,7 @@
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";
-      revision = "07e1a27e48d863be09004fcee0e78fe40113f9e3";
+      revision = "25ecc55dd12d4108f5b874fea70e1343ca14182d";
     };
     syncthing.enable = true;
     samba.enable = true;
