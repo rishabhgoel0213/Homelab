@@ -20,6 +20,9 @@ def addAndroidMirrors = { repositories ->
 
 settingsEvaluated { settings ->
   addAndroidMirrors(settings.pluginManagement.repositories)
+  settings.pluginManagement.repositories.gradlePluginPortal()
+  settings.pluginManagement.repositories.mavenCentral()
+  settings.pluginManagement.repositories.google()
   addAndroidMirrors(settings.dependencyResolutionManagement.repositories)
 }
 
