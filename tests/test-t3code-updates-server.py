@@ -46,6 +46,7 @@ class UpdatesServerTest(unittest.TestCase):
             )
         )
         (release / "expoConfig.json").write_text(json.dumps({"name": "T3 Code Preview"}))
+        (release / "created-at").write_text("1786131315\n")
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), SERVER_MODULE.UpdatesHandler)
         self.server.updates_root = self.root
@@ -75,6 +76,7 @@ class UpdatesServerTest(unittest.TestCase):
             body = response.read()
             self.assertIn("multipart/mixed", response.headers["Content-Type"])
             self.assertIn(b'"runtimeVersion":"runtime-1"', body)
+            self.assertIn(b'"createdAt":"2026-08-07T19:35:15.000Z"', body)
             self.assertIn(b'"name":"T3 Code Preview"', body)
             marker = b'"id":"'
             update_id = body.split(marker, 1)[1].split(b'"', 1)[0].decode()

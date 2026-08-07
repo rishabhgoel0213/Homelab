@@ -30,13 +30,28 @@ def digest(path: Path, algorithm: str) -> bytes:
     return hasher.digest()
 
 
-def update_id(metadata_path: Path) -> str:
-    value = hashlib.sha256(metadata_path.read_bytes()).hexdigest()[:32]
+def update_id(release: Path, metadata_path: Path) -> str:
+    hasher = hashlib.sha256(metadata_path.read_bytes())
+    created_at_path = release / "created-at"
+    if created_at_path.is_file():
+        hasher.update(created_at_path.read_bytes())
+    value = hasher.hexdigest()[:32]
     return str(uuid.UUID(value))
 
 
 def iso_timestamp(path: Path) -> str:
     value = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+    return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def release_timestamp(release: Path, metadata_path: Path) -> str:
+    created_at_path = release / "created-at"
+    if not created_at_path.is_file():
+        return iso_timestamp(metadata_path)
+    epoch = int(created_at_path.read_text().strip())
+    if epoch <= 0:
+        raise ValueError("invalid release creation time")
+    value = datetime.fromtimestamp(epoch, timezone.utc)
     return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
@@ -125,7 +140,7 @@ class UpdatesHandler(BaseHTTPRequestHandler):
         config_path = release / "expoConfig.json"
         metadata = json.loads(metadata_path.read_text())
         expo_config = json.loads(config_path.read_text())
-        identifier = update_id(metadata_path)
+        identifier = update_id(release, metadata_path)
 
         if protocol == "1" and self.headers.get("expo-current-update-id") == identifier:
             boundary, body = multipart([("directive", {"type": "noUpdateAvailable"})])
@@ -142,7 +157,7 @@ class UpdatesHandler(BaseHTTPRequestHandler):
         )
         manifest = {
             "id": identifier,
-            "createdAt": iso_timestamp(metadata_path),
+            "createdAt": release_timestamp(release, metadata_path),
             "runtimeVersion": runtime,
             "assets": assets,
             "launchAsset": launch_asset,

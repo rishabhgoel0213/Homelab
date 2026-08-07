@@ -22,7 +22,7 @@ let
     version = "11.10.0";
     hash = "sha256-YgtmBepPYvxWptCphzP0eQcdAyHgPkhrUix+mnRhdDE=";
   };
-  src = builtins.fetchGit {
+  source = builtins.fetchGit {
     url = "file://${sourceCheckout}";
     rev = revision;
   };
@@ -31,7 +31,7 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "t3code";
   version = "0.0.32-nightly.20260803.985-${builtins.substring 0 9 revision}";
 
-  inherit src;
+  src = source;
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
@@ -127,6 +127,10 @@ stdenv.mkDerivation (finalAttrs: {
       mkdir -p "$updateDir"
       cp -R mobile-dist/. "$updateDir/"
       rm "$updateDir/runtime-version"
+      # Nix normalizes store mtimes to the Unix epoch. Expo uses createdAt to
+      # reject updates older than the embedded bundle, so carry the pinned Git
+      # commit time as deterministic release metadata instead.
+      printf '%s\n' ${toString source.lastModified} > "$updateDir/created-at"
     ''}
 
     runHook postInstall
