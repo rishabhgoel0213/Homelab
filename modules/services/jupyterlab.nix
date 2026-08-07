@@ -20,6 +20,7 @@ let
     "--ServerApp.port=${toString cfg.port}"
     "--ServerApp.port_retries=0"
     "--ServerApp.root_dir=/"
+    "--ServerApp.allow_remote_access=True"
     "--ServerApp.allow_unauthenticated_access=True"
     "--IdentityProvider.token="
     "--PasswordIdentityProvider.hashed_password="
