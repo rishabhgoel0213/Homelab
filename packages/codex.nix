@@ -1,6 +1,7 @@
 {
   codex,
   fetchFromGitHub,
+  fetchurl,
   lib,
   rustPlatform,
 }:
@@ -9,6 +10,15 @@ let
   version = "0.147.0";
   srcHash = "sha256-NKeOxp9vLcx7tpghqhpS3ocPqUDP2PircNwkJNpHBPo=";
   cargoHash = "sha256-MJuM2QLxvL+r/Gw8QXLjtsLS25QGVCqcqU5GJssSoQ4=";
+  rustyV8Version = "150.4.0";
+  rustyV8Archive = fetchurl {
+    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/librusty_v8_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.a.gz";
+    hash = "sha256-o1x10fJuapg4haRbM0kKTr5U8FBQVosyuJz7QhswtYM=";
+  };
+  rustyV8Binding = fetchurl {
+    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/src_binding_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.rs";
+    hash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
+  };
 in
 codex.overrideAttrs (_old: rec {
   pname = "codex";
@@ -38,6 +48,11 @@ codex.overrideAttrs (_old: rec {
     "codex-code-mode-host"
   ];
   cargoCheckFlags = cargoBuildFlags;
+
+  env = (_old.env or { }) // {
+    RUSTY_V8_ARCHIVE = rustyV8Archive;
+    RUSTY_V8_SRC_BINDING_PATH = rustyV8Binding;
+  };
 
   postPatch = ''
     for webrtc_build_rs in "$cargoDepsCopy"/*/webrtc-sys-*/build.rs; do
