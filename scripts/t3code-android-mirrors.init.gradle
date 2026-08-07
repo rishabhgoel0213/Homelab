@@ -7,6 +7,9 @@ def addAndroidMirrors = { repositories ->
     filter.includeGroupByRegex("com\\.google\\.android.*")
     filter.includeGroupByRegex("com\\.google\\.firebase.*")
     filter.includeGroupByRegex("com\\.google\\.gms.*")
+    filter.includeGroupByRegex("com\\.google\\.mlkit.*")
+    filter.includeGroupByRegex("com\\.google\\.prefab.*")
+    filter.includeGroupByRegex("com\\.google\\.testing.*")
   }
   repositories.maven {
     url = uri("https://maven.aliyun.com/repository/google")

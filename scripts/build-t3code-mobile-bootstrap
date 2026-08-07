@@ -2,6 +2,7 @@
 set -euo pipefail
 
 checkout="/home/rishabh/Projects/t3code"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 state_dir="/srv/state/t3code-mobile"
 updates_url="https://updates.internal.therealrishabh.com/api/manifest"
 apk_path="$state_dir/t3code-preview.apk"
@@ -33,9 +34,9 @@ android_shell='let
   android = pkgs.androidenv.composeAndroidPackages {
     platformToolsVersion = "36.0.2";
     platformVersions = [ "36" ];
-    buildToolsVersions = [ "36.0.0" ];
+    buildToolsVersions = [ "35.0.0" "36.0.0" ];
     includeNDK = true;
-    ndkVersions = [ "27.1.12297006" ];
+    ndkVersions = [ "27.0.12077973" "27.1.12297006" ];
     includeCmake = true;
     cmakeVersions = [ "3.22.1" ];
   };
@@ -50,11 +51,22 @@ export EXPO_NO_GIT_STATUS=1
 export T3CODE_MOBILE_UPDATES_URL="$updates_url"
 export GRADLE_USER_HOME="$state_dir/gradle"
 export JAVA_HOME="$(nix eval --raw nixpkgs#jdk17.outPath)"
+export T3CODE_ANDROID_MIRROR_INIT="$script_dir/t3code-android-mirrors.init.gradle"
+android_env="$(nix build --no-link --print-out-paths --impure --expr "$android_shell")"
+android_sdk_overlay="$(mktemp -d)"
+trap 'rm -rf "$android_sdk_overlay"' EXIT
+for sdk_entry in "$android_env/libexec/android-sdk"/*; do
+  if [[ "$(basename "$sdk_entry")" == "ndk-bundle" ]]; then
+    continue
+  fi
+  ln -s "$sdk_entry" "$android_sdk_overlay/"
+done
+
+export ANDROID_HOME="$android_sdk_overlay"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
 cd "$checkout/apps/mobile"
-nix shell --impure --expr "$android_shell" -c bash -euo pipefail -c '
-  export ANDROID_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v adb)")")")"
-  export ANDROID_SDK_ROOT="$ANDROID_HOME"
+nix shell "$android_env" -c bash -euo pipefail -c '
   node node_modules/expo/bin/cli prebuild --clean --platform android
   if [[ -f "'"$keystore_path"'" ]]; then
     cp "'"$keystore_path"'" android/app/debug.keystore
@@ -63,7 +75,7 @@ nix shell --impure --expr "$android_shell" -c bash -euo pipefail -c '
   fi
   cd android
   ./gradlew --no-daemon --stacktrace \
-    --init-script /srv/ops/scripts/t3code-android-mirrors.init.gradle \
+    --init-script "$T3CODE_ANDROID_MIRROR_INIT" \
     -PreactNativeArchitectures=arm64-v8a \
     assembleRelease
 '
