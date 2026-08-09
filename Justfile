@@ -143,6 +143,25 @@ canvas-status:
 canvas-sync:
     canvas-bridge sync
 
+matrix-doctor:
+    scripts/matrix-doctor
+
+matrix-user-add username="rishabh":
+    sudo matrix-synapse-register_new_matrix_user --user "{{username}}" --no-admin
+
+matrix-whatsapp-logs:
+    journalctl -u mautrix-whatsapp.service -f
+
+matrix-imessage-proxy-logs:
+    journalctl -u mautrix-wsproxy.service -f
+
+matrix-imessage-export-config:
+    @echo "This writes a secret-bearing Mac config to stdout; redirect it to a mode-0600 file." >&2
+    sudo matrix-imessage-export-config
+
+matrix-pi-logs:
+    journalctl -u pi-courier.service -f
+
 t3code-doctor:
     scripts/t3code-doctor
 

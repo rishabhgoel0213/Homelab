@@ -27,6 +27,7 @@
     ../../modules/core/vscode-remote.nix
 
     ../../modules/services/vaultwarden.nix
+    ../../modules/services/matrix.nix
     ../../modules/services/backrest.nix
     ../../modules/services/canvas-bridge.nix
     ../../modules/services/eden.nix
@@ -75,6 +76,8 @@
     };
 
     vaultwarden.enable = true;
+    matrix.enable = true;
+    pi.courier.enable = true;
     eden.enable = true;
     jellyfin.enable = true;
     bonsaiTernary.enable = true;

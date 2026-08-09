@@ -1,4 +1,10 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.homelab;
@@ -59,9 +65,12 @@ in
 
   services.tailscale = {
     enable = true;
+    package = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system}.tailscale;
     useRoutingFeatures = "client";
     extraSetFlags = [
-      "--exit-node=nl-ams-wg-201.mullvad.ts.net"
+      # Use the stable tailnet IP so tailscaled-set does not depend on MagicDNS
+      # becoming available before it applies the client preferences.
+      "--exit-node=100.123.199.85"
       "--exit-node-allow-lan-access=false"
     ];
   };
@@ -114,7 +123,6 @@ in
     rsync
     ssh-to-age
     sops
-    tailscale
     tmux
     vim
     wget

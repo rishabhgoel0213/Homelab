@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.homelab;
@@ -51,6 +56,29 @@ in
         "remote-phone-token" = {
           owner = "rishabh";
           group = "users";
+          mode = "0400";
+        };
+      }
+      // lib.optionalAttrs cfg.matrix.enable {
+        "matrix-registration-shared-secret" = { };
+        "matrix-whatsapp-as-token" = { };
+        "matrix-whatsapp-hs-token" = { };
+        "matrix-whatsapp-pickle-key" = { };
+        "matrix-imessage-as-token" = { };
+        "matrix-imessage-hs-token" = { };
+        "matrix-double-puppet-as-token" = { };
+        "matrix-double-puppet-hs-token" = { };
+        "matrix-double-puppet-sender-localpart" = { };
+      }
+      // lib.optionalAttrs cfg.pi.courier.enable {
+        "matrix-pi-courier-access-token" = {
+          owner = "rishabh";
+          group = "users";
+          mode = "0400";
+        };
+        "matrix-pi-courier-password" = {
+          owner = "root";
+          group = "root";
           mode = "0400";
         };
       }

@@ -170,6 +170,7 @@ in
     };
 
     vaultwarden.enable = mkEnableOption "Vaultwarden private password vault";
+    matrix.enable = mkEnableOption "private Matrix homeserver and chat bridges";
     eden.enable = mkEnableOption "Eden private Switch emulator desktop";
     jellyfin.enable = mkEnableOption "Jellyfin private media server";
     syncthing.enable = mkEnableOption "Syncthing private file sync";

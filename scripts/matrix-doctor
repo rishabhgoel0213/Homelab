@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+matrix_host="matrix.internal.therealrishabh.com"
+chat_host="chat.internal.therealrishabh.com"
+
+for unit in postgresql.service matrix-synapse.service mautrix-whatsapp.service mautrix-wsproxy.service pi-courier.service caddy.service; do
+  systemctl is-active --quiet "$unit" || {
+    echo "$unit is not active" >&2
+    exit 1
+  }
+done
+
+curl --fail --silent --show-error http://127.0.0.1:8008/health >/dev/null
+curl --fail --silent --show-error \
+  "https://${matrix_host}/_matrix/client/versions" \
+  | jq -e '.versions | length > 0' >/dev/null
+curl --silent --show-error \
+  "https://${matrix_host}/_matrix/client/unstable/fi.mau.as_sync" \
+  | jq -e '.errcode == "M_MISSING_TOKEN"' >/dev/null
+chat_index=$(curl --fail --silent --show-error "https://${chat_host}/")
+grep -q '<title>Element</title>' <<<"$chat_index"
+curl --fail --silent --show-error "https://${chat_host}/config.json" \
+  | jq -e \
+    --arg homeserver "https://${matrix_host}" \
+    '.default_server_config["m.homeserver"].base_url == $homeserver and .disable_custom_urls == true' \
+    >/dev/null
+
+resolved_addresses=$(getent ahosts "$matrix_host" | awk '{ print $1 }' | sort -u)
+if ! grep -Eq '^(100\.|fd7a:115c:a1e0:)' <<<"$resolved_addresses"; then
+  echo "$matrix_host did not resolve to a Tailscale address" >&2
+  exit 1
+fi
+
+chat_addresses=$(getent ahosts "$chat_host" | awk '{ print $1 }' | sort -u)
+if ! grep -Eq '^(100\.|fd7a:115c:a1e0:)' <<<"$chat_addresses"; then
+  echo "$chat_host did not resolve to a Tailscale address" >&2
+  exit 1
+fi
+
+echo "Matrix homeserver, Element Web, WhatsApp bridge, iMessage proxy, and Pi Courier are healthy."
