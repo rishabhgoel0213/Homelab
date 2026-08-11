@@ -64,6 +64,10 @@ in
         "matrix-whatsapp-as-token" = { };
         "matrix-whatsapp-hs-token" = { };
         "matrix-whatsapp-pickle-key" = { };
+        "matrix-instagram-as-token" = { };
+        "matrix-instagram-hs-token" = { };
+        "matrix-instagram-pickle-key" = { };
+        "matrix-instagram-provisioning-secret" = { };
         "matrix-imessage-as-token" = { };
         "matrix-imessage-hs-token" = { };
         "matrix-double-puppet-as-token" = { };

@@ -6,7 +6,7 @@ The Matrix homeserver is private to the tailnet at:
 https://matrix.internal.therealrishabh.com
 ```
 
-The preconfigured Element Web client is available at:
+The preconfigured Cinny web client is available at:
 
 ```text
 https://chat.internal.therealrishabh.com
@@ -26,7 +26,7 @@ just matrix-user-add rishabh
 ```
 
 The daily account is not a Synapse administrator. It is an administrator of
-the private WhatsApp bridge only.
+the private WhatsApp and Instagram bridges only.
 
 ## Sign In From a Client
 
@@ -63,6 +63,33 @@ then use **Menu > Linked devices > Link a device** and scan the QR code.
 WhatsApp creates encrypted Matrix rooms for recent conversations. Test both
 directions with a trusted contact before disconnecting the same account from
 Beeper.
+
+## Log In to Instagram
+
+In Element, start a direct chat with:
+
+```text
+@instagrambot:therealrishabh.com
+```
+
+Send `login`. The bot replies with the Instagram login URL and waits for one
+message containing either a cURL request or a JSON cookie object.
+
+The simplest method uses desktop browser developer tools:
+
+1. Sign in at `https://www.instagram.com/` and open the Direct inbox.
+2. Open developer tools, select the **Network** panel, and reload the page.
+3. Right-click a request to `www.instagram.com`, then choose **Copy as cURL**.
+4. Paste the complete cURL command as the next message to the bridge bot.
+
+As an alternative, send a JSON object containing the `sessionid`, `csrftoken`,
+`ds_user_id`, `mid`, and `ig_did` cookies. These values are session credentials:
+send them only to the encrypted bot management room and never to another user
+or a shared room. The bridge redacts the credential message after receiving it.
+
+If Instagram reports a challenge, checkpoint, or consent requirement, complete
+it on the official Instagram site or app and repeat the login. The bridge does
+not have a separate web login route.
 
 ## Connect the macOS iMessage Bridge
 
@@ -121,12 +148,13 @@ group rooms.
 cd /srv/ops
 just matrix-doctor
 just matrix-whatsapp-logs
+just matrix-instagram-logs
 just matrix-imessage-proxy-logs
 just matrix-pi-logs
 ```
 
-The bridge stores its database, WhatsApp session, and encryption state under
-`/srv/state/matrix/whatsapp`. Synapse media and signing state are under
+The bridges store their session and encryption state under
+`/srv/state/matrix/whatsapp` and `/srv/state/matrix/instagram`. Synapse media and signing state are under
 `/srv/state/matrix/synapse`; PostgreSQL holds message and bridge databases under
 `/srv/state/matrix/postgresql`. A daily timer creates consistent database dumps
 under `/srv/state/matrix/backups` for Backrest to capture. The iMessage bridge

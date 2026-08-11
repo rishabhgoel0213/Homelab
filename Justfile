@@ -125,6 +125,9 @@ tailscale-split-dns:
 tailscale-apply-internal-dns:
     scripts/configure-tailscale-internal-dns
 
+mullvad-is-connected:
+    curl https://am.i.mullvad.net/connected
+
 remote-phone-doctor:
     remote-phone-mic doctor
 
@@ -151,6 +154,9 @@ matrix-user-add username="rishabh":
 
 matrix-whatsapp-logs:
     journalctl -u mautrix-whatsapp.service -f
+
+matrix-instagram-logs:
+    journalctl -u mautrix-instagram.service -f
 
 matrix-imessage-proxy-logs:
     journalctl -u mautrix-wsproxy.service -f
