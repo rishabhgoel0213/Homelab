@@ -30,7 +30,7 @@
     ../../modules/services/matrix.nix
     ../../modules/services/backrest.nix
     ../../modules/services/canvas-bridge.nix
-    ../../modules/services/eden.nix
+    ../../modules/services/kicad.nix
     ../../modules/services/agent-sites.nix
     ../../modules/services/jellyfin.nix
     ../../modules/services/bonsai-ternary.nix
@@ -78,7 +78,7 @@
     vaultwarden.enable = true;
     matrix.enable = true;
     pi.courier.enable = true;
-    eden.enable = true;
+    kicad.enable = true;
     jellyfin.enable = true;
     bonsaiTernary.enable = true;
     mach1Additive.enable = true;
