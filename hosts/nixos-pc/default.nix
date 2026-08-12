@@ -35,6 +35,7 @@
     ../../modules/services/jellyfin.nix
     ../../modules/services/bonsai-ternary.nix
     ../../modules/services/mach1-additive.nix
+    ../../modules/services/nemotron-lightning.nix
     ../../modules/services/jupyterlab.nix
     ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
@@ -82,6 +83,7 @@
     jellyfin.enable = true;
     bonsaiTernary.enable = true;
     mach1Additive.enable = true;
+    nemotronLightning.enable = true;
     jupyterlab.enable = true;
     t3code = {
       enable = true;

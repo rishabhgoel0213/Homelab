@@ -58,7 +58,7 @@ in
     virtualisation.oci-containers.containers.${modelName} = {
       image = "mach1-additive-35b:nix";
       imageFile = package.image;
-      autoStart = true;
+      autoStart = false;
       environment = {
         MODEL_DIR = "/models";
         MACH1_HOST = "127.0.0.1";

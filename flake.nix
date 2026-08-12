@@ -40,6 +40,20 @@
               touch "$out"
             '';
 
+        nemotron-lightning =
+          pkgs.runCommand "nemotron-lightning-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodejs_24
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              shellcheck ${./local-models/nemotron-lightning/download-model.sh}
+              node --check ${./local-models/nemotron-lightning/proxy.mjs}
+              touch "$out"
+            '';
+
         mach1-additive =
           pkgs.runCommand "mach1-additive-check"
             {
