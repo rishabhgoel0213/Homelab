@@ -106,6 +106,38 @@
               touch "$out"
             '';
 
+        singlemail =
+          pkgs.runCommand "singlemail-check"
+            {
+              nativeBuildInputs = [
+                pkgs.nodejs_24
+                pkgs.python3
+                pkgs.ruff
+                pkgs.shellcheck
+                pkgs.typescript
+                pkgs.wrangler
+              ];
+            }
+            ''
+              export HOME="$TMPDIR/home"
+              export XDG_CACHE_HOME="$TMPDIR/cache"
+              export XDG_CONFIG_HOME="$TMPDIR/config"
+              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+
+              ruff check ${./scripts/singlemail.py} ${./tests/test-singlemail.py}
+              python3 -m py_compile ${./scripts/singlemail.py}
+              SINGLEMAIL_SCRIPT=${./scripts/singlemail.py} \
+                python3 ${./tests/test-singlemail.py}
+              shellcheck ${./scripts/singlemail-cloudflare-deploy} \
+                ${./scripts/store-singlemail-token}
+              cp -R ${./cloudflare/singlemail} "$TMPDIR/worker"
+              chmod -R u+w "$TMPDIR/worker"
+              cd "$TMPDIR/worker"
+              tsc --noEmit
+              wrangler deploy --dry-run --outdir "$TMPDIR/worker-build"
+              touch "$out"
+            '';
+
         t3code-updates =
           pkgs.runCommand "t3code-updates-check"
             {

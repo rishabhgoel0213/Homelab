@@ -16,6 +16,11 @@ This Codex home is managed by `/srv/ops`. The source for this file is
 - Treat `/srv/ops` as the source of truth for durable server configuration.
 - Treat `/srv/state` as runtime state. Do not edit service state directly unless
   a runbook calls for it or the user explicitly asks.
+- For authorized signup, login, and verification workflows, create a scoped
+  inbox with `singlemail create --purpose "..." --ttl 1h --json`, then use
+  `singlemail code` or `singlemail links`. Promote the inbox before relying on
+  it for account recovery. Never use Singlemail to evade bans, account limits,
+  identity checks, or site terms.
 
 ## Codex Configuration
 

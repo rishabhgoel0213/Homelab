@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${HOMELAB_OPS_ROOT:-/srv/ops}"
+worker_dir="$repo/cloudflare/singlemail"
+config="$worker_dir/wrangler.jsonc"
+
+if [[ ! -f "$config" ]]; then
+  echo "Missing $config" >&2
+  exit 1
+fi
+
+for command in cfctl jq wrangler; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Missing required command: $command" >&2
+    exit 1
+  fi
+done
+
+set -a
+# shellcheck disable=SC1091
+. /run/secrets/cloudflare-admin.env
+set +a
+
+: "${CLOUDFLARE_ZONE_ID:?Missing CLOUDFLARE_ZONE_ID}"
+: "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID}"
+
+database_id="$(jq -r '.d1_databases[] | select(.binding == "DB") | .database_id' "$config")"
+if [[ -z "$database_id" || "$database_id" == "00000000-0000-0000-0000-000000000000" ]]; then
+  echo "The committed D1 database_id is still a placeholder." >&2
+  exit 1
+fi
+
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/singlemail-wrangler-cache}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-/tmp/singlemail-wrangler-config}"
+
+cd "$worker_dir"
+wrangler types worker-configuration.d.ts --check --env-file .dev.vars.example
+wrangler deploy --dry-run --outdir /tmp/singlemail-worker-dry-run
+wrangler d1 migrations apply singlemail --remote
+wrangler deploy --minify
+
+cfctl api PUT "/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/singlemail-messages/lifecycle" \
+  '{"rules":[{"id":"singlemail-expire-raw-messages","enabled":true,"conditions":{"prefix":"messages/"},"deleteObjectsTransition":{"condition":{"type":"Age","maxAge":172800}}}]}' >/dev/null
+
+cfctl api POST "/zones/$CLOUDFLARE_ZONE_ID/email/routing/dns" \
+  '{"name":"inbox.therealrishabh.com"}' >/dev/null
+
+cfctl api PUT "/zones/$CLOUDFLARE_ZONE_ID/email/routing/rules/catch_all" \
+  '{"actions":[{"type":"worker","value":["singlemail"]}],"enabled":true,"matchers":[{"type":"all"}],"name":"Singlemail inbox catch-all"}' >/dev/null
+
+echo "Singlemail Worker, migration, R2 lifecycle, inbox MX, and catch-all routing are deployed."

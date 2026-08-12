@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# shellcheck disable=SC1090
+. "${HOMELAB_SECRETS_LIB:-/srv/ops/scripts/lib/homelab-secrets}"
+
+# Assigned by homelab-secrets; declarations keep static analysis aware of them.
+# shellcheck disable=SC2154
+sops_config="${sops_config:?}"
+age_key_cmd="${age_key_cmd:?}"
+secrets_file="${secrets_file:?}"
+homelab_user="${homelab_user:?}"
+homelab_group="${homelab_group:?}"
+
+need cfctl
+need jq
+need openssl
+need sops
+need sudo
+
+require_sops_file
+
+worker_dir="${HOMELAB_OPS_ROOT:-/srv/ops}/cloudflare/singlemail"
+token_file="$(mktemp /tmp/singlemail-token.XXXXXX)"
+trap 'rm -f "$token_file"' EXIT
+chmod 600 "$token_file"
+openssl rand -hex 32 > "$token_file"
+
+cfctl wrangler secret put SINGLEMAIL_API_TOKEN --config "$worker_dir/wrangler.jsonc" < "$token_file"
+
+{
+  printf 'SINGLEMAIL_API_TOKEN='
+  tr -d '\n' < "$token_file"
+  printf '\n'
+} | jq -Rs . | sudo env SOPS_CONFIG="$sops_config" SOPS_AGE_KEY_CMD="$age_key_cmd" \
+  sops set --value-stdin "$secrets_file" '["singlemail.env"]'
+
+sudo chown "$homelab_user:$homelab_group" "$secrets_file"
+sudo chmod 600 "$secrets_file"
+sops_verify
+
+echo "Stored the same generated token in the Worker and encrypted homelab secrets."

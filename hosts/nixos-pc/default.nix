@@ -40,6 +40,7 @@
     ../../modules/services/t3code.nix
     ../../modules/services/public-site.nix
     ../../modules/services/syncthing.nix
+    ../../modules/services/singlemail.nix
     ../../modules/services/samba.nix
 
     ../../routes
@@ -91,6 +92,7 @@
       revision = "25ecc55dd12d4108f5b874fea70e1343ca14182d";
     };
     syncthing.enable = true;
+    singlemail.enable = true;
     samba.enable = true;
   };
 

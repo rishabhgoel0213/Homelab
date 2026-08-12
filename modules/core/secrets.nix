@@ -86,6 +86,13 @@ in
           mode = "0400";
         };
       }
+      // lib.optionalAttrs cfg.singlemail.enable {
+        "singlemail.env" = {
+          owner = "rishabh";
+          group = "users";
+          mode = "0400";
+        };
+      }
       // lib.optionalAttrs (cfg.backrest.sshTarget != null) {
         "restic-ssh-key" = {
           owner = "root";

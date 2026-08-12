@@ -104,6 +104,15 @@ cloudflare-zones:
 cloudflare-dns:
     cfctl dns
 
+singlemail-deploy:
+    scripts/singlemail-cloudflare-deploy
+
+singlemail-store-token:
+    scripts/store-singlemail-token
+
+singlemail-doctor:
+    singlemail doctor --json
+
 tailscale-ip:
     tailscale ip -4
 
