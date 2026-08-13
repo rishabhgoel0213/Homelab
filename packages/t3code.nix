@@ -29,7 +29,7 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "t3code";
-  version = "0.0.32-nightly.20260803.985-${builtins.substring 0 9 revision}";
+  version = "0.0.34-nightly.20260813.1087-${builtins.substring 0 9 revision}";
 
   src = source;
 
@@ -37,7 +37,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     inherit pnpm;
     fetcherVersion = 4;
-    hash = "sha256-We5f789rnOTtp1B13NsIAhT4ww+FduJLtI15073pwJY=";
+    hash = "sha256-imi+9m1iZo7lkPRU0AhOQTiSQ5XK9+mH/p52R9GmKAg=";
   };
 
   nativeBuildInputs = [
