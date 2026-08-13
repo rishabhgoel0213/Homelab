@@ -54,6 +54,8 @@ let
   unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   instagramPackage = (unstablePkgs.mautrix-meta.override { withGoolm = true; }).overrideAttrs {
     pname = "mautrix-instagram";
+    version = "26.07-homelab-${builtins.substring 0 7 inputs.mautrix-meta-homelab.rev}";
+    src = inputs.mautrix-meta-homelab;
     subPackages = [ "cmd/mautrix-instagram" ];
     meta = {
       inherit (unstablePkgs.mautrix-meta.meta)

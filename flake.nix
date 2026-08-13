@@ -5,6 +5,11 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    mautrix-meta-homelab = {
+      url = "git+file:///home/rishabh/Projects/mautrix-meta?ref=main";
+      flake = false;
+    };
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";

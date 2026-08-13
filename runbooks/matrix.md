@@ -153,6 +153,29 @@ just matrix-imessage-proxy-logs
 just matrix-pi-logs
 ```
 
+## Maintain the Instagram bridge fork
+
+The Instagram bridge is built from the committed `main` branch in
+`/home/rishabh/Projects/mautrix-meta`. Its private GitHub backup is
+`rishabhgoel0213/mautrix-meta`. The flake lock pins one exact commit and copies
+it into the Nix store; the service never executes the mutable checkout directly.
+
+After committing and testing a fork update, refresh only that source pin and
+apply it through the normal validation gate:
+
+```bash
+cd /srv/ops
+nix flake update mautrix-meta-homelab
+just check
+just switch
+```
+
+The fork deliberately emits ordinary Matrix `m.text` fallbacks for unknown,
+unimplemented, unavailable view-once, or otherwise unbridgeable Instagram
+activity. When a chat cannot be identified, the fallback goes to the Instagram
+bridge management room. Keep notifications enabled for both portal rooms and
+the management room.
+
 The bridges store their session and encryption state under
 `/srv/state/matrix/whatsapp` and `/srv/state/matrix/instagram`. Synapse media and signing state are under
 `/srv/state/matrix/synapse`; PostgreSQL holds message and bridge databases under

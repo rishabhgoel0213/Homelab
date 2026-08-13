@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "mautrix-meta-homelab": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786583160,
+        "narHash": "sha256-xWSPKkBUV8XKxxfYkuxC92S1peILtA4gibd1oRXsuaM=",
+        "ref": "main",
+        "rev": "5b430ab2166290d002fbfc293832d504687820a5",
+        "revCount": 985,
+        "type": "git",
+        "url": "file:///home/rishabh/Projects/mautrix-meta"
+      },
+      "original": {
+        "ref": "main",
+        "type": "git",
+        "url": "file:///home/rishabh/Projects/mautrix-meta"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1780902259,
@@ -34,6 +51,7 @@
     },
     "root": {
       "inputs": {
+        "mautrix-meta-homelab": "mautrix-meta-homelab",
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "sops-nix": "sops-nix"
