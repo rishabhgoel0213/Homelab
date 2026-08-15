@@ -10,11 +10,13 @@ let
   cfg = config.homelab;
   matrixState = "${cfg.paths.stateRoot}/matrix";
   whatsappState = "${matrixState}/whatsapp";
+  gmessagesState = "${matrixState}/gmessages";
   instagramState = "${matrixState}/instagram";
   homeserverName = cfg.domain;
   clientHost = "matrix.${cfg.internalDomain}";
   webHost = "chat.${cfg.internalDomain}";
   whatsappPort = 29318;
+  gmessagesPort = 29319;
   instagramPort = 29320;
   imessageWsproxyPort = 29331;
 
@@ -51,6 +53,7 @@ let
 
   yaml = pkgs.formats.yaml { };
   whatsappPackage = pkgs.mautrix-whatsapp.override { withGoolm = true; };
+  gmessagesPackage = pkgs.mautrix-gmessages.override { withGoolm = true; };
   unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   instagramPackage = (unstablePkgs.mautrix-meta.override { withGoolm = true; }).overrideAttrs {
     pname = "mautrix-instagram";
@@ -157,6 +160,110 @@ let
       self_sign = true;
       allow_key_sharing = true;
       pickle_key = "$MATRIX_WHATSAPP_PICKLE_KEY";
+    };
+    env_config_prefix = null;
+    logging = {
+      min_level = "info";
+      writers = [
+        {
+          type = "stdout";
+          format = "json";
+        }
+      ];
+    };
+  };
+
+  gmessagesConfig = yaml.generate "mautrix-gmessages.yaml" {
+    network = {
+      displayname_template = "{{or .FullName .PhoneNumber}}";
+      device_meta = {
+        os = "Rishabh's Matrix bridge";
+        browser = "OTHER";
+        type = "TABLET";
+      };
+      aggressive_reconnect = false;
+      initial_chat_sync_count = 25;
+      ping_interval = "20m";
+      alert_timeout_count = 4;
+    };
+
+    bridge = {
+      command_prefix = "!gm";
+      personal_filtering_spaces = true;
+      private_chat_portal_meta = true;
+      bridge_status_notices = "errors";
+      relay.enabled = false;
+      permissions = {
+        "*" = "relay";
+        "@rishabh:${homeserverName}" = "admin";
+      };
+    };
+
+    database = {
+      type = "postgres";
+      uri = "postgresql:///mautrix-gmessages?host=/run/postgresql";
+      max_open_conns = 5;
+      max_idle_conns = 1;
+    };
+
+    homeserver = {
+      address = "http://127.0.0.1:8008";
+      domain = homeserverName;
+      software = "standard";
+    };
+
+    appservice = {
+      address = "http://127.0.0.1:${toString gmessagesPort}";
+      hostname = "127.0.0.1";
+      port = gmessagesPort;
+      id = "gmessages";
+      bot = {
+        username = "gmessagesbot";
+        displayname = "Google Messages bridge bot";
+        avatar = "remove";
+      };
+      ephemeral_events = true;
+      as_token = "$MATRIX_GMESSAGES_AS_TOKEN";
+      hs_token = "$MATRIX_GMESSAGES_HS_TOKEN";
+      username_template = "gmessages_{{.}}";
+    };
+
+    matrix = {
+      message_status_events = true;
+      delivery_receipts = true;
+      message_error_notices = true;
+      sync_direct_chat_list = true;
+      federate_rooms = false;
+    };
+
+    analytics.token = null;
+    provisioning = {
+      shared_secret = "disable";
+      allow_matrix_auth = false;
+      debug_endpoints = false;
+      enable_session_transfers = false;
+    };
+    public_media.enabled = false;
+    direct_media.enabled = false;
+    backfill = {
+      enabled = true;
+      max_initial_messages = 100;
+      max_catchup_messages = 500;
+      unread_hours_threshold = 720;
+    };
+    double_puppet = {
+      allow_discovery = false;
+      secrets.${homeserverName} = "as_token:$MATRIX_DOUBLE_PUPPET_AS_TOKEN";
+    };
+    encryption = {
+      allow = true;
+      default = true;
+      require = true;
+      appservice = false;
+      msc4190 = false;
+      self_sign = true;
+      allow_key_sharing = true;
+      pickle_key = "$MATRIX_GMESSAGES_PICKLE_KEY";
     };
     env_config_prefix = null;
     logging = {
@@ -481,6 +588,12 @@ in
       home = whatsappState;
       description = "Mautrix WhatsApp bridge";
     };
+    users.users.mautrix-gmessages = {
+      isSystemUser = true;
+      group = "matrix-bridges";
+      home = gmessagesState;
+      description = "Mautrix Google Messages bridge";
+    };
     users.users.mautrix-instagram = {
       isSystemUser = true;
       group = "matrix-bridges";
@@ -515,6 +628,18 @@ in
           MATRIX_WHATSAPP_AS_TOKEN=${config.sops.placeholder."matrix-whatsapp-as-token"}
           MATRIX_WHATSAPP_HS_TOKEN=${config.sops.placeholder."matrix-whatsapp-hs-token"}
           MATRIX_WHATSAPP_PICKLE_KEY=${config.sops.placeholder."matrix-whatsapp-pickle-key"}
+          MATRIX_DOUBLE_PUPPET_AS_TOKEN=${config.sops.placeholder."matrix-double-puppet-as-token"}
+        '';
+      };
+
+      "matrix-gmessages.env" = {
+        owner = "mautrix-gmessages";
+        group = "matrix-bridges";
+        mode = "0400";
+        content = ''
+          MATRIX_GMESSAGES_AS_TOKEN=${config.sops.placeholder."matrix-gmessages-as-token"}
+          MATRIX_GMESSAGES_HS_TOKEN=${config.sops.placeholder."matrix-gmessages-hs-token"}
+          MATRIX_GMESSAGES_PICKLE_KEY=${config.sops.placeholder."matrix-gmessages-pickle-key"}
           MATRIX_DOUBLE_PUPPET_AS_TOKEN=${config.sops.placeholder."matrix-double-puppet-as-token"}
         '';
       };
@@ -562,6 +687,28 @@ in
               - regex: '^@whatsappbot:${lib.escapeRegex homeserverName}$'
                 exclusive: true
               - regex: '^@whatsapp_.*:${lib.escapeRegex homeserverName}$'
+                exclusive: true
+          de.sorunome.msc2409.push_ephemeral: true
+          receive_ephemeral: true
+        '';
+      };
+
+      "matrix-gmessages-registration.yaml" = {
+        owner = "root";
+        group = "matrix-bridges";
+        mode = "0440";
+        content = ''
+          id: gmessages
+          url: http://127.0.0.1:${toString gmessagesPort}
+          as_token: ${config.sops.placeholder."matrix-gmessages-as-token"}
+          hs_token: ${config.sops.placeholder."matrix-gmessages-hs-token"}
+          sender_localpart: gmessagesas
+          rate_limited: false
+          namespaces:
+            users:
+              - regex: '^@gmessagesbot:${lib.escapeRegex homeserverName}$'
+                exclusive: true
+              - regex: '^@gmessages_.*:${lib.escapeRegex homeserverName}$'
                 exclusive: true
           de.sorunome.msc2409.push_ephemeral: true
           receive_ephemeral: true
@@ -643,6 +790,7 @@ in
       ensureDatabases = [
         "matrix-synapse"
         "mautrix-whatsapp"
+        "mautrix-gmessages"
         "mautrix-instagram"
       ];
       ensureUsers = [
@@ -652,6 +800,10 @@ in
         }
         {
           name = "mautrix-whatsapp";
+          ensureDBOwnership = true;
+        }
+        {
+          name = "mautrix-gmessages";
           ensureDBOwnership = true;
         }
         {
@@ -681,6 +833,7 @@ in
         suppress_key_server_warning = true;
         app_service_config_files = [
           config.sops.templates."matrix-whatsapp-registration.yaml".path
+          config.sops.templates."matrix-gmessages-registration.yaml".path
           config.sops.templates."matrix-instagram-registration.yaml".path
           config.sops.templates."matrix-imessage-registration.yaml".path
           config.sops.templates."matrix-double-puppet-registration.yaml".path
@@ -719,6 +872,7 @@ in
       "d ${matrixState} 0750 root matrix-bridges - -"
       "d ${matrixState}/synapse 0700 matrix-synapse matrix-synapse - -"
       "d ${whatsappState} 0700 mautrix-whatsapp matrix-bridges - -"
+      "d ${gmessagesState} 0700 mautrix-gmessages matrix-bridges - -"
       "d ${instagramState} 0700 mautrix-instagram matrix-bridges - -"
       "d ${matrixState}/postgresql 0700 postgres postgres - -"
       "d ${matrixState}/backups 0700 postgres postgres - -"
@@ -740,6 +894,8 @@ in
           ${pkgs.coreutils}/bin/mv "$backup_dir/matrix-synapse.dump.next" "$backup_dir/matrix-synapse.dump"
           ${pkgs.postgresql}/bin/pg_dump --format=custom --file="$backup_dir/mautrix-whatsapp.dump.next" mautrix-whatsapp
           ${pkgs.coreutils}/bin/mv "$backup_dir/mautrix-whatsapp.dump.next" "$backup_dir/mautrix-whatsapp.dump"
+          ${pkgs.postgresql}/bin/pg_dump --format=custom --file="$backup_dir/mautrix-gmessages.dump.next" mautrix-gmessages
+          ${pkgs.coreutils}/bin/mv "$backup_dir/mautrix-gmessages.dump.next" "$backup_dir/mautrix-gmessages.dump"
           ${pkgs.postgresql}/bin/pg_dump --format=custom --file="$backup_dir/mautrix-instagram.dump.next" mautrix-instagram
           ${pkgs.coreutils}/bin/mv "$backup_dir/mautrix-instagram.dump.next" "$backup_dir/mautrix-instagram.dump"
         '';
@@ -827,6 +983,70 @@ in
         SystemCallFilter = [ "@system-service" ];
       };
       restartTriggers = [ whatsappConfig ];
+    };
+
+    systemd.services.mautrix-gmessages = {
+      description = "Mautrix Google Messages Matrix bridge";
+      wantedBy = [ "multi-user.target" ];
+      wants = [ "network-online.target" ];
+      requires = [
+        "matrix-synapse.service"
+        "postgresql.service"
+      ];
+      after = [
+        "matrix-synapse.service"
+        "network-online.target"
+        "postgresql.service"
+        "sops-nix.service"
+      ];
+      path = [
+        pkgs.envsubst
+        pkgs.ffmpeg-headless
+      ];
+      preStart = ''
+        umask 0077
+        envsubst -i ${gmessagesConfig} -o ${gmessagesState}/config.yaml
+      '';
+      serviceConfig = {
+        User = "mautrix-gmessages";
+        Group = "matrix-bridges";
+        EnvironmentFile = config.sops.templates."matrix-gmessages.env".path;
+        WorkingDirectory = gmessagesState;
+        ExecStart = ''
+          ${gmessagesPackage}/bin/mautrix-gmessages \
+            --config=${gmessagesState}/config.yaml \
+            --registration=${config.sops.templates."matrix-gmessages-registration.yaml".path} \
+            --no-update
+        '';
+        Restart = "on-failure";
+        RestartSec = "10s";
+        UMask = "0077";
+        CapabilityBoundingSet = [ "" ];
+        LockPersonality = true;
+        NoNewPrivileges = true;
+        PrivateDevices = true;
+        PrivateTmp = true;
+        ProtectClock = true;
+        ProtectControlGroups = true;
+        ProtectHome = true;
+        ProtectHostname = true;
+        ProtectKernelLogs = true;
+        ProtectKernelModules = true;
+        ProtectKernelTunables = true;
+        ProtectSystem = "strict";
+        ReadWritePaths = [ gmessagesState ];
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+        ];
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [ "@system-service" ];
+      };
+      restartTriggers = [ gmessagesConfig ];
     };
 
     systemd.services.mautrix-instagram = {

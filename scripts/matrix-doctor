@@ -4,7 +4,7 @@ set -euo pipefail
 matrix_host="matrix.internal.therealrishabh.com"
 chat_host="chat.internal.therealrishabh.com"
 
-for unit in postgresql.service matrix-synapse.service mautrix-whatsapp.service mautrix-instagram.service mautrix-wsproxy.service pi-courier.service caddy.service; do
+for unit in postgresql.service matrix-synapse.service mautrix-whatsapp.service mautrix-gmessages.service mautrix-instagram.service mautrix-wsproxy.service pi-courier.service caddy.service; do
   systemctl is-active --quiet "$unit" || {
     echo "$unit is not active" >&2
     exit 1
@@ -38,4 +38,4 @@ if ! grep -Eq '^(100\.|fd7a:115c:a1e0:)' <<<"$chat_addresses"; then
   exit 1
 fi
 
-echo "Matrix homeserver, Cinny, WhatsApp and Instagram bridges, iMessage proxy, and Pi Courier are healthy."
+echo "Matrix homeserver, Cinny, WhatsApp, Google Messages, and Instagram bridges, iMessage proxy, and Pi Courier are healthy."

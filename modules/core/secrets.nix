@@ -64,6 +64,9 @@ in
         "matrix-whatsapp-as-token" = { };
         "matrix-whatsapp-hs-token" = { };
         "matrix-whatsapp-pickle-key" = { };
+        "matrix-gmessages-as-token" = { };
+        "matrix-gmessages-hs-token" = { };
+        "matrix-gmessages-pickle-key" = { };
         "matrix-instagram-as-token" = { };
         "matrix-instagram-hs-token" = { };
         "matrix-instagram-pickle-key" = { };

@@ -64,6 +64,42 @@ WhatsApp creates encrypted Matrix rooms for recent conversations. Test both
 directions with a trusted contact before disconnecting the same account from
 Beeper.
 
+## Pair Google Messages
+
+The server credentials are generated during initial deployment with
+`just matrix-gmessages-store-secrets`. Re-running that command rotates them and
+requires an immediate `just switch`; existing Google Messages login state may
+need to be paired again after rotation.
+
+In Element, start a direct chat with:
+
+```text
+@gmessagesbot:therealrishabh.com
+```
+
+Send `login google`. In a Firefox private window, open:
+
+```text
+https://accounts.google.com/AccountChooser?continue=https://messages.google.com/web/config
+```
+
+Keep developer tools open on the **Network** tab, reload the page, right-click
+the `/web/config` request, and choose **Copy as cURL**. Send that complete cURL
+command as the next message to the bridge bot. Treat it as a credential: send
+it only in this encrypted bot management room, then close the private window
+after pairing succeeds.
+
+Google Messages on the phone will show an emoji confirmation prompt. Tap the
+matching emoji to finish pairing. The phone must remain powered on, connected
+to the internet, and able to run Google Messages for SMS and RCS bridging to
+work. The old `login qr` flow is no longer supported by Google.
+
+If Google Fi is in use, select the normal RCS-capable pairing mode rather than
+"sync to your Google Account", which the bridge does not support. Test both
+directions with a trusted contact before removing the corresponding Beeper
+connection. If a browser session makes the bridge inactive, send `set-active`
+to the bot management room.
+
 ## Log In to Instagram
 
 In Element, start a direct chat with:
@@ -148,6 +184,7 @@ group rooms.
 cd /srv/ops
 just matrix-doctor
 just matrix-whatsapp-logs
+just matrix-gmessages-logs
 just matrix-instagram-logs
 just matrix-imessage-proxy-logs
 just matrix-pi-logs
@@ -177,7 +214,8 @@ bridge management room. Keep notifications enabled for both portal rooms and
 the management room.
 
 The bridges store their session and encryption state under
-`/srv/state/matrix/whatsapp` and `/srv/state/matrix/instagram`. Synapse media and signing state are under
+`/srv/state/matrix/whatsapp`, `/srv/state/matrix/gmessages`, and
+`/srv/state/matrix/instagram`. Synapse media and signing state are under
 `/srv/state/matrix/synapse`; PostgreSQL holds message and bridge databases under
 `/srv/state/matrix/postgresql`. A daily timer creates consistent database dumps
 under `/srv/state/matrix/backups` for Backrest to capture. The iMessage bridge

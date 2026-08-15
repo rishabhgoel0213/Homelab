@@ -161,8 +161,14 @@ matrix-doctor:
 matrix-user-add username="rishabh":
     sudo matrix-synapse-register_new_matrix_user --user "{{username}}" --no-admin
 
+matrix-gmessages-store-secrets:
+    nix shell --inputs-from . nixpkgs#openssl --command scripts/store-matrix-gmessages-secrets
+
 matrix-whatsapp-logs:
     journalctl -u mautrix-whatsapp.service -f
+
+matrix-gmessages-logs:
+    journalctl -u mautrix-gmessages.service -f
 
 matrix-instagram-logs:
     journalctl -u mautrix-instagram.service -f
