@@ -38,6 +38,9 @@ status:
     systemctl --no-pager status tailscaled.service || true
     systemctl --no-pager status docker.service || true
 
+jupyter-kernel-sync project:
+    scripts/jupyter-kernel-sync "{{project}}"
+
 backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 

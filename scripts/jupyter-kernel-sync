@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: scripts/jupyter-kernel-sync PROJECT_DIR" >&2
+  exit 2
+fi
+
+# shellcheck disable=SC1090
+. "${HOMELAB_PATHS_LIB:-/srv/ops/scripts/lib/homelab-paths}"
+
+project_dir="$(realpath "$1")"
+source_root="$project_dir/.jupyter/kernels"
+target_root="${JUPYTER_KERNEL_STATE_DIR:-$homelab_state_root/jupyterlab/data/kernels}"
+
+if [[ ! -d "$source_root" ]]; then
+  echo "Project has no kernelspec directory: $source_root" >&2
+  exit 1
+fi
+
+shopt -s nullglob
+kernel_dirs=("$source_root"/*)
+synced=0
+
+mkdir -p "$target_root"
+
+for kernel_dir in "${kernel_dirs[@]}"; do
+  [[ -d "$kernel_dir" ]] || continue
+
+  kernel_name="$(basename "$kernel_dir")"
+  kernel_json="$kernel_dir/kernel.json"
+
+  if [[ ! "$kernel_name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Invalid kernelspec directory name: $kernel_name" >&2
+    exit 1
+  fi
+
+  if [[ ! -f "$kernel_json" ]]; then
+    echo "Missing kernelspec: $kernel_json" >&2
+    exit 1
+  fi
+
+  if ! jq -e '
+    type == "object" and
+    (.argv | type == "array" and length > 0 and all(.[]; type == "string")) and
+    (.display_name | type == "string" and length > 0) and
+    (.language | type == "string" and length > 0)
+  ' "$kernel_json" >/dev/null; then
+    echo "Invalid kernelspec: $kernel_json" >&2
+    exit 1
+  fi
+
+  target_dir="$target_root/$kernel_name"
+  mkdir -p "$target_dir"
+  cp -a "$kernel_dir/." "$target_dir/"
+  echo "Synced $kernel_name -> $target_dir"
+  synced=$((synced + 1))
+done
+
+if [[ $synced -eq 0 ]]; then
+  echo "No kernelspec directories found under: $source_root" >&2
+  exit 1
+fi
