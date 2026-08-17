@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -231,80 +232,111 @@ class Publisher:
         self.lock = threading.Lock()
         self.status: dict[str, Any] = {"state": "idle", "log": "", "finishedAt": None}
 
-    def publish(self) -> dict[str, Any]:
+    def _render(
+        self,
+        build_source: Path,
+        arguments: list[str],
+        failure_message: str,
+        log: str = "",
+    ) -> str:
+        render = subprocess.run(
+            [self.quarto, "render", str(build_source), "--no-execute", *arguments],
+            cwd=build_source,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=900,
+            check=False,
+        )
+        log = (log + ANSI_RE.sub("", render.stdout))[-MAX_LOG_CHARS:]
+        if render.returncode != 0:
+            self.status = {"state": "failed", "log": log, "finishedAt": None}
+            raise RuntimeError(failure_message)
+        if not (build_source / "_site" / "index.html").is_file():
+            raise RuntimeError("Quarto completed without producing _site/index.html.")
+        return log
+
+    def _deploy(self, output: Path, destination: Path, failure_message: str, log: str) -> str:
+        install_resume(self.resume, output)
+        destination.mkdir(parents=True, exist_ok=True)
+        deploy = subprocess.run(
+            [self.rsync, "-a", "--delete", f"{output}/", f"{destination}/"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=120,
+            check=False,
+        )
+        log = (log + ANSI_RE.sub("", deploy.stdout))[-MAX_LOG_CHARS:]
+        if deploy.returncode != 0:
+            self.status = {"state": "failed", "log": log, "finishedAt": None}
+            raise RuntimeError(failure_message)
+        return log
+
+    def _render_preview(self, build_source: Path, log: str = "") -> str:
+        if not self.preview_state:
+            raise RuntimeError("Internal preview output is not configured.")
+        log = self._render(
+            build_source,
+            ["-M", "draft-mode:visible"],
+            "Quarto preview render failed. Check the build log.",
+            log,
+        )
+        return self._deploy(
+            build_source / "_site",
+            self.preview_state,
+            "Rendered successfully, but preview deployment failed.",
+            log,
+        )
+
+    def _copy_source(self, destination: Path) -> None:
+        shutil.copytree(
+            self.source,
+            destination,
+            ignore=shutil.ignore_patterns(".git", ".quarto", "_site", "__pycache__", "*.pyc"),
+        )
+
+    def _begin(self, state: str) -> None:
         if not self.lock.acquire(blocking=False):
-            raise RuntimeError("A publish is already running.")
+            raise RuntimeError("A blog build is already running.")
+        self.status = {"state": state, "log": "", "finishedAt": None}
+
+    def _finish(self, state: str, log: str) -> dict[str, Any]:
+        finished = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self.status = {"state": state, "log": log, "finishedAt": finished}
+        return self.status
+
+    def preview(self) -> dict[str, Any]:
+        self._begin("previewing")
         try:
-            self.status = {"state": "building", "log": "", "finishedAt": None}
-            log = ""
-            output = self.source / "_site"
+            with tempfile.TemporaryDirectory(prefix="blog-preview-") as temporary:
+                build_source = Path(temporary) / "source"
+                self._copy_source(build_source)
+                return self._finish("previewed", self._render_preview(build_source))
+        finally:
+            self.lock.release()
 
-            if self.preview_state:
-                preview_render = subprocess.run(
-                    [self.quarto, "render", str(self.source), "-M", "draft-mode:visible"],
-                    cwd=self.source,
-                    text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    timeout=900,
-                    check=False,
+    def publish(self) -> dict[str, Any]:
+        self._begin("building")
+        try:
+            with tempfile.TemporaryDirectory(prefix="blog-publish-") as temporary:
+                build_source = Path(temporary) / "source"
+                self._copy_source(build_source)
+                log = ""
+                output = build_source / "_site"
+
+                if self.preview_state:
+                    log = self._render_preview(build_source, log)
+
+                log = self._render(build_source, [], "Quarto render failed. Check the build log.", log)
+                prune_draft_outputs(build_source, output)
+                log = self._deploy(
+                    output,
+                    self.state,
+                    "Rendered successfully, but deployment failed.",
+                    log,
                 )
-                log = ANSI_RE.sub("", preview_render.stdout)[-MAX_LOG_CHARS:]
-                if preview_render.returncode != 0:
-                    self.status = {"state": "failed", "log": log, "finishedAt": None}
-                    raise RuntimeError("Quarto preview render failed. Check the build log.")
-                if not (output / "index.html").is_file():
-                    raise RuntimeError("Quarto completed without producing _site/index.html.")
-
-                install_resume(self.resume, output)
-                self.preview_state.mkdir(parents=True, exist_ok=True)
-                preview_deploy = subprocess.run(
-                    [self.rsync, "-a", "--delete", f"{output}/", f"{self.preview_state}/"],
-                    text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    timeout=120,
-                    check=False,
-                )
-                log = (log + ANSI_RE.sub("", preview_deploy.stdout))[-MAX_LOG_CHARS:]
-                if preview_deploy.returncode != 0:
-                    self.status = {"state": "failed", "log": log, "finishedAt": None}
-                    raise RuntimeError("Rendered successfully, but preview deployment failed.")
-
-            render = subprocess.run(
-                [self.quarto, "render", str(self.source)],
-                cwd=self.source,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                timeout=900,
-                check=False,
-            )
-            log = (log + ANSI_RE.sub("", render.stdout))[-MAX_LOG_CHARS:]
-            if render.returncode != 0:
-                self.status = {"state": "failed", "log": log, "finishedAt": None}
-                raise RuntimeError("Quarto render failed. Check the build log.")
-
-            if not (output / "index.html").is_file():
-                raise RuntimeError("Quarto completed without producing _site/index.html.")
-            install_resume(self.resume, output)
-            prune_draft_outputs(self.source, output)
-            self.state.mkdir(parents=True, exist_ok=True)
-            deploy = subprocess.run(
-                [self.rsync, "-a", "--delete", f"{output}/", f"{self.state}/"],
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                timeout=120,
-                check=False,
-            )
-            log = (log + ANSI_RE.sub("", deploy.stdout))[-MAX_LOG_CHARS:]
-            if deploy.returncode != 0:
-                self.status = {"state": "failed", "log": log, "finishedAt": None}
-                raise RuntimeError("Rendered successfully, but deployment failed.")
-            finished = datetime.now(timezone.utc).isoformat(timespec="seconds")
-            self.status = {"state": "published", "log": log, "finishedAt": finished}
-            return self.status
+                return self._finish("published", log)
         finally:
             self.lock.release()
 
@@ -371,6 +403,10 @@ def create_app(store: BlogStore, publisher: Publisher, assets: Path) -> web.Appl
         require_mutation_header(request)
         return web.json_response(await asyncio.to_thread(publisher.publish))
 
+    async def preview(request: web.Request) -> web.Response:
+        require_mutation_header(request)
+        return web.json_response(await asyncio.to_thread(publisher.preview))
+
     async def status(_request: web.Request) -> web.Response:
         return web.json_response(publisher.status)
 
@@ -381,6 +417,7 @@ def create_app(store: BlogStore, publisher: Publisher, assets: Path) -> web.Appl
     app.router.add_post("/admin/api/posts", create_post)
     app.router.add_put("/admin/api/posts/{slug}", update_post)
     app.router.add_post("/admin/api/import", import_notebook)
+    app.router.add_post("/admin/api/preview", preview)
     app.router.add_post("/admin/api/publish", publish)
     app.router.add_get("/admin/api/status", status)
     return app

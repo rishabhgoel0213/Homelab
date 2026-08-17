@@ -17,6 +17,11 @@
 
 [hidden] { display: none !important; }
 
+[aria-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 body {
   margin: 0;
   background: var(--surface);

@@ -118,7 +118,6 @@ in
         }
         handle {
           root * ${previewState}
-          try_files {path} {path}/ /index.html
           file_server
         }
       '';

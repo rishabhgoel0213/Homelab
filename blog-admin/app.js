@@ -171,6 +171,32 @@ elements.form.addEventListener("submit", async (event) => {
   }
 });
 
+elements.viewPost.addEventListener("click", async (event) => {
+  event.preventDefault();
+  if (!state.selected?.postUrl || elements.viewPost.dataset.busy) return;
+  const postUrl = state.selected.postUrl;
+  elements.viewPost.dataset.busy = "true";
+  elements.viewPost.setAttribute("aria-disabled", "true");
+  try {
+    setStatus("Rendering preview...");
+    const result = await api("/admin/api/preview", { method: "POST" });
+    elements.log.textContent = result.log || "Preview completed without output.";
+    elements.logPanel.hidden = false;
+    window.location.assign(postUrl);
+  } catch (error) {
+    setStatus(error.message, true);
+    const status = await api("/admin/api/status").catch(() => null);
+    if (status?.log) {
+      elements.log.textContent = status.log;
+      elements.logPanel.hidden = false;
+      elements.logPanel.open = true;
+    }
+  } finally {
+    delete elements.viewPost.dataset.busy;
+    elements.viewPost.removeAttribute("aria-disabled");
+  }
+});
+
 elements.publish.addEventListener("click", async () => {
   elements.publish.disabled = true;
   try {

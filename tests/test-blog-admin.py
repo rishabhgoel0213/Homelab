@@ -106,12 +106,12 @@ class BlogStoreTests(unittest.TestCase):
     def test_publish_renders_internal_drafts_before_public_site(self) -> None:
         state = self.source / "public"
         preview_state = self.source / "preview"
-        output = self.source / "_site"
         calls: list[list[str]] = []
 
         def run(command: list[str], **_kwargs: object) -> SimpleNamespace:
             calls.append(command)
             if command[0] == "quarto":
+                output = Path(command[2]) / "_site"
                 output.mkdir(exist_ok=True)
                 (output / "index.html").write_text("site", encoding="utf-8")
             return SimpleNamespace(returncode=0, stdout="")
@@ -126,15 +126,43 @@ class BlogStoreTests(unittest.TestCase):
         with mock.patch.object(blog_admin.subprocess, "run", side_effect=run):
             publisher.publish()
 
-        self.assertEqual(
-            calls,
-            [
-                ["quarto", "render", str(self.source), "-M", "draft-mode:visible"],
-                ["rsync", "-a", "--delete", f"{output}/", f"{preview_state}/"],
-                ["quarto", "render", str(self.source)],
-                ["rsync", "-a", "--delete", f"{output}/", f"{state}/"],
-            ],
+        build_source = Path(calls[0][2])
+        output = build_source / "_site"
+        self.assertNotEqual(build_source, self.source)
+        self.assertEqual(calls[0][3:], ["--no-execute", "-M", "draft-mode:visible"])
+        self.assertEqual(calls[1], ["rsync", "-a", "--delete", f"{output}/", f"{preview_state}/"])
+        self.assertEqual(calls[2], ["quarto", "render", str(build_source), "--no-execute"])
+        self.assertEqual(calls[3], ["rsync", "-a", "--delete", f"{output}/", f"{state}/"])
+
+    def test_preview_only_renders_and_deploys_internal_site(self) -> None:
+        state = self.source / "public"
+        preview_state = self.source / "preview"
+        calls: list[list[str]] = []
+
+        def run(command: list[str], **_kwargs: object) -> SimpleNamespace:
+            calls.append(command)
+            if command[0] == "quarto":
+                output = Path(command[2]) / "_site"
+                output.mkdir(exist_ok=True)
+                (output / "index.html").write_text("site", encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="")
+
+        publisher = blog_admin.Publisher(
+            self.source,
+            state,
+            "quarto",
+            "rsync",
+            preview_state=preview_state,
         )
+        with mock.patch.object(blog_admin.subprocess, "run", side_effect=run):
+            result = publisher.preview()
+
+        self.assertEqual(result["state"], "previewed")
+        build_source = Path(calls[0][2])
+        output = build_source / "_site"
+        self.assertNotEqual(build_source, self.source)
+        self.assertEqual(calls[0][3:], ["--no-execute", "-M", "draft-mode:visible"])
+        self.assertEqual(calls[1], ["rsync", "-a", "--delete", f"{output}/", f"{preview_state}/"])
 
 
 if __name__ == "__main__":
