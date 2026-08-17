@@ -8,9 +8,6 @@
 - `/srv/ops` - declarative NixOS, homelab, Codex, and agent configuration.
 - `/srv/state` - persistent runtime state, including native conversation data.
 - `/srv/state/codex` - Codex sessions, authentication, plugins, and caches.
-- `/srv/state/agents/index.jsonl` - metadata-only cross-harness conversation index.
-- `/srv/state/agents/search` - private local CASS full-text archive used by
-  `agent search`, `agent read`, and destination handoffs.
 - `/var/tmp/agent-work` - manifest-managed, expiring task directories.
 
 ## Tooling
@@ -20,10 +17,6 @@
   `with-nix shell --inputs-from /srv/ops nixpkgs#<package> --command <command>`.
 - Run infrastructure checks from `/srv/ops` with `just check`, `just build`,
   `just test`, or another narrow recipe.
-- Inspect recent conversations with `agent history`; inspect one record with
-  `agent show <id>`.
-- Search all supported harnesses with `agent search <query>`, then use the
-  returned opaque ref with `agent read` or `agent handoff`.
 
 ## Server Facts
 

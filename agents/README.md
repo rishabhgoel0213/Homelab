@@ -1,8 +1,7 @@
 # Agent Cockpit
 
 This is a generated landing directory, not a workspace. Its policy files come
-from `/srv/ops/agents`, and its `history` link exposes the small agent-state
-index under `/srv/state/agents`.
+from `/srv/ops/agents`.
 
 Choose a canonical target before starting work:
 
@@ -14,7 +13,6 @@ Choose a canonical target before starting work:
 Useful inspection commands:
 
 ```bash
-agent history
 agent work
 agent gc
 ```

@@ -164,9 +164,6 @@ let
     install -m 0600 -o rishabh -g users \
       ${../../pi/AGENTS.md} \
       ${lib.escapeShellArg "${piAgentDir}/AGENTS.md"}
-    install -m 0600 -o rishabh -g users \
-      ${../../pi/extensions/agent-history.ts} \
-      ${lib.escapeShellArg "${piAgentDir}/extensions/agent-history.ts"}
   '';
 in
 {

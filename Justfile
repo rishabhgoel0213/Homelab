@@ -86,9 +86,6 @@ codex-migrate-state:
 codex-prune-user-install:
     scripts/codex-prune-user-install
 
-agent-index:
-    agent index
-
 agent-work:
     agent work
 

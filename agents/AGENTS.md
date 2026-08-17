@@ -37,8 +37,7 @@ before cloning another copy.
 - Use `agent work` to inspect task storage and `agent gc` for a safe dry run.
   Automatic cleanup deletes only expired directories containing a valid
   `.agent-work.json` manifest.
-- Never place secrets in Git, agent policy, conversation indexes, command
-  arguments, or logs.
+- Never place secrets in Git, agent policy, command arguments, or logs.
 
 ## Change Discipline
 
