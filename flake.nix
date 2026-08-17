@@ -28,6 +28,10 @@
       pkgs = nixpkgs.legacyPackages.${system};
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
       pythonWithAiohttp = pkgs.python3.withPackages (ps: [ ps.aiohttp ]);
+      pythonForBlog = pkgs.python3.withPackages (ps: [
+        ps.aiohttp
+        ps.pyyaml
+      ]);
     in
     {
       checks.${system} = {
@@ -92,6 +96,22 @@
                 python3 ${./tests/test-agent-tools.py}
               AGENT_SITE_GATEWAY_SCRIPT=${./scripts/agent-site-gateway.py} \
                 python3 ${./tests/test-agent-site-gateway.py}
+              touch "$out"
+            '';
+
+        blog-admin =
+          pkgs.runCommand "blog-admin-check"
+            {
+              nativeBuildInputs = [
+                pythonForBlog
+                pkgs.ruff
+              ];
+            }
+            ''
+              ruff check ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
+              python3 -m py_compile ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
+              BLOG_ADMIN_SCRIPT=${./scripts/blog-admin.py} \
+                python3 ${./tests/test-blog-admin.py}
               touch "$out"
             '';
 

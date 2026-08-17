@@ -38,7 +38,7 @@
     ../../modules/services/nemotron-lightning.nix
     ../../modules/services/jupyterlab.nix
     ../../modules/services/t3code.nix
-    ../../modules/services/public-site.nix
+    ../../modules/services/blog-site.nix
     ../../modules/services/syncthing.nix
     ../../modules/services/singlemail.nix
     ../../modules/services/samba.nix
@@ -86,6 +86,7 @@
     mach1Additive.enable = true;
     nemotronLightning.enable = true;
     jupyterlab.enable = true;
+    blogSite.enable = true;
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";

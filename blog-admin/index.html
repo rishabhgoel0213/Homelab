@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blog admin</title>
+  <link rel="stylesheet" href="/admin/assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <a class="brand" href="/">Rishabh's notes</a>
+      <span class="section-label">Admin</span>
+    </div>
+    <nav aria-label="Admin actions">
+      <a class="quiet-button" href="/">View blog</a>
+      <button class="primary-button" id="publish-button" type="button">Publish</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="toolbar" aria-label="Post tools">
+      <div class="toolbar-actions">
+        <button id="new-button" type="button">New post</button>
+        <button id="import-button" type="button">Import notebook</button>
+        <input id="notebook-input" type="file" accept=".ipynb,application/x-ipynb+json" hidden>
+      </div>
+      <div class="status" id="status" role="status">Ready</div>
+    </section>
+
+    <section class="workspace">
+      <div class="posts-pane">
+        <div class="pane-heading">
+          <h1>Posts</h1>
+          <span id="post-count">0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Post</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="posts-body"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="empty-state" hidden>No posts yet.</div>
+      </div>
+
+      <aside class="editor-pane" id="editor-pane" aria-label="Post metadata">
+        <div class="editor-placeholder" id="editor-placeholder">Select a post to edit its publication details.</div>
+        <form id="post-form" hidden>
+          <div class="pane-heading">
+            <h2>Edit post</h2>
+            <a id="open-source" class="quiet-button" href="#" target="_blank" rel="noreferrer">Open source</a>
+          </div>
+          <label>
+            Title
+            <input name="title" required>
+          </label>
+          <label>
+            Slug
+            <input name="slug" readonly>
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="4"></textarea>
+          </label>
+          <div class="field-row">
+            <label>
+              Date
+              <input name="date" type="date" required>
+            </label>
+            <label>
+              Categories
+              <input name="categories" placeholder="research, notes">
+            </label>
+          </div>
+          <label class="toggle-row">
+            <input name="draft" type="checkbox">
+            <span>Keep as draft</span>
+          </label>
+          <div class="form-actions">
+            <a id="view-post" class="quiet-button" href="#" target="_blank">View rendered</a>
+            <button class="primary-button" type="submit">Save metadata</button>
+          </div>
+        </form>
+      </aside>
+    </section>
+
+    <details class="build-log" id="build-log-panel" hidden>
+      <summary>Build output</summary>
+      <pre id="build-log"></pre>
+    </details>
+  </main>
+
+  <dialog id="create-dialog">
+    <form id="create-form" method="dialog">
+      <div class="dialog-heading">
+        <h2 id="dialog-title">New post</h2>
+        <button class="icon-button" value="cancel" aria-label="Close" type="submit">&times;</button>
+      </div>
+      <label>
+        Title
+        <input name="title" required autofocus>
+      </label>
+      <label>
+        Slug
+        <input name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="generated-from-title">
+      </label>
+      <p class="selected-file" id="selected-file" hidden></p>
+      <div class="form-actions">
+        <button value="cancel" type="submit">Cancel</button>
+        <button class="primary-button" id="create-submit" value="default" type="submit">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/admin/assets/app.js" defer></script>
+</body>
+</html>

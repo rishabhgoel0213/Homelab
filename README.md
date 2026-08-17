@@ -38,7 +38,7 @@ just local-model-doctor mach1-additive-35b
 just agent-index
 just agent-work
 just agent-gc
-just public-site-deploy
+just blog-build
 just github-profile-sync
 just rollback
 ```

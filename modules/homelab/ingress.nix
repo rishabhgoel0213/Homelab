@@ -1,7 +1,19 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
-  inherit (lib) filterAttrs mapAttrs mapAttrs' mkIf nameValuePair optionalString;
+  inherit (lib)
+    filterAttrs
+    mapAttrs
+    mapAttrs'
+    mkIf
+    nameValuePair
+    optionalString
+    ;
 
   cfg = config.homelab;
 
@@ -25,23 +37,26 @@ let
     let
       fqdn = routeFqdn route;
     in
-    if route.visibility == "internal" then
-      fqdn
-    else
-      "http://${fqdn}:8080";
+    if route.visibility == "internal" then fqdn else "http://${fqdn}:8080";
 
   routeConfig =
     route:
     let
       body =
-        if route.redirectTo != null then
+        if route.caddyConfig != null then
+          route.caddyConfig
+        else if route.redirectTo != null then
           ''
             redir ${route.redirectTo} ${toString route.redirectStatus}
           ''
         else if route.upstream != null then
           ''
             encode zstd gzip
-            reverse_proxy ${route.upstream}${optionalString (route.upstreamHostHeader != null) " {\n              header_up Host ${route.upstreamHostHeader}\n            }"}
+            reverse_proxy ${route.upstream}${
+              optionalString (
+                route.upstreamHostHeader != null
+              ) " {\n              header_up Host ${route.upstreamHostHeader}\n            }"
+            }
           ''
         else if route.root != null then
           ''
@@ -104,10 +119,7 @@ in
   config = {
     services.caddy = {
       enable = true;
-      virtualHosts =
-        publicCatchalls
-        // internalCatchalls
-        // (mapAttrs' mkVhost enabledRoutes);
+      virtualHosts = publicCatchalls // internalCatchalls // (mapAttrs' mkVhost enabledRoutes);
     };
 
     security.acme = mkIf cfg.acme.enable {
@@ -131,7 +143,9 @@ in
       inherit (route) visibility description;
       host = routeFqdn route;
       target =
-        if route.redirectTo != null then
+        if route.caddyConfig != null then
+          "custom"
+        else if route.redirectTo != null then
           "redirect:${toString route.redirectStatus}:${route.redirectTo}"
         else if route.upstream != null then
           route.upstream

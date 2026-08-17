@@ -44,8 +44,23 @@ jupyter-kernel-sync project:
 backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 
-public-site-deploy:
-    scripts/public-site-deploy
+blog-list:
+    blogctl list
+
+blog-new title slug="":
+    blogctl new --title "{{title}}" {{ if slug == "" { "" } else { "--slug \"" + slug + "\"" } }}
+
+blog-import-notebook notebook title slug="":
+    blogctl import-notebook "{{notebook}}" --title "{{title}}" {{ if slug == "" { "" } else { "--slug \"" + slug + "\"" } }}
+
+blog-preview:
+    blogctl preview
+
+blog-build:
+    blogctl build
+
+blog-deploy:
+    blogctl build
 
 codex-bootstrap:
     scripts/codex-bootstrap

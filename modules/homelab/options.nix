@@ -65,20 +65,20 @@ in
         default = /home/rishabh/.config/homelab/secrets.yaml;
         description = "Local encrypted SOPS secrets file.";
       };
-      publicSiteSource = mkOption {
+      blogSiteSource = mkOption {
         type = types.str;
-        default = "/home/rishabh/Projects/public-site";
-        description = "Editable public site source directory.";
+        default = "/home/rishabh/Projects/blog";
+        description = "Editable Quarto blog source directory.";
       };
-      publicSiteState = mkOption {
+      blogSiteState = mkOption {
         type = types.str;
-        default = "/srv/state/public-site";
-        description = "Deployed public site directory served by Caddy.";
+        default = "/srv/state/blog-site";
+        description = "Rendered blog directory served by Caddy.";
       };
       resumePdf = mkOption {
         type = types.str;
         default = "/home/rishabh/Documents/resume/Resume.pdf";
-        description = "Canonical resume PDF copied into the deployed public site.";
+        description = "Canonical resume PDF copied into the published blog.";
       };
       githubProfileReadme = mkOption {
         type = types.str;
@@ -257,6 +257,12 @@ in
                 type = types.lines;
                 default = "";
                 description = "Extra Caddy directives appended to this route.";
+              };
+
+              caddyConfig = mkOption {
+                type = types.nullOr types.lines;
+                default = null;
+                description = "Optional complete Caddy configuration for mixed or advanced routes.";
               };
 
               description = mkOption {
