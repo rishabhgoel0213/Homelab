@@ -61,8 +61,7 @@ Send `login qr`. The bot returns a QR code. On the Android phone, open WhatsApp,
 then use **Menu > Linked devices > Link a device** and scan the QR code.
 
 WhatsApp creates encrypted Matrix rooms for recent conversations. Test both
-directions with a trusted contact before disconnecting the same account from
-Beeper.
+directions with a trusted contact.
 
 ## Pair Google Messages
 
@@ -96,9 +95,8 @@ work. The old `login qr` flow is no longer supported by Google.
 
 If Google Fi is in use, select the normal RCS-capable pairing mode rather than
 "sync to your Google Account", which the bridge does not support. Test both
-directions with a trusted contact before removing the corresponding Beeper
-connection. If a browser session makes the bridge inactive, send `set-active`
-to the bot management room.
+directions with a trusted contact. If a browser session makes the bridge
+inactive, send `set-active` to the bot management room.
 
 ## Log In to Instagram
 

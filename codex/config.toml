@@ -40,8 +40,5 @@ enabled = true
 [plugins."google-drive@openai-curated"]
 enabled = true
 
-[plugins."beeper@homelab-local"]
-enabled = true
-
 [plugins."umd-canvas@homelab-local"]
 enabled = true

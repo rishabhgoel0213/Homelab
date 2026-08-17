@@ -39,11 +39,6 @@ in
           group = "users";
           mode = "0400";
         };
-        "codex-beeper.env" = {
-          owner = "rishabh";
-          group = "users";
-          mode = "0400";
-        };
         "vaultwarden.env" = { };
         "samba-password" = {
           owner = "root";

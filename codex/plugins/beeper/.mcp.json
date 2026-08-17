@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "beeper": {
-      "type": "http",
-      "url": "http://macbook/v0/mcp",
-      "bearer_token_env_var": "CODEX_BEEPER_TOKEN"
-    }
-  }
-}

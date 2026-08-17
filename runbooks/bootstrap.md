@@ -72,7 +72,6 @@ The file must contain:
 - `cloudflared-tunnel.json`
 - `codex-auth.json`
 - `codex-credentials.json`
-- `codex-beeper.env`
 - `vaultwarden.env`
 - `restic-password`
 - `restic-ssh-key` and `restic-known-hosts` if using Restic over SSH/SFTP

@@ -65,7 +65,6 @@ can be bootstrapped in this order:
 - [Remote Phone microphone capture](runbooks/remote-phone.md)
 - [UMD Canvas bridge](runbooks/canvas-bridge.md)
 - [Agent environment](runbooks/agents.md)
-- [Beeper Desktop MCP](runbooks/beeper.md)
 - [Syncthing](runbooks/syncthing.md)
 
 ## Repository boundaries
