@@ -2,6 +2,8 @@
 
 let
   cfg = config.homelab;
+  cloudflaredTunnelUnit = "cloudflared-tunnel-${cfg.publicTunnel.tunnelId}.service";
+  ip = "${pkgs.iproute2}/bin/ip";
 
   cfctl = pkgs.writeShellApplication {
     name = "cfctl";
@@ -166,6 +168,42 @@ in
     }
 
     (lib.mkIf cfg.publicTunnel.enable {
+      # Tailscale's exit-node policy is consulted before the main routing table.
+      # Mullvad does not pass cloudflared's TCP/UDP 7844 traffic, so send only
+      # Cloudflare's documented tunnel edge ranges through the normal uplink.
+      systemd.services.cloudflared-direct-egress = {
+        description = "Route Cloudflare Tunnel edge traffic outside the Tailscale exit node";
+        wantedBy = [ "multi-user.target" ];
+        wants = [ "network-online.target" ];
+        after = [
+          "network-online.target"
+          "tailscaled.service"
+        ];
+        before = [ cloudflaredTunnelUnit ];
+
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+
+        script = ''
+          ${ip} -4 rule delete priority 5200 to 198.41.192.0/24 table main 2>/dev/null || true
+          ${ip} -4 rule delete priority 5201 to 198.41.200.0/24 table main 2>/dev/null || true
+          ${ip} -4 rule add priority 5200 to 198.41.192.0/24 table main
+          ${ip} -4 rule add priority 5201 to 198.41.200.0/24 table main
+        '';
+
+        preStop = ''
+          ${ip} -4 rule delete priority 5200 to 198.41.192.0/24 table main 2>/dev/null || true
+          ${ip} -4 rule delete priority 5201 to 198.41.200.0/24 table main 2>/dev/null || true
+        '';
+      };
+
+      systemd.services."cloudflared-tunnel-${cfg.publicTunnel.tunnelId}" = {
+        requires = [ "cloudflared-direct-egress.service" ];
+        after = [ "cloudflared-direct-egress.service" ];
+      };
+
       services.cloudflared = {
         enable = true;
         tunnels.${cfg.publicTunnel.tunnelId} = {
