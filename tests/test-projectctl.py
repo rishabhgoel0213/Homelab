@@ -182,6 +182,56 @@ class ProjectCtlTests(unittest.TestCase):
         )
         self.assertEqual(str(nested), json.loads(nested_result.stdout)["cwd"])
 
+    def test_clean_stdout_keeps_environment_output_off_command_stdout(self) -> None:
+        self.create_project("Protocol Provider")
+        fake_nix = self.root / "fake-nix"
+        fake_nix.write_text(
+            f"#!{sys.executable}\n"
+            "import os, sys\n"
+            "print('environment banner', flush=True)\n"
+            "command_index = sys.argv.index('--command') + 1\n"
+            "command = sys.argv[command_index:]\n"
+            "os.execvpe(command[0], command, os.environ.copy())\n",
+            encoding="utf-8",
+        )
+        fake_nix.chmod(0o755)
+        controller = self.root / "projectctl-self"
+        controller.write_text(
+            f"#!{sys.executable}\n"
+            "import os, sys\n"
+            f"script = {str(SCRIPT)!r}\n"
+            "os.execv(sys.executable, [sys.executable, script, *sys.argv[1:]])\n",
+            encoding="utf-8",
+        )
+        controller.chmod(0o755)
+        provider = self.root / "fake-provider"
+        provider.write_text(
+            f"#!{sys.executable}\n"
+            "import json, sys\n"
+            "print(json.dumps({'provider': 'stdout'}))\n"
+            "print('provider stderr', file=sys.stderr)\n",
+            encoding="utf-8",
+        )
+        provider.chmod(0o755)
+        self.environment.update(
+            {
+                "PROJECTCTL_NIX_BIN": str(fake_nix),
+                "PROJECTCTL_SELF": str(controller),
+            }
+        )
+
+        result = self.run_projectctl(
+            "exec",
+            "--clean-stdout",
+            "protocol-provider",
+            "--",
+            str(provider),
+        )
+
+        self.assertEqual({"provider": "stdout"}, json.loads(result.stdout))
+        self.assertIn("environment banner", result.stderr)
+        self.assertIn("provider stderr", result.stderr)
+
     def test_rejects_projects_outside_canonical_root(self) -> None:
         outside = self.root / "outside"
         outside.mkdir()

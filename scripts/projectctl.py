@@ -541,10 +541,27 @@ def exec_command(
     command: list[str],
     direct: bool = False,
     cwd: str | None = None,
+    clean_stdout: bool = False,
 ) -> int:
     if not command:
         raise ProjectError("a command is required")
     os.chdir(validated_execution_root(project, cwd))
+    if clean_stdout and not direct and project_flake(project) is not None:
+        stdout_fd = os.dup(sys.stdout.fileno())
+        os.set_inheritable(stdout_fd, True)
+        executable = os.environ.get(
+            "PROJECTCTL_SELF", "/run/current-system/sw/bin/projectctl"
+        )
+        command = [
+            executable,
+            "_exec-with-stdout",
+            str(stdout_fd),
+            "--",
+            *command,
+        ]
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
     resolved = project_command(project, command, direct=direct)
     os.execvpe(resolved[0], resolved, os.environ.copy())
     return 0
@@ -634,7 +651,22 @@ def command_exec(args: argparse.Namespace) -> int:
         strip_separator(args.arguments),
         direct=args.direct,
         cwd=args.cwd,
+        clean_stdout=args.clean_stdout,
     )
+
+
+def command_exec_with_stdout(args: argparse.Namespace) -> int:
+    command = strip_separator(args.arguments)
+    if not command:
+        raise ProjectError("a command is required")
+    if args.stdout_fd <= sys.stderr.fileno():
+        raise ProjectError("saved stdout descriptor must be greater than 2")
+    os.fstat(args.stdout_fd)
+    sys.stdout.flush()
+    os.dup2(args.stdout_fd, sys.stdout.fileno(), inheritable=True)
+    os.close(args.stdout_fd)
+    os.execvpe(command[0], command, os.environ.copy())
+    return 0
 
 
 def command_shell(args: argparse.Namespace) -> int:
@@ -832,10 +864,22 @@ def parser() -> argparse.ArgumentParser:
     execute.add_argument(
         "--direct", action="store_true", help="skip the project Nix environment"
     )
+    execute.add_argument(
+        "--clean-stdout",
+        action="store_true",
+        help="send environment startup output to stderr so stdout belongs to the command",
+    )
     execute.add_argument("--cwd", help="run from a directory inside the project")
     execute.add_argument("project")
     execute.add_argument("arguments", nargs=argparse.REMAINDER)
     execute.set_defaults(func=command_exec)
+
+    restored_stdout = commands.add_parser(
+        "_exec-with-stdout", help=argparse.SUPPRESS
+    )
+    restored_stdout.add_argument("stdout_fd", type=int)
+    restored_stdout.add_argument("arguments", nargs=argparse.REMAINDER)
+    restored_stdout.set_defaults(func=command_exec_with_stdout)
 
     shell = commands.add_parser("shell", help="enter a project's Nix development shell")
     shell.add_argument("project")

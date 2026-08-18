@@ -49,6 +49,7 @@ projectctl env lock linear-algebra
 projectctl shell linear-algebra
 projectctl exec linear-algebra -- python -V
 projectctl exec --cwd /home/rishabh/Projects/linear-algebra/src linear-algebra -- python -V
+projectctl exec --clean-stdout linear-algebra -- some-jsonl-provider
 projectctl harnesses
 projectctl session linear-algebra codex
 projectctl session linear-algebra pi
@@ -58,6 +59,11 @@ Commands run from the project root, or from a validated child directory supplied
 with `--cwd`. When `flake.nix` exists, they enter the project development shell
 first. The harness registry is configured in Nix, so future providers can be
 added without changing project manifests or the CLI.
+
+Use `--clean-stdout` for commands whose stdout is a machine protocol. Nix and
+development-shell startup output is sent to stderr, then the original stdout is
+restored immediately before the command starts. The command's own stdout and
+stderr remain distinct.
 
 ## JupyterLab
 
