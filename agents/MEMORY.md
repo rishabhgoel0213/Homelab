@@ -8,6 +8,6 @@ the user explicitly asks to preserve something here.
   trees.
 - Keep infrastructure declarative in `/srv/ops` and runtime state in
   `/srv/state`.
-- Keep the agent cockpit free of task output.
-- Temporary work expires unless it is deliberately promoted or retained.
+- Create new work in durable projects under `/home/rishabh/Projects`; do not
+  create a parallel workspace tree.
 - Codex and Pi are configured local harnesses.

@@ -14,7 +14,7 @@ trust_level = "trusted"
 [projects."/srv/ops"]
 trust_level = "trusted"
 
-[projects."/var/tmp/agent-work"]
+[projects."/home/rishabh/Projects"]
 trust_level = "trusted"
 
 [marketplaces.homelab-local]

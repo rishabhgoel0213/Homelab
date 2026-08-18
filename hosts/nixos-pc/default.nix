@@ -18,6 +18,7 @@
     ../../modules/core/pi.nix
     ../../modules/core/containers.nix
     ../../modules/core/filesystem.nix
+    ../../modules/core/projects.nix
     ../../modules/core/gpu.nix
     ../../modules/core/remote-phone.nix
     ../../modules/core/secrets.nix
@@ -31,7 +32,6 @@
     ../../modules/services/backrest.nix
     ../../modules/services/canvas-bridge.nix
     ../../modules/services/kicad.nix
-    ../../modules/services/agent-sites.nix
     ../../modules/services/jellyfin.nix
     ../../modules/services/bonsai-ternary.nix
     ../../modules/services/mach1-additive.nix
@@ -66,7 +66,6 @@
     };
 
     privateDns.enable = true;
-    agentSites.enable = true;
     remotePhone.enable = true;
     canvasBridge.enable = true;
 

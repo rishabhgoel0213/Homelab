@@ -6,7 +6,8 @@ home directory.
 
 ## Server Context
 
-- T3-created ad hoc chats use isolated workspaces under `/var/tmp/agent-work`.
+- Agent sessions should run in durable projects under `/home/rishabh/Projects`
+  or another canonical repository such as `/srv/ops`.
 - Read `/etc/agents/AGENTS.md` and `/etc/agents/ENVIRONMENT.md` before server,
   NixOS, Cloudflare,
   Tailscale, backup, route, or service work.

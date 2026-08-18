@@ -21,22 +21,21 @@ This is the harness-neutral policy for interactive agents on `nixos-pc`.
   `/home/rishabh/Documents`.
 - Runtime service data belongs under `/srv/state`; do not edit it as the durable
   source of configuration.
-- If a task has no canonical destination, create an isolated expiring directory
-  with `agent new <short-name>` and work in the returned path.
+- If work needs its own project, create one with `projectctl create <name>` and
+  work in the returned durable directory under `/home/rishabh/Projects`.
 
 Do not create task output, clones, downloads, build trees, or temporary files
 directly in `/home/rishabh`. Check whether a canonical checkout already exists
 before cloning another copy.
 
-## Finish Work Deliberately
+## Work in Projects Deliberately
 
-- Promote durable output from an agent work directory into its canonical
-  project or document location.
-- Leave disposable output to expire, or use `agent keep <path>` only when there
-  is a concrete reason to retain it.
-- Use `agent work` to inspect task storage and `agent gc` for a safe dry run.
-  Automatic cleanup deletes only expired directories containing a valid
-  `.agent-work.json` manifest.
+- Use `projectctl list` to inspect active projects and `projectctl show <name>`
+  to resolve a project before writing.
+- Use `projectctl session <name> <harness>` to launch Codex, Pi, or another
+  configured harness with the project as its working directory.
+- Keep original inputs, notes, notebooks, source code, figures, and generated
+  artifacts in the project layout instead of creating a second task workspace.
 - Never place secrets in Git, agent policy, command arguments, or logs.
 
 ## Change Discipline

@@ -38,8 +38,20 @@ status:
     systemctl --no-pager status tailscaled.service || true
     systemctl --no-pager status docker.service || true
 
-jupyter-kernel-sync project:
-    scripts/jupyter-kernel-sync "{{project}}"
+project-list:
+    projectctl list
+
+project-create name:
+    projectctl create "{{name}}"
+
+project-show project:
+    projectctl show "{{project}}"
+
+project-session project harness="codex":
+    projectctl session "{{project}}" "{{harness}}"
+
+project-jupyter project:
+    projectctl jupyter "{{project}}"
 
 backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
@@ -85,12 +97,6 @@ codex-migrate-state:
 
 codex-prune-user-install:
     scripts/codex-prune-user-install
-
-agent-work:
-    agent work
-
-agent-gc:
-    agent gc
 
 secrets-edit:
     scripts/secrets-edit

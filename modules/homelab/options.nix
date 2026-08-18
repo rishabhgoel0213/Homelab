@@ -50,15 +50,10 @@ in
         default = "/srv/state";
         description = "Durable service state root.";
       };
-      agentStateRoot = mkOption {
+      projectsRoot = mkOption {
         type = types.str;
-        default = "/srv/state/agents";
-        description = "Persistent harness-neutral agent metadata root.";
-      };
-      agentWorkRoot = mkOption {
-        type = types.str;
-        default = "/var/tmp/agent-work";
-        description = "Manifest-managed root for expiring ad hoc agent work.";
+        default = "/home/rishabh/Projects";
+        description = "Canonical root for durable user and agent projects.";
       };
       secretsFile = mkOption {
         type = types.path;

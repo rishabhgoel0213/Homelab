@@ -159,8 +159,6 @@ in
         PI_CODING_AGENT_DIR = piAgentDir;
         SHELL = "${pkgs.bash}/bin/bash";
         T3CODE_HOME = stateDir;
-        T3CODE_MANAGED_TASK_ROOT = homelab.paths.agentWorkRoot;
-        T3CODE_AGENT_POLICY_ROOT = "/etc/agents";
       };
       serviceConfig = {
         Type = "simple";
@@ -207,7 +205,7 @@ in
       host = "t3code";
       visibility = "internal";
       upstream = "http://127.0.0.1:${toString cfg.port}";
-      description = "Private T3 Code UI for managed Codex and Pi agents";
+      description = "Private T3 Code UI for Codex and Pi projects";
     };
 
     homelab.routes.t3code-updates = {

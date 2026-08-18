@@ -27,7 +27,6 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
-      pythonWithAiohttp = pkgs.python3.withPackages (ps: [ ps.aiohttp ]);
       pythonForBlog = pkgs.python3.withPackages (ps: [
         ps.aiohttp
         ps.pyyaml
@@ -79,23 +78,19 @@
               touch "$out"
             '';
 
-        agent-tools =
-          pkgs.runCommand "agent-tools-check"
+        projectctl =
+          pkgs.runCommand "projectctl-check"
             {
               nativeBuildInputs = [
-                pythonWithAiohttp
+                pkgs.python3
                 pkgs.ruff
               ];
             }
             ''
-              ruff check ${./scripts/agent.py} ${./scripts/agent-site-gateway.py} \
-                ${./tests/test-agent-tools.py} ${./tests/test-agent-site-gateway.py}
-              python3 -m py_compile ${./scripts/agent.py} ${./scripts/agent-site-gateway.py} \
-                ${./tests/test-agent-tools.py} ${./tests/test-agent-site-gateway.py}
-              AGENT_TOOL_SCRIPT=${./scripts/agent.py} \
-                python3 ${./tests/test-agent-tools.py}
-              AGENT_SITE_GATEWAY_SCRIPT=${./scripts/agent-site-gateway.py} \
-                python3 ${./tests/test-agent-site-gateway.py}
+              ruff check ${./scripts/projectctl.py} ${./tests/test-projectctl.py}
+              python3 -m py_compile ${./scripts/projectctl.py} ${./tests/test-projectctl.py}
+              PROJECTCTL_SCRIPT=${./scripts/projectctl.py} \
+                python3 ${./tests/test-projectctl.py}
               touch "$out"
             '';
 

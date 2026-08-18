@@ -1,21 +1,19 @@
-# Agent Cockpit
+# Agent Project Entry Point
 
-This is a generated landing directory, not a workspace. Its policy files come
-from `/srv/ops/agents`.
+The deployed policy files in `/etc/agents` come from `/srv/ops/agents`.
 
 Choose a canonical target before starting work:
 
 - `cd /srv/ops` for server and agent configuration.
 - `cd /home/rishabh/Projects/<project>` for software or research.
 - Use an appropriate `/home/rishabh/Documents/<area>` for durable non-code work.
-- Run `agent new <short-name>` when the task is genuinely ad hoc and needs files.
+- Run `projectctl create <name>` when work needs a new durable project.
 
 Useful inspection commands:
 
 ```bash
-agent work
-agent gc
+projectctl list
+projectctl show <name>
+projectctl session <name> codex
+projectctl jupyter <name>
 ```
-
-`agent gc` is a dry run. The scheduled cleanup service uses `--apply` and can
-only remove expired directories with a valid `.agent-work.json` manifest.

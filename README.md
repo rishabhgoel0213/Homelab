@@ -35,8 +35,10 @@ just canvas-pair
 just t3code-doctor
 just local-model-use bonsai-ternary-27b
 just local-model-doctor mach1-additive-35b
-just agent-work
-just agent-gc
+just project-list
+just project-create linear-algebra
+just project-session linear-algebra codex
+just project-jupyter linear-algebra
 just blog-build
 just github-profile-sync
 just rollback
@@ -64,6 +66,7 @@ can be bootstrapped in this order:
 - [Remote Phone microphone capture](runbooks/remote-phone.md)
 - [UMD Canvas bridge](runbooks/canvas-bridge.md)
 - [Agent environment](runbooks/agents.md)
+- [Durable projects](runbooks/projects.md)
 - [Syncthing](runbooks/syncthing.md)
 
 ## Repository boundaries

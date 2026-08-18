@@ -4,11 +4,12 @@
 
 - `/etc/agents` - deployed harness-neutral policy and environment map.
 - `/home/rishabh/Projects` - canonical software and research repositories.
+- `/home/rishabh/Projects/<name>/project.toml` - optional managed project
+  identity, status, layout, environment, and Jupyter metadata.
 - `/home/rishabh/Documents` - canonical durable personal documents.
 - `/srv/ops` - declarative NixOS, homelab, Codex, and agent configuration.
 - `/srv/state` - persistent runtime state, including native conversation data.
 - `/srv/state/codex` - Codex sessions, authentication, plugins, and caches.
-- `/var/tmp/agent-work` - manifest-managed, expiring task directories.
 
 ## Tooling
 
@@ -17,6 +18,8 @@
   `with-nix shell --inputs-from /srv/ops nixpkgs#<package> --command <command>`.
 - Run infrastructure checks from `/srv/ops` with `just check`, `just build`,
   `just test`, or another narrow recipe.
+- Manage durable projects with `projectctl`; run `projectctl --help` for the
+  create, list, session, environment, and Jupyter commands.
 
 ## Server Facts
 
