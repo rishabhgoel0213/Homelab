@@ -1,8 +1,8 @@
 # Durable Projects
 
 `projectctl` is the terminal-first control plane for permanent workspaces. Its
-canonical root is `/home/rishabh/Projects`; T3 Code can consume the same CLI and
-JSON model when its project layer is updated.
+canonical root is `/home/rishabh/Projects`; T3 Code consumes the same versioned
+JSON model through its server-side project-control adapter.
 
 ## Project Model
 
@@ -28,6 +28,10 @@ projectctl init existing-research --title "Existing Research"
 projectctl list
 projectctl list --json
 projectctl show linear-algebra --json
+projectctl capabilities --json
+projectctl rename linear-algebra "Linear Algebra II"
+projectctl archive linear-algebra
+projectctl unarchive linear-algebra
 ```
 
 New projects contain `sources/original`, `sources/processed`, `notebooks`,
@@ -44,14 +48,16 @@ projectctl env check linear-algebra
 projectctl env lock linear-algebra
 projectctl shell linear-algebra
 projectctl exec linear-algebra -- python -V
+projectctl exec --cwd /home/rishabh/Projects/linear-algebra/src linear-algebra -- python -V
 projectctl harnesses
 projectctl session linear-algebra codex
 projectctl session linear-algebra pi
 ```
 
-Commands run from the project root. When `flake.nix` exists, they enter the
-project development shell first. The harness registry is configured in Nix, so
-future providers can be added without changing project manifests or the CLI.
+Commands run from the project root, or from a validated child directory supplied
+with `--cwd`. When `flake.nix` exists, they enter the project development shell
+first. The harness registry is configured in Nix, so future providers can be
+added without changing project manifests or the CLI.
 
 ## JupyterLab
 
@@ -67,8 +73,13 @@ starts its configured Python kernel inside the same Nix environment.
 
 ## T3 Code Boundary
 
-The first pass disables T3 Code's legacy New Task feature. T3's next project
-layer should use `projectctl list --json`, `show --json`, and the stable project
-UUID rather than inventing another workspace database. T3 may keep its own UI
-state and native conversation references, but paths, environment behavior, and
-Jupyter links belong to the project control plane.
+T3's server invokes `projectctl` for catalog, lifecycle, environment, and
+Jupyter operations, then reconciles active entries into its conversation
+projection using the stable project UUID. The web and Android clients use that
+RPC surface; neither client reads the filesystem directly.
+
+T3 keeps UI state and native conversation references. Project identity, paths,
+environment behavior, lifecycle status, and Jupyter links belong to the project
+control plane. Codex and Pi child processes are routed through `projectctl exec`
+inside the canonical project tree, while legacy projects outside that tree keep
+their host execution behavior.

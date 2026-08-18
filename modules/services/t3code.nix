@@ -157,7 +157,10 @@ in
         CODEX_HOME = homelab.paths.codexHome;
         HOME = homelab.paths.userHome;
         PI_CODING_AGENT_DIR = piAgentDir;
+        PROJECTCTL_BIN = "/run/current-system/sw/bin/projectctl";
         SHELL = "${pkgs.bash}/bin/bash";
+        T3CODE_PROJECTCTL_BIN = "/run/current-system/sw/bin/projectctl";
+        T3CODE_PROJECTS_ROOT = homelab.paths.projectsRoot;
         T3CODE_HOME = stateDir;
       };
       serviceConfig = {

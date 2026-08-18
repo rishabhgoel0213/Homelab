@@ -21,6 +21,7 @@ from urllib.parse import quote
 
 MANIFEST_NAME = "project.toml"
 PROJECT_SCHEMA = 1
+PROJECTCTL_API_VERSION = 1
 PROJECT_DIRECTORIES = (
     "sources/original",
     "sources/processed",
@@ -52,6 +53,7 @@ class Project:
 
     def payload(self) -> dict[str, Any]:
         return {
+            "api_version": PROJECTCTL_API_VERSION,
             "schema": PROJECT_SCHEMA,
             "id": self.id,
             "name": self.name,
@@ -163,6 +165,14 @@ def project_directories() -> list[Path]:
 
 def discover_projects(include_archived: bool = False) -> list[Project]:
     projects = [load_project(path) for path in project_directories()]
+    seen_ids: dict[str, Path] = {}
+    for project in projects:
+        existing = seen_ids.get(project.id)
+        if existing is not None:
+            raise ProjectError(
+                f"duplicate project id {project.id}: {existing} and {project.root}"
+            )
+        seen_ids[project.id] = project.root
     if not include_archived:
         projects = [project for project in projects if project.status == "active"]
     return projects
@@ -331,6 +341,30 @@ def emit_project(project: Project, as_json: bool) -> None:
         print(project.root)
 
 
+def replace_manifest_scalar(project: Project, field: str, value: str) -> Project:
+    if not project.managed:
+        raise ProjectError(f"initialize project metadata first: {project.root}")
+    manifest_path = project.root / MANIFEST_NAME
+    content = manifest_path.read_text(encoding="utf-8")
+    pattern = re.compile(rf"^{re.escape(field)}\s*=.*$", re.MULTILINE)
+    replacement = f"{field} = {toml_string(value)}"
+    updated, replacements = pattern.subn(replacement, content, count=1)
+    if replacements != 1:
+        raise ProjectError(f"{manifest_path}: missing {field}")
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{MANIFEST_NAME}.", dir=project.root
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(updated)
+        temporary.chmod(manifest_path.stat().st_mode & 0o777)
+        temporary.replace(manifest_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return load_project(project.root)
+
+
 def command_create(args: argparse.Namespace) -> int:
     root = projects_root()
     root.mkdir(parents=True, exist_ok=True)
@@ -358,7 +392,9 @@ def command_init(args: argparse.Namespace) -> int:
     title = args.title.strip() if args.title else project.title
     if not title:
         raise ProjectError("project title must not be empty")
-    scaffold_project(project.root, str(uuid.uuid4()), slugify(project.root.name), title)
+    # Keep the deterministic identity used while this directory was implicit.
+    # T3 and other clients may already have durable references to it.
+    scaffold_project(project.root, project.id, slugify(project.root.name), title)
     emit_project(load_project(project.root), args.json)
     return 0
 
@@ -369,6 +405,7 @@ def command_list(args: argparse.Namespace) -> int:
         print(
             json.dumps(
                 {
+                    "api_version": PROJECTCTL_API_VERSION,
                     "schema": PROJECT_SCHEMA,
                     "projects": [project.payload() for project in projects],
                 },
@@ -385,6 +422,55 @@ def command_list(args: argparse.Namespace) -> int:
         state = project.status if project.managed else "implicit"
         environment = "nix" if project_flake(project) is not None else "host"
         print(f"{project.name[:24]:<24} {state:<10} {environment:<5} {project.title}")
+    return 0
+
+
+def command_capabilities(args: argparse.Namespace) -> int:
+    payload = {
+        "api_version": PROJECTCTL_API_VERSION,
+        "project_schema": PROJECT_SCHEMA,
+        "canonical_root": str(projects_root()),
+        "operations": [
+            "archive",
+            "capabilities",
+            "create",
+            "env.check",
+            "env.lock",
+            "exec",
+            "harnesses",
+            "init",
+            "jupyter",
+            "list",
+            "rename",
+            "session",
+            "shell",
+            "show",
+            "unarchive",
+        ],
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"projectctl API {PROJECTCTL_API_VERSION}")
+        print(f"canonical root: {payload['canonical_root']}")
+        print("operations: " + ", ".join(payload["operations"]))
+    return 0
+
+
+def command_set_status(args: argparse.Namespace) -> int:
+    project = resolve_project(args.project)
+    next_project = replace_manifest_scalar(project, "status", args.status)
+    emit_project(next_project, args.json)
+    return 0
+
+
+def command_rename(args: argparse.Namespace) -> int:
+    project = resolve_project(args.project)
+    title = args.title.strip()
+    if not title:
+        raise ProjectError("project title must not be empty")
+    next_project = replace_manifest_scalar(project, "title", title)
+    emit_project(next_project, args.json)
     return 0
 
 
@@ -450,13 +536,33 @@ def project_command(
     return [nix_bin(), "develop", nix_flake_reference(project), "--command", *command]
 
 
-def exec_command(project: Project, command: list[str], direct: bool = False) -> int:
+def exec_command(
+    project: Project,
+    command: list[str],
+    direct: bool = False,
+    cwd: str | None = None,
+) -> int:
     if not command:
         raise ProjectError("a command is required")
-    os.chdir(project.root)
+    os.chdir(validated_execution_root(project, cwd))
     resolved = project_command(project, command, direct=direct)
     os.execvpe(resolved[0], resolved, os.environ.copy())
     return 0
+
+
+def validated_execution_root(project: Project, requested: str | None) -> Path:
+    if requested is None:
+        return project.root
+    candidate = Path(requested).expanduser().resolve()
+    try:
+        candidate.relative_to(project.root)
+    except ValueError:
+        raise ProjectError(
+            f"execution directory must remain under project root {project.root}"
+        ) from None
+    if not candidate.is_dir():
+        raise ProjectError(f"execution directory does not exist: {candidate}")
+    return candidate
 
 
 def strip_separator(arguments: list[str]) -> list[str]:
@@ -519,7 +625,7 @@ def command_session(args: argparse.Namespace) -> int:
         )
     command = [item.replace("{project}", str(project.root)) for item in template]
     command.extend(strip_separator(args.arguments))
-    return exec_command(project, command, direct=args.direct)
+    return exec_command(project, command, direct=args.direct, cwd=args.cwd)
 
 
 def command_exec(args: argparse.Namespace) -> int:
@@ -527,6 +633,7 @@ def command_exec(args: argparse.Namespace) -> int:
         resolve_project(args.project),
         strip_separator(args.arguments),
         direct=args.direct,
+        cwd=args.cwd,
     )
 
 
@@ -657,6 +764,12 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="projectctl", description=__doc__)
     commands = root.add_subparsers(dest="command", required=True)
 
+    capabilities = commands.add_parser(
+        "capabilities", help="show the versioned project-control API"
+    )
+    capabilities.add_argument("--json", action="store_true")
+    capabilities.set_defaults(func=command_capabilities)
+
     create = commands.add_parser("create", help="create a durable managed project")
     create.add_argument("name")
     create.add_argument("--title")
@@ -685,6 +798,20 @@ def parser() -> argparse.ArgumentParser:
     show.add_argument("--json", action="store_true")
     show.set_defaults(func=command_show)
 
+    rename = commands.add_parser("rename", help="change a managed project's title")
+    rename.add_argument("project")
+    rename.add_argument("title")
+    rename.add_argument("--json", action="store_true")
+    rename.set_defaults(func=command_rename)
+
+    for command_name, status in (("archive", "archived"), ("unarchive", "active")):
+        lifecycle = commands.add_parser(
+            command_name, help=f"mark a managed project {status}"
+        )
+        lifecycle.add_argument("project")
+        lifecycle.add_argument("--json", action="store_true")
+        lifecycle.set_defaults(func=command_set_status, status=status)
+
     harnesses = commands.add_parser("harnesses", help="list configured agent harnesses")
     harnesses.add_argument("--json", action="store_true")
     harnesses.set_defaults(func=command_harnesses)
@@ -695,6 +822,7 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument(
         "--direct", action="store_true", help="skip the project Nix environment"
     )
+    session.add_argument("--cwd", help="run from a directory inside the project")
     session.add_argument("project")
     session.add_argument("harness", nargs="?", default="codex")
     session.add_argument("arguments", nargs=argparse.REMAINDER)
@@ -704,6 +832,7 @@ def parser() -> argparse.ArgumentParser:
     execute.add_argument(
         "--direct", action="store_true", help="skip the project Nix environment"
     )
+    execute.add_argument("--cwd", help="run from a directory inside the project")
     execute.add_argument("project")
     execute.add_argument("arguments", nargs=argparse.REMAINDER)
     execute.set_defaults(func=command_exec)

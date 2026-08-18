@@ -86,6 +86,7 @@ class ProjectCtlTests(unittest.TestCase):
         listing = json.loads(self.run_projectctl("list", "--json").stdout)
         self.assertEqual(1, len(listing["projects"]))
         self.assertFalse(listing["projects"][0]["managed"])
+        implicit_id = listing["projects"][0]["id"]
         self.run_projectctl("init", "existing-research", "--title", "Existing Research")
         self.assertEqual(
             original_flake, (existing / "flake.nix").read_text(encoding="utf-8")
@@ -94,12 +95,36 @@ class ProjectCtlTests(unittest.TestCase):
             self.run_projectctl("show", "existing-research", "--json").stdout
         )
         self.assertTrue(shown["managed"])
+        self.assertEqual(implicit_id, shown["id"])
         self.assertEqual("Existing Research", shown["title"])
         jupyter = json.loads(
             self.run_projectctl("jupyter", "existing-research", "--json").stdout
         )
         self.assertIsNone(jupyter["kernel"])
         self.assertFalse(self.kernels.exists())
+
+    def test_capabilities_and_reversible_project_lifecycle(self) -> None:
+        self.create_project("Lifecycle")
+        capabilities = json.loads(self.run_projectctl("capabilities", "--json").stdout)
+        self.assertEqual(1, capabilities["api_version"])
+        self.assertIn("unarchive", capabilities["operations"])
+
+        archived = json.loads(
+            self.run_projectctl("archive", "lifecycle", "--json").stdout
+        )
+        self.assertEqual("archived", archived["status"])
+        self.assertEqual(
+            [], json.loads(self.run_projectctl("list", "--json").stdout)["projects"]
+        )
+
+        renamed = json.loads(
+            self.run_projectctl("rename", "lifecycle", "Life Cycle", "--json").stdout
+        )
+        self.assertEqual("Life Cycle", renamed["title"])
+        active = json.loads(
+            self.run_projectctl("unarchive", "lifecycle", "--json").stdout
+        )
+        self.assertEqual("active", active["status"])
 
     def test_jupyter_registers_project_kernel_and_prints_deep_link(self) -> None:
         project = self.create_project("Course Notes")
@@ -144,6 +169,18 @@ class ProjectCtlTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(str(self.projects / "session-test"), payload["cwd"])
         self.assertEqual(["hello"], payload["args"])
+
+        nested = self.projects / "session-test" / "src"
+        nested_result = self.run_projectctl(
+            "exec",
+            "--direct",
+            "--cwd",
+            str(nested),
+            "session-test",
+            "--",
+            str(harness),
+        )
+        self.assertEqual(str(nested), json.loads(nested_result.stdout)["cwd"])
 
     def test_rejects_projects_outside_canonical_root(self) -> None:
         outside = self.root / "outside"
