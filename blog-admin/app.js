@@ -2,6 +2,7 @@ const state = {
   posts: [],
   selected: null,
   notebook: null,
+  projects: [],
 };
 
 const elements = {
@@ -18,8 +19,15 @@ const elements = {
   createSubmit: document.querySelector("#create-submit"),
   fileInput: document.querySelector("#notebook-input"),
   selectedFile: document.querySelector("#selected-file"),
+  importProject: document.querySelector("#import-project-button"),
+  projectDialog: document.querySelector("#project-dialog"),
+  projectForm: document.querySelector("#project-form"),
+  projectSelect: document.querySelector("#project-select"),
+  projectDetail: document.querySelector("#project-detail"),
+  projectSubmit: document.querySelector("#project-submit"),
   openSource: document.querySelector("#open-source"),
   viewPost: document.querySelector("#view-post"),
+  removePost: document.querySelector("#remove-post"),
   logPanel: document.querySelector("#build-log-panel"),
   log: document.querySelector("#build-log"),
 };
@@ -47,7 +55,7 @@ function renderPosts() {
   for (const post of state.posts) {
     const row = document.createElement("tr");
     row.tabIndex = 0;
-    row.classList.toggle("selected", state.selected?.slug === post.slug);
+    row.classList.toggle("selected", state.selected?.id === post.id);
     row.innerHTML = `
       <td><div class="post-title"></div><div class="post-slug"></div></td>
       <td class="kind"></td>
@@ -61,7 +69,7 @@ function renderPosts() {
     badge.textContent = post.draft ? "Draft" : "Published";
     badge.classList.add(post.draft ? "draft" : "published");
     row.querySelector(".post-date").textContent = post.date;
-    const select = () => selectPost(post.slug);
+    const select = () => selectPost(post.id);
     row.addEventListener("click", select);
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") select();
@@ -70,8 +78,8 @@ function renderPosts() {
   }
 }
 
-function selectPost(slug) {
-  state.selected = state.posts.find((post) => post.slug === slug) || null;
+function selectPost(id) {
+  state.selected = state.posts.find((post) => post.id === id) || null;
   renderPosts();
   if (!state.selected) {
     elements.form.hidden = true;
@@ -89,15 +97,15 @@ function selectPost(slug) {
   elements.form.elements.draft.checked = post.draft;
   elements.openSource.href = post.editorUrl || "#";
   elements.openSource.hidden = !post.editorUrl;
-  elements.viewPost.href = post.postUrl;
   elements.viewPost.hidden = !post.postUrl;
+  elements.removePost.textContent = post.origin === "project" ? "Remove project" : "Remove post";
 }
 
-async function loadPosts(selectedSlug = state.selected?.slug) {
+async function loadPosts(selectedId = state.selected?.id) {
   const data = await api("/admin/api/posts");
   state.posts = data.posts;
   renderPosts();
-  if (selectedSlug) selectPost(selectedSlug);
+  if (selectedId) selectPost(selectedId);
 }
 
 function openCreateDialog(notebook = null) {
@@ -116,6 +124,72 @@ elements.fileInput.addEventListener("change", () => {
   const notebook = elements.fileInput.files[0];
   if (notebook) openCreateDialog(notebook);
   elements.fileInput.value = "";
+});
+
+function renderProjectOptions() {
+  elements.projectSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a project";
+  elements.projectSelect.append(placeholder);
+  for (const project of state.projects) {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.disabled = project.imported || project.notebookCount === 0;
+    const suffix = project.imported
+      ? "already imported"
+      : `${project.notebookCount} notebook${project.notebookCount === 1 ? "" : "s"}`;
+    option.textContent = `${project.title} (${suffix})`;
+    elements.projectSelect.append(option);
+  }
+  elements.projectSelect.value = "";
+  elements.projectDetail.hidden = true;
+  elements.projectSubmit.disabled = true;
+}
+
+async function openProjectDialog() {
+  try {
+    setStatus("Loading projects...");
+    const data = await api("/admin/api/projects");
+    state.projects = data.projects;
+    renderProjectOptions();
+    elements.projectDialog.showModal();
+    setStatus("Ready");
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+elements.importProject.addEventListener("click", openProjectDialog);
+elements.projectSelect.addEventListener("change", () => {
+  const selected = state.projects.find((project) => project.id === elements.projectSelect.value);
+  elements.projectSubmit.disabled = !selected || selected.imported || selected.notebookCount === 0;
+  elements.projectDetail.hidden = !selected;
+  if (selected) {
+    elements.projectDetail.textContent = `${selected.root} · ${selected.environment} environment`;
+  }
+});
+
+elements.projectForm.addEventListener("submit", async (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const projectId = elements.projectSelect.value;
+  if (!projectId) return;
+  elements.projectSubmit.disabled = true;
+  try {
+    setStatus("Linking project...");
+    const result = await api("/admin/api/import-project", {
+      method: "POST",
+      body: JSON.stringify({ project: projectId }),
+    });
+    elements.projectDialog.close();
+    await loadPosts(result.posts[0]?.id);
+    const count = result.posts.length;
+    setStatus(`Imported ${count} notebook${count === 1 ? "" : "s"} as drafts`);
+  } catch (error) {
+    setStatus(error.message, true);
+    elements.projectSubmit.disabled = false;
+  }
 });
 
 elements.createForm.addEventListener("submit", async (event) => {
@@ -141,7 +215,7 @@ elements.createForm.addEventListener("submit", async (event) => {
       });
     }
     elements.dialog.close();
-    await loadPosts(post.slug);
+    await loadPosts(post.id);
     setStatus("Draft created");
   } catch (error) {
     setStatus(error.message, true);
@@ -160,14 +234,43 @@ elements.form.addEventListener("submit", async (event) => {
   };
   try {
     setStatus("Saving metadata...");
-    const post = await api(`/admin/api/posts/${encodeURIComponent(state.selected.slug)}`, {
+    const post = await api(`/admin/api/posts/${encodeURIComponent(state.selected.id)}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
-    await loadPosts(post.slug);
+    await loadPosts(post.id);
     setStatus("Metadata saved");
   } catch (error) {
     setStatus(error.message, true);
+  }
+});
+
+elements.removePost.addEventListener("click", async () => {
+  if (!state.selected) return;
+  const selected = state.selected;
+  const project = selected.origin === "project";
+  const prompt = project
+    ? `Remove the linked project “${selected.projectTitle}” and all of its notebook drafts from the blog? The project files will not be deleted.`
+    : `Permanently remove “${selected.title}” from the blog source?`;
+  if (!window.confirm(prompt)) return;
+  elements.removePost.disabled = true;
+  try {
+    setStatus(project ? "Removing project and rebuilding preview..." : "Removing post and rebuilding preview...");
+    const result = await api(`/admin/api/posts/${encodeURIComponent(selected.id)}`, {
+      method: "DELETE",
+    });
+    if (result.preview?.log) {
+      elements.log.textContent = result.preview.log;
+      elements.logPanel.hidden = false;
+    }
+    state.selected = null;
+    await loadPosts();
+    setStatus(project ? "Project removed; original files were preserved" : "Post removed");
+  } catch (error) {
+    setStatus(error.message, true);
+    await loadPosts().catch(() => {});
+  } finally {
+    elements.removePost.disabled = false;
   }
 });
 

@@ -28,7 +28,7 @@ body {
   color: var(--ink);
 }
 
-button, input, textarea { font: inherit; }
+button, input, select, textarea { font: inherit; }
 
 a { color: inherit; }
 
@@ -104,6 +104,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 .primary-button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+.danger-button { color: #a32626; border-color: #d7a09a; }
+.danger-button:hover { color: #7f1d1d; border-color: #a32626; background: #fff5f4; }
 button:disabled { cursor: wait; opacity: .55; }
 
 .status { color: var(--muted); font-size: .9rem; }
@@ -148,7 +150,7 @@ tbody tr:hover, tbody tr.selected { background: var(--subtle); }
 
 .editor-placeholder, .empty-state { color: var(--muted); padding: 34px 0; }
 label { display: block; margin-bottom: 16px; color: #3f474d; font-size: .86rem; font-weight: 650; }
-input, textarea {
+input, select, textarea {
   width: 100%;
   margin-top: 7px;
   padding: 9px 10px;
@@ -163,6 +165,7 @@ input[readonly] { color: var(--muted); background: var(--subtle); }
 .toggle-row { gap: 9px; color: var(--ink); }
 .toggle-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-actions { justify-content: flex-end; margin-top: 24px; }
+.form-spacer { flex: 1; }
 
 .build-log { margin: 0 28px 28px; border-top: 1px solid var(--line); padding-top: 16px; }
 .build-log summary { cursor: pointer; font-weight: 650; }
@@ -173,6 +176,7 @@ dialog::backdrop { background: rgba(20, 24, 27, .42); }
 .dialog-heading { justify-content: space-between; margin-bottom: 20px; }
 .icon-button { border: 0; min-width: 36px; padding: 4px; font-size: 1.5rem; }
 .selected-file { background: var(--subtle); padding: 10px; border-radius: 4px; overflow-wrap: anywhere; }
+.dialog-copy { color: var(--muted); line-height: 1.5; }
 
 @media (max-width: 850px) {
   .topbar { padding: 0 16px; }

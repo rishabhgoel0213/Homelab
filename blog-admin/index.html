@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Blog admin</title>
-  <link rel="stylesheet" href="/admin/assets/styles.css">
+  <link rel="stylesheet" href="/admin/assets/styles.css?v=project-imports-v2">
 </head>
 <body>
   <header class="topbar">
@@ -23,6 +23,7 @@
       <div class="toolbar-actions">
         <button id="new-button" type="button">New post</button>
         <button id="import-button" type="button">Import notebook</button>
+        <button id="import-project-button" type="button">Import project</button>
         <input id="notebook-input" type="file" accept=".ipynb,application/x-ipynb+json" hidden>
       </div>
       <div class="status" id="status" role="status">Ready</div>
@@ -84,7 +85,9 @@
             <span>Keep as draft</span>
           </label>
           <div class="form-actions">
-            <a id="view-post" class="quiet-button" href="#">View rendered</a>
+            <button id="remove-post" class="danger-button" type="button">Remove post</button>
+            <span class="form-spacer"></span>
+            <button id="view-post" class="quiet-button" type="button">View rendered</button>
             <button class="primary-button" type="submit">Save metadata</button>
           </div>
         </form>
@@ -119,6 +122,25 @@
     </form>
   </dialog>
 
-  <script src="/admin/assets/app.js" defer></script>
+  <dialog id="project-dialog">
+    <form id="project-form" method="dialog">
+      <div class="dialog-heading">
+        <h2>Import project</h2>
+        <button class="icon-button" value="cancel" aria-label="Close" type="submit">&times;</button>
+      </div>
+      <p class="dialog-copy">Link an active projectctl project. Every notebook appears as a draft, while images and other project files remain available to the renderer.</p>
+      <label>
+        Project
+        <select id="project-select" name="project" required></select>
+      </label>
+      <p class="selected-file" id="project-detail" hidden></p>
+      <div class="form-actions">
+        <button value="cancel" type="submit">Cancel</button>
+        <button class="primary-button" id="project-submit" value="default" type="submit">Import project</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/admin/assets/app.js?v=project-imports-v2" defer></script>
 </body>
 </html>

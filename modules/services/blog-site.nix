@@ -37,6 +37,7 @@ let
       export BLOG_RESUME=${lib.escapeShellArg homelab.paths.resumePdf}
       export BLOG_QUARTO=${lib.escapeShellArg "${quarto}/bin/quarto"}
       export BLOG_RSYNC=${lib.escapeShellArg "${pkgs.rsync}/bin/rsync"}
+      export BLOG_PROJECTCTL=/run/current-system/sw/bin/projectctl
       exec ${python}/bin/python3 ${../../scripts/blog-admin.py} "$@"
     '';
   };

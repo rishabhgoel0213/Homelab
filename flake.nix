@@ -98,14 +98,17 @@
           pkgs.runCommand "blog-admin-check"
             {
               nativeBuildInputs = [
+                pkgs.nodejs_24
                 pythonForBlog
                 pkgs.ruff
               ];
             }
             ''
+              node --check ${./blog-admin/app.js}
               ruff check ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
               python3 -m py_compile ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
               BLOG_ADMIN_SCRIPT=${./scripts/blog-admin.py} \
+                BLOG_ADMIN_ASSETS=${./blog-admin} \
                 python3 ${./tests/test-blog-admin.py}
               touch "$out"
             '';

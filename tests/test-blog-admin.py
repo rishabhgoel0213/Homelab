@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from unittest import mock
 
 
 SCRIPT = Path(os.environ.get("BLOG_ADMIN_SCRIPT", "/srv/ops/scripts/blog-admin.py"))
+ASSETS = Path(os.environ.get("BLOG_ADMIN_ASSETS", "/srv/ops/blog-admin"))
 SPEC = importlib.util.spec_from_file_location("blog_admin", SCRIPT)
 assert SPEC and SPEC.loader
 blog_admin = importlib.util.module_from_spec(SPEC)
@@ -20,7 +22,9 @@ SPEC.loader.exec_module(blog_admin)
 class BlogStoreTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.source = Path(self.temporary.name)
+        self.root = Path(self.temporary.name)
+        self.source = self.root / "blog"
+        self.source.mkdir()
         (self.source / "_quarto.yml").write_text("project:\n  type: website\n", encoding="utf-8")
         self.store = blog_admin.BlogStore(
             self.source,
@@ -37,6 +41,11 @@ class BlogStoreTests(unittest.TestCase):
         self.assertEqual(blog_admin.ANSI_RE.sub("", "\x1b[34mbuild\x1b[0m"), "build")
         with self.assertRaises(ValueError):
             blog_admin.validate_slug("../escape")
+
+    def test_admin_assets_use_cache_busted_urls(self) -> None:
+        html = (ASSETS / "index.html").read_text(encoding="utf-8")
+        self.assertIn('/admin/assets/app.js?v=project-imports-v2', html)
+        self.assertIn('/admin/assets/styles.css?v=project-imports-v2', html)
 
     def test_create_and_update_document(self) -> None:
         post = self.store.create({"title": "First Post", "categories": ["notes"]})
@@ -80,6 +89,129 @@ class BlogStoreTests(unittest.TestCase):
         self.store.create({"title": "Duplicate"})
         with self.assertRaises(FileExistsError):
             self.store.create({"title": "Duplicate"})
+
+    @staticmethod
+    def write_notebook(path: Path, title: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "cells": [
+                        {
+                            "cell_type": "markdown",
+                            "metadata": {},
+                            "source": [f"# {title}\n"],
+                        }
+                    ],
+                    "metadata": {},
+                    "nbformat": 4,
+                    "nbformat_minor": 5,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def test_project_import_links_all_notebooks_and_materializes_assets(self) -> None:
+        project = self.root / "analysis-project"
+        self.write_notebook(project / "overview.ipynb", "Overview")
+        self.write_notebook(project / "notebooks" / "details.ipynb", "Detailed Results")
+        self.write_notebook(project / ".ipynb_checkpoints" / "ignored.ipynb", "Ignored")
+        (project / "images").mkdir()
+        (project / "images" / "plot.png").write_bytes(b"png")
+        payload = {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "name": "analysis-project",
+            "title": "Analysis Project",
+            "root": str(project),
+            "managed": True,
+            "environment": "nix",
+        }
+
+        with mock.patch.object(self.store.catalog, "list_projects", return_value=[payload]):
+            imported = self.store.import_project(payload["id"])
+
+        self.assertEqual(len(imported["posts"]), 2)
+        self.assertTrue((self.source / ".blog-projects" / "analysis-project").is_symlink())
+        posts = self.store.list_posts()
+        self.assertEqual({post["title"] for post in posts}, {"Overview", "Detailed Results"})
+        self.assertTrue(all(post["draft"] for post in posts))
+        self.assertTrue(all(post["origin"] == "project" for post in posts))
+        details = next(post for post in posts if post["title"] == "Detailed Results")
+        self.assertEqual(
+            details["postUrl"],
+            "https://preview.example.test/posts/analysis-project/notebooks/details/",
+        )
+
+        updated = self.store.update(
+            details["id"],
+            {
+                "title": "Published details",
+                "date": "2026-08-18",
+                "categories": ["research"],
+                "draft": False,
+            },
+        )
+        self.assertFalse(updated["draft"])
+        self.assertEqual(
+            updated["postUrl"],
+            "https://blog.example.test/posts/analysis-project/notebooks/details/",
+        )
+
+        build_source = self.root / "build"
+        shutil.copytree(self.source, build_source, symlinks=True)
+        self.store.prepare_build_source(build_source)
+        self.assertEqual(
+            (
+                build_source
+                / "posts"
+                / "analysis-project"
+                / "_project"
+                / "images"
+                / "plot.png"
+            ).read_bytes(),
+            b"png",
+        )
+        staged = json.loads(
+            (
+                build_source
+                / "posts"
+                / "analysis-project"
+                / "notebooks"
+                / "details"
+                / "index.ipynb"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(staged["metadata"]["title"], "Published details")
+        self.assertFalse(staged["metadata"]["draft"])
+        config = blog_admin.yaml.safe_load((build_source / "_quarto.yml").read_text(encoding="utf-8"))
+        self.assertIn("posts/**/*.ipynb", config["project"]["render"])
+        original = json.loads((project / "notebooks" / "details.ipynb").read_text(encoding="utf-8"))
+        self.assertNotIn("title", original["metadata"])
+
+    def test_delete_post_and_unlink_project_preserve_external_files(self) -> None:
+        local = self.store.create({"title": "Delete me"})
+        self.assertEqual(self.store.delete(local["id"])["removed"], "post")
+        self.assertFalse((self.source / "posts" / "delete-me").exists())
+
+        project = self.root / "linked-project"
+        notebook = project / "linked.ipynb"
+        self.write_notebook(notebook, "Linked")
+        payload = {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "name": "linked-project",
+            "title": "Linked Project",
+            "root": str(project),
+            "managed": False,
+            "environment": "host",
+        }
+        with mock.patch.object(self.store.catalog, "list_projects", return_value=[payload]):
+            imported = self.store.import_project(payload["id"])
+        removed = self.store.delete(imported["posts"][0]["id"])
+
+        self.assertEqual(removed["removed"], "project")
+        self.assertTrue(notebook.is_file())
+        self.assertFalse((self.source / ".blog-projects" / "linked-project").exists())
+        self.assertEqual(self.store.list_posts(), [])
 
     def test_prunes_only_draft_output(self) -> None:
         self.store.create({"title": "Draft post", "draft": True})

@@ -57,6 +57,7 @@ can be bootstrapped in this order:
 ## Runbooks
 
 - [First-time setup](runbooks/bootstrap.md)
+- [Notebook blog](runbooks/blog.md)
 - [Cloudflare administration](runbooks/cloudflare.md)
 - [Backups](runbooks/backups.md)
 - [Vaultwarden and sops](runbooks/bitwarden-sops.md)
