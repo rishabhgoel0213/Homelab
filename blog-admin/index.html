@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Blog admin</title>
-  <link rel="stylesheet" href="/admin/assets/styles.css?v=project-imports-v2">
+  <link rel="stylesheet" href="/admin/assets/styles.css?v=per-post-publishing-v3">
 </head>
 <body>
   <header class="topbar">
@@ -14,7 +14,6 @@
     </div>
     <nav aria-label="Admin actions">
       <a class="quiet-button" href="/">View blog</a>
-      <button class="primary-button" id="publish-button" type="button">Publish</button>
     </nav>
   </header>
 
@@ -58,6 +57,10 @@
             <h2>Edit post</h2>
             <a id="open-source" class="quiet-button" href="#" target="_blank" rel="noreferrer">Open source</a>
           </div>
+          <div class="publication-status">
+            <span>Publication status</span>
+            <span class="badge draft" id="selected-status">Draft</span>
+          </div>
           <label>
             Title
             <input name="title" required>
@@ -80,15 +83,13 @@
               <input name="categories" placeholder="research, notes">
             </label>
           </div>
-          <label class="toggle-row">
-            <input name="draft" type="checkbox">
-            <span>Keep as draft</span>
-          </label>
           <div class="form-actions">
             <button id="remove-post" class="danger-button" type="button">Remove post</button>
             <span class="form-spacer"></span>
             <button id="view-post" class="quiet-button" type="button">View rendered</button>
-            <button class="primary-button" type="submit">Save metadata</button>
+            <button id="unpublish-post" class="quiet-button" type="button" hidden>Move to drafts</button>
+            <button id="save-post" type="submit">Save draft</button>
+            <button id="publish-post" class="primary-button" type="button">Publish post</button>
           </div>
         </form>
       </aside>
@@ -141,6 +142,6 @@
     </form>
   </dialog>
 
-  <script src="/admin/assets/app.js?v=project-imports-v2" defer></script>
+  <script src="/admin/assets/app.js?v=per-post-publishing-v3" defer></script>
 </body>
 </html>

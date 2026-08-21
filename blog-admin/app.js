@@ -12,7 +12,10 @@ const elements = {
   placeholder: document.querySelector("#editor-placeholder"),
   form: document.querySelector("#post-form"),
   status: document.querySelector("#status"),
-  publish: document.querySelector("#publish-button"),
+  selectedStatus: document.querySelector("#selected-status"),
+  savePost: document.querySelector("#save-post"),
+  publishPost: document.querySelector("#publish-post"),
+  unpublishPost: document.querySelector("#unpublish-post"),
   dialog: document.querySelector("#create-dialog"),
   createForm: document.querySelector("#create-form"),
   dialogTitle: document.querySelector("#dialog-title"),
@@ -94,7 +97,11 @@ function selectPost(id) {
   elements.form.elements.description.value = post.description;
   elements.form.elements.date.value = post.date;
   elements.form.elements.categories.value = post.categories.join(", ");
-  elements.form.elements.draft.checked = post.draft;
+  elements.selectedStatus.textContent = post.draft ? "Draft" : "Published";
+  elements.selectedStatus.className = `badge ${post.draft ? "draft" : "published"}`;
+  elements.savePost.textContent = post.draft ? "Save draft" : "Save metadata";
+  elements.publishPost.textContent = post.draft ? "Publish post" : "Update live post";
+  elements.unpublishPost.hidden = post.draft;
   elements.openSource.href = post.editorUrl || "#";
   elements.openSource.hidden = !post.editorUrl;
   elements.viewPost.hidden = !post.postUrl;
@@ -222,24 +229,33 @@ elements.createForm.addEventListener("submit", async (event) => {
   }
 });
 
-elements.form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+function metadataPayload(draft = state.selected?.draft ?? true) {
   const form = new FormData(elements.form);
-  const payload = {
+  return {
     title: form.get("title"),
     description: form.get("description"),
     date: form.get("date"),
     categories: form.get("categories").split(",").map((item) => item.trim()).filter(Boolean),
-    draft: elements.form.elements.draft.checked,
+    draft,
   };
+}
+
+async function saveSelectedMetadata(draft = state.selected?.draft ?? true) {
+  if (!state.selected) throw new Error("Select a post first.");
+  return api(`/admin/api/posts/${encodeURIComponent(state.selected.id)}`, {
+    method: "PUT",
+    body: JSON.stringify(metadataPayload(draft)),
+  });
+}
+
+elements.form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.selected || !elements.form.reportValidity()) return;
   try {
     setStatus("Saving metadata...");
-    const post = await api(`/admin/api/posts/${encodeURIComponent(state.selected.id)}`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    });
+    const post = await saveSelectedMetadata();
     await loadPosts(post.id);
-    setStatus("Metadata saved");
+    setStatus(post.draft ? "Draft saved" : "Metadata saved; update the live post when ready");
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -300,16 +316,24 @@ elements.viewPost.addEventListener("click", async (event) => {
   }
 });
 
-elements.publish.addEventListener("click", async () => {
-  elements.publish.disabled = true;
+elements.publishPost.addEventListener("click", async () => {
+  if (!state.selected || !elements.form.reportValidity()) return;
+  const selectedId = state.selected.id;
+  elements.publishPost.disabled = true;
+  elements.savePost.disabled = true;
   try {
-    setStatus("Rendering and publishing...");
-    const result = await api("/admin/api/publish", { method: "POST" });
-    elements.log.textContent = result.log || "Build completed without output.";
+    setStatus(state.selected.draft ? "Saving and publishing this post..." : "Updating this post...");
+    await saveSelectedMetadata(state.selected.draft);
+    const result = await api(`/admin/api/posts/${encodeURIComponent(selectedId)}/publish`, {
+      method: "POST",
+    });
+    elements.log.textContent = result.build?.log || "Build completed without output.";
     elements.logPanel.hidden = false;
-    setStatus("Published");
+    await loadPosts(result.post.id);
+    setStatus(`Published “${result.post.title}”`);
   } catch (error) {
     setStatus(error.message, true);
+    await loadPosts(selectedId).catch(() => {});
     const status = await api("/admin/api/status").catch(() => null);
     if (status?.log) {
       elements.log.textContent = status.log;
@@ -317,7 +341,43 @@ elements.publish.addEventListener("click", async () => {
       elements.logPanel.open = true;
     }
   } finally {
-    elements.publish.disabled = false;
+    elements.publishPost.disabled = false;
+    elements.savePost.disabled = false;
+  }
+});
+
+elements.unpublishPost.addEventListener("click", async () => {
+  if (!state.selected || !elements.form.reportValidity()) return;
+  const selected = state.selected;
+  if (!window.confirm(`Move “${selected.title}” back to drafts and remove it from the public blog?`)) {
+    return;
+  }
+  elements.unpublishPost.disabled = true;
+  elements.savePost.disabled = true;
+  elements.publishPost.disabled = true;
+  try {
+    setStatus("Saving and removing this post from the public blog...");
+    await saveSelectedMetadata(false);
+    const result = await api(`/admin/api/posts/${encodeURIComponent(selected.id)}/unpublish`, {
+      method: "POST",
+    });
+    elements.log.textContent = result.build?.log || "Build completed without output.";
+    elements.logPanel.hidden = false;
+    await loadPosts(result.post.id);
+    setStatus(`Moved “${result.post.title}” to drafts`);
+  } catch (error) {
+    setStatus(error.message, true);
+    await loadPosts(selected.id).catch(() => {});
+    const status = await api("/admin/api/status").catch(() => null);
+    if (status?.log) {
+      elements.log.textContent = status.log;
+      elements.logPanel.hidden = false;
+      elements.logPanel.open = true;
+    }
+  } finally {
+    elements.unpublishPost.disabled = false;
+    elements.savePost.disabled = false;
+    elements.publishPost.disabled = false;
   }
 });
 

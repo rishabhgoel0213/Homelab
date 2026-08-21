@@ -18,8 +18,13 @@ image assets, and render each notebook as its own Quarto post with
 
 Removing a normal post deletes its blog source directory. Removing a
 project-backed post unlinks the whole project import and preserves the original
-project directory. Both actions rebuild the internal preview; use **Publish**
-when the public site also needs to change.
+project directory. Both actions rebuild the internal preview.
+
+Publishing is a per-post operation. Select a draft, edit its metadata, and use
+**Publish post**; the admin saves that post as published and rebuilds both the
+internal preview and public site. A published post instead offers **Update live
+post** after source changes and **Move to drafts** to remove it from the public
+site. If a publication build fails, a draft is not left marked as published.
 
 **View rendered** always completes an internal draft build before navigating.
 The admin HTML, JavaScript, and CSS are served with `Cache-Control: no-store` so

@@ -44,8 +44,10 @@ class BlogStoreTests(unittest.TestCase):
 
     def test_admin_assets_use_cache_busted_urls(self) -> None:
         html = (ASSETS / "index.html").read_text(encoding="utf-8")
-        self.assertIn('/admin/assets/app.js?v=project-imports-v2', html)
-        self.assertIn('/admin/assets/styles.css?v=project-imports-v2', html)
+        self.assertIn('/admin/assets/app.js?v=per-post-publishing-v3', html)
+        self.assertIn('/admin/assets/styles.css?v=per-post-publishing-v3', html)
+        self.assertNotIn('id="publish-button"', html)
+        self.assertIn('id="publish-post"', html)
 
     def test_create_and_update_document(self) -> None:
         post = self.store.create({"title": "First Post", "categories": ["notes"]})
@@ -183,6 +185,17 @@ class BlogStoreTests(unittest.TestCase):
         )
         self.assertEqual(staged["metadata"]["title"], "Published details")
         self.assertFalse(staged["metadata"]["draft"])
+        staged_metadata = blog_admin.yaml.safe_load(
+            (
+                build_source
+                / "posts"
+                / "analysis-project"
+                / "notebooks"
+                / "details"
+                / "_metadata.yml"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertFalse(staged_metadata["draft"])
         config = blog_admin.yaml.safe_load((build_source / "_quarto.yml").read_text(encoding="utf-8"))
         self.assertIn("posts/**/*.ipynb", config["project"]["render"])
         original = json.loads((project / "notebooks" / "details.ipynb").read_text(encoding="utf-8"))
@@ -216,14 +229,45 @@ class BlogStoreTests(unittest.TestCase):
     def test_prunes_only_draft_output(self) -> None:
         self.store.create({"title": "Draft post", "draft": True})
         self.store.create({"title": "Live post", "draft": False})
+        nested_draft = self.source / "posts" / "linked-project" / "notebooks" / "draft"
+        nested_draft.mkdir(parents=True)
+        (nested_draft / "_metadata.yml").write_text("draft: true\n", encoding="utf-8")
         output = self.source / "_site"
         (output / "posts" / "draft-post").mkdir(parents=True)
         (output / "posts" / "live-post").mkdir(parents=True)
+        (output / "posts" / "linked-project" / "notebooks" / "draft").mkdir(parents=True)
 
         blog_admin.prune_draft_outputs(self.source, output)
 
         self.assertFalse((output / "posts" / "draft-post").exists())
         self.assertTrue((output / "posts" / "live-post").is_dir())
+        self.assertFalse((output / "posts" / "linked-project" / "notebooks" / "draft").exists())
+
+    def test_per_post_publication_updates_status_and_rolls_back_on_failure(self) -> None:
+        post = self.store.create({"title": "Publish me", "draft": True})
+        publisher = mock.Mock()
+        publisher.publish.return_value = {"state": "published", "log": "ok"}
+
+        result = blog_admin.set_publication(
+            self.store,
+            publisher,
+            post["id"],
+            draft=False,
+        )
+
+        self.assertFalse(result["post"]["draft"])
+        self.assertFalse(self.store.get(post["id"])["draft"])
+        self.assertEqual(result["build"]["state"], "published")
+
+        publisher.publish.side_effect = RuntimeError("build failed")
+        with self.assertRaisesRegex(RuntimeError, "build failed"):
+            blog_admin.set_publication(
+                self.store,
+                publisher,
+                post["id"],
+                draft=True,
+            )
+        self.assertFalse(self.store.get(post["id"])["draft"])
 
     def test_installs_resume(self) -> None:
         resume = self.source / "resume.pdf"

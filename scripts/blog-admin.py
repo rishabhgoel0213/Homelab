@@ -102,19 +102,23 @@ def prune_draft_outputs(source: Path, output: Path) -> None:
     if not posts_source.is_dir():
         return
 
-    for post_dir in posts_source.iterdir():
-        if not post_dir.is_dir() or not SLUG_RE.fullmatch(post_dir.name):
+    for metadata_path in posts_source.rglob("_metadata.yml"):
+        post_dir = metadata_path.parent
+        relative = post_dir.relative_to(posts_source)
+        if "_project" in relative.parts:
             continue
-        metadata_path = post_dir / "_metadata.yml"
         metadata = (
             yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
             if metadata_path.is_file()
             else {}
         )
         if isinstance(metadata, dict) and bool(metadata.get("draft", False)):
-            rendered = (posts_output / post_dir.name).resolve()
-            if rendered.parent == posts_output:
-                shutil.rmtree(rendered, ignore_errors=True)
+            rendered = (posts_output / relative).resolve()
+            try:
+                rendered.relative_to(posts_output)
+            except ValueError:
+                continue
+            shutil.rmtree(rendered, ignore_errors=True)
 
 
 def install_resume(resume: Path | None, output: Path) -> None:
@@ -459,6 +463,16 @@ class BlogStore:
         result.extend(self._project_posts())
         return sorted(result, key=lambda post: (post["date"], post["slug"]), reverse=True)
 
+    def get(self, post_id: str) -> dict[str, Any]:
+        if post_id.startswith(PROJECT_POST_PREFIX):
+            project, notebook, root, _registry = self._find_project_post(post_id)
+            return self._describe_project_notebook(project, notebook, root)
+
+        post_dir = self.post_dir(post_id)
+        if not post_dir.is_dir() or post_dir.is_symlink():
+            raise FileNotFoundError(f"Post '{post_id}' does not exist.")
+        return self.describe(post_dir)
+
     def create(self, data: dict[str, Any], notebook: bytes | None = None) -> dict[str, Any]:
         self.ensure()
         metadata = normalize_metadata(data)
@@ -515,6 +529,11 @@ class BlogStore:
         metadata = normalize_metadata(data)
         atomic_write(post_dir / "_metadata.yml", metadata_text(metadata))
         return self.describe(post_dir)
+
+    def set_draft(self, post_id: str, draft: bool) -> dict[str, Any]:
+        metadata = self.get(post_id)
+        metadata["draft"] = draft
+        return self.update(post_id, metadata)
 
     def delete(self, post_id: str) -> dict[str, Any]:
         if post_id.startswith(PROJECT_POST_PREFIX):
@@ -587,11 +606,13 @@ class BlogStore:
                 existing_metadata = content.get("metadata", {})
                 if not isinstance(existing_metadata, dict):
                     existing_metadata = {}
-                existing_metadata.update(self._project_notebook_metadata(project, notebook, root))
+                post_metadata = self._project_notebook_metadata(project, notebook, root)
+                existing_metadata.update(post_metadata)
                 resource_parent = Path("_project") / relative.parent
                 existing_metadata["resource-path"] = [resource_parent.as_posix(), "_project"]
                 content["metadata"] = existing_metadata
                 atomic_write(staged_notebook, json.dumps(content, indent=1) + "\n")
+                atomic_write(post_dir / "_metadata.yml", metadata_text(post_metadata))
 
         config_path = destination / "_quarto.yml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -745,6 +766,24 @@ class Publisher:
             self.lock.release()
 
 
+def set_publication(
+    store: BlogStore,
+    publisher: Publisher,
+    post_id: str,
+    *,
+    draft: bool,
+) -> dict[str, Any]:
+    previous = store.get(post_id)
+    post = store.set_draft(post_id, draft)
+    try:
+        build = publisher.publish()
+    except Exception:
+        if bool(previous["draft"]) != draft:
+            store.set_draft(post_id, bool(previous["draft"]))
+        raise
+    return {"post": post, "build": build}
+
+
 def require_mutation_header(request: web.Request) -> None:
     if request.headers.get(MUTATION_HEADER) != "1":
         raise web.HTTPForbidden(text="Missing admin request header.")
@@ -820,9 +859,27 @@ def create_app(store: BlogStore, publisher: Publisher, assets: Path) -> web.Appl
             raise ValueError("Choose a project to import.")
         return web.json_response(store.import_project(reference), status=201)
 
-    async def publish(request: web.Request) -> web.Response:
+    async def publish_post(request: web.Request) -> web.Response:
         require_mutation_header(request)
-        return web.json_response(await asyncio.to_thread(publisher.publish))
+        result = await asyncio.to_thread(
+            set_publication,
+            store,
+            publisher,
+            request.match_info["slug"],
+            draft=False,
+        )
+        return web.json_response(result)
+
+    async def unpublish_post(request: web.Request) -> web.Response:
+        require_mutation_header(request)
+        result = await asyncio.to_thread(
+            set_publication,
+            store,
+            publisher,
+            request.match_info["slug"],
+            draft=True,
+        )
+        return web.json_response(result)
 
     async def preview(request: web.Request) -> web.Response:
         require_mutation_header(request)
@@ -839,10 +896,11 @@ def create_app(store: BlogStore, publisher: Publisher, assets: Path) -> web.Appl
     app.router.add_post("/admin/api/posts", create_post)
     app.router.add_put("/admin/api/posts/{slug}", update_post)
     app.router.add_delete("/admin/api/posts/{slug}", delete_post)
+    app.router.add_post("/admin/api/posts/{slug}/publish", publish_post)
+    app.router.add_post("/admin/api/posts/{slug}/unpublish", unpublish_post)
     app.router.add_post("/admin/api/import", import_notebook)
     app.router.add_post("/admin/api/import-project", import_project)
     app.router.add_post("/admin/api/preview", preview)
-    app.router.add_post("/admin/api/publish", publish)
     app.router.add_get("/admin/api/status", status)
     return app
 

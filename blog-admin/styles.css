@@ -43,7 +43,7 @@ a { color: inherit; }
 }
 
 .topbar > div, .topbar nav, .toolbar, .toolbar-actions, .pane-heading,
-.form-actions, .dialog-heading, .toggle-row {
+.form-actions, .dialog-heading, .publication-status {
   display: flex;
   align-items: center;
 }
@@ -149,6 +149,17 @@ tbody tr:hover, tbody tr.selected { background: var(--subtle); }
 .kind { color: var(--muted); text-transform: capitalize; }
 
 .editor-placeholder, .empty-state { color: var(--muted); padding: 34px 0; }
+.publication-status {
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: #3f474d;
+  font-size: .86rem;
+  font-weight: 650;
+}
 label { display: block; margin-bottom: 16px; color: #3f474d; font-size: .86rem; font-weight: 650; }
 input, select, textarea {
   width: 100%;
@@ -162,9 +173,7 @@ input, select, textarea {
 textarea { resize: vertical; }
 input[readonly] { color: var(--muted); background: var(--subtle); }
 .field-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
-.toggle-row { gap: 9px; color: var(--ink); }
-.toggle-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-.form-actions { justify-content: flex-end; margin-top: 24px; }
+.form-actions { justify-content: flex-end; flex-wrap: wrap; margin-top: 24px; }
 .form-spacer { flex: 1; }
 
 .build-log { margin: 0 28px 28px; border-top: 1px solid var(--line); padding-top: 16px; }
