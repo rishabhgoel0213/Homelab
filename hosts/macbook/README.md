@@ -71,6 +71,36 @@ private key or decrypted archive to the Mac merely to inspect it.
 7. Run a full remote build before switch. Zen is a large Firefox build and the
    first build can take a long time.
 
+## Build-only validation
+
+Build targets are exported independently so package failures can be isolated
+without activating nix-darwin or launching either app:
+
+```sh
+just darwin-build codex
+just darwin-build tabby-plugins
+just darwin-build tabby
+just darwin-build zen
+just darwin-build macbook-system
+```
+
+Those commands run on the server and require the Mac's restricted SSH builder
+path to be available. During initial bootstrap, before inbound SSH is enabled,
+the Mac can fetch the same committed configuration and pinned sources over its
+existing outbound SSH connection:
+
+```sh
+scp nixos-pc:/srv/ops/hosts/macbook/build-from-mac /private/tmp/build-mac-apps
+chmod 0700 /private/tmp/build-mac-apps
+/private/tmp/build-mac-apps codex
+```
+
+Repeat the final command for each target in the order shown above. The helper
+refuses a dirty server worktree and pins the ops, Tabby, Zen, and mautrix-meta
+Git revisions before invoking Nix. It writes only to the Mac's Nix store; it
+does not activate a system profile, run Homebrew, install app bundles, launch
+apps, or read mutable app profiles.
+
 ## Server-driven deployment
 
 The Linux server cannot build Apple binaries locally. `hosts/macbook/deploy`

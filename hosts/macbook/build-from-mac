@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+target="${1:-codex}"
+server="${MACBOOK_BUILD_SERVER:-nixos-pc}"
+ops_repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+nix_bin="${NIX_BIN:-nix}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+need ssh
+need "$nix_bin"
+
+case "$target" in
+  codex|tabby-plugins|tabby|zen|macbook-system)
+    ;;
+  system)
+    target="macbook-system"
+    ;;
+  *)
+    echo "Unknown Darwin build target: $target" >&2
+    echo "Expected one of: codex, tabby-plugins, tabby, zen, macbook-system" >&2
+    exit 2
+    ;;
+esac
+
+revision_data="$({
+  ssh "$server" bash -s -- "$ops_repo" <<'REMOTE'
+set -euo pipefail
+repo="$1"
+cd "$repo"
+test -z "$(git status --porcelain)"
+printf '%s\n' \
+  "$(git rev-parse HEAD)" \
+  "$(jq -r '.nodes["tabby-terminal"].locked.rev' flake.lock)" \
+  "$(jq -r '.nodes["zen-browser"].locked.rev' flake.lock)" \
+  "$(jq -r '.nodes["mautrix-meta-homelab"].locked.rev' flake.lock)"
+REMOTE
+})"
+
+mapfile -t revisions <<<"$revision_data"
+if [[ "${#revisions[@]}" -ne 4 ]]; then
+  echo "Unable to resolve the committed server and source revisions" >&2
+  exit 1
+fi
+
+ops_rev="${revisions[0]}"
+tabby_rev="${revisions[1]}"
+zen_rev="${revisions[2]}"
+mautrix_rev="${revisions[3]}"
+
+flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}"
+tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}"
+zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}"
+mautrix="git+ssh://${server}/home/rishabh/Projects/mautrix-meta?ref=main&rev=${mautrix_rev}"
+installable="${flake}#packages.aarch64-darwin.${target}"
+
+echo "Building committed $installable locally without activation" >&2
+"$nix_bin" build \
+  --extra-experimental-features "nix-command flakes" \
+  --no-link \
+  --print-out-paths \
+  --override-input tabby-terminal "$tabby" \
+  --override-input zen-browser "$zen" \
+  --override-input mautrix-meta-homelab "$mautrix" \
+  "$installable"
