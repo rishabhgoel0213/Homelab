@@ -1,0 +1,4 @@
+# Managed Codex configuration for the MacBook.
+#
+# Keep MCP servers, profiles, and shared CLI/desktop settings here. Nix manages
+# this config and the CLI package, but it does not install or manage Codex.app.

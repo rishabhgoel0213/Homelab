@@ -5,6 +5,23 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
+
+    tabby-terminal = {
+      url = "git+file:///home/rishabh/Projects/tabby?ref=master";
+      flake = false;
+    };
+
+    zen-browser = {
+      url = "git+file:///home/rishabh/Projects/zen-browser?ref=dev";
+      flake = false;
+    };
+
     mautrix-meta-homelab = {
       url = "git+file:///home/rishabh/Projects/mautrix-meta?ref=main";
       flake = false;
@@ -20,7 +37,9 @@
     inputs@{
       self,
       nixpkgs,
+      nix-darwin,
       sops-nix,
+      nix-homebrew,
       ...
     }:
     let
@@ -230,6 +249,17 @@
         modules = [
           sops-nix.nixosModules.sops
           ./hosts/nixos-pc
+        ];
+      };
+
+      darwinConfigurations.macbook = nix-darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        specialArgs = {
+          inherit inputs self;
+        };
+        modules = [
+          nix-homebrew.darwinModules.nix-homebrew
+          ./hosts/macbook
         ];
       };
     };

@@ -1,0 +1,12 @@
+{
+  "name": "homelab-tabby-plugins",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Declarative third-party plugins for the managed Tabby build",
+  "dependencies": {
+    "tabby-agent-chat": "1.0.2",
+    "tabby-docker": "0.2.0",
+    "tabby-docker-console": "0.1.4",
+    "tabby-workspace-manager": "0.0.4"
+  }
+}

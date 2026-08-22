@@ -1,6 +1,7 @@
 set shell := ["bash", "-eo", "pipefail", "-c"]
 
 host := env_var_or_default("HOST", "nixos-pc")
+darwin_host := env_var_or_default("DARWIN_HOST", "macbook")
 
 default:
     @just --list
@@ -19,6 +20,17 @@ switch:
 
 rollback:
     sudo nixos-rebuild switch --rollback
+
+darwin-eval:
+    nix eval --impure --raw '.#darwinConfigurations.{{darwin_host}}.system.drvPath'
+
+darwin-lock-sources:
+    nix flake lock --impure --update-input tabby-terminal --update-input zen-browser
+
+# Requires MACBOOK_DEPLOY_CONFIRM=deploy. The script delegates aarch64-darwin
+# builds to the Mac and then activates that exact store path over SSH.
+darwin-deploy:
+    scripts/deploy-macbook "{{darwin_host}}"
 
 routes:
     nix eval --impure --json .#nixosConfigurations.{{host}}.config.homelab.routeTable | jq .

@@ -73,20 +73,24 @@ if [[ -z "$rusty_v8_version" ]]; then
   exit 1
 fi
 
-rusty_v8_target="x86_64-unknown-linux-gnu"
 rusty_v8_base="https://github.com/openai/codex/releases/download/rusty-v8-v$rusty_v8_version"
-rusty_v8_archive_url="$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$rusty_v8_target.a.gz"
-rusty_v8_binding_url="$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$rusty_v8_target.rs"
-rusty_v8_archive_hash="$(nix store prefetch-file --json "$rusty_v8_archive_url" | jq -r .hash)"
-rusty_v8_binding_hash="$(nix store prefetch-file --json "$rusty_v8_binding_url" | jq -r .hash)"
+linux_target="x86_64-unknown-linux-gnu"
+darwin_target="aarch64-apple-darwin"
+
+linux_archive_hash="$(nix store prefetch-file --json "$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$linux_target.a.gz" | jq -r .hash)"
+linux_binding_hash="$(nix store prefetch-file --json "$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$linux_target.rs" | jq -r .hash)"
+darwin_archive_hash="$(nix store prefetch-file --json "$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$darwin_target.a.gz" | jq -r .hash)"
+darwin_binding_hash="$(nix store prefetch-file --json "$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$darwin_target.rs" | jq -r .hash)"
 
 perl -0pi -e \
   "s{version = \"[^\"]+\";}{version = \"$version\";};
    s{srcHash = \"sha256-[^\"]+\";}{srcHash = \"$src_hash\";};
    s{cargoHash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{cargoHash = lib.fakeHash;};
    s{rustyV8Version = \"[^\"]+\";}{rustyV8Version = \"$rusty_v8_version\";};
-   s{(rustyV8Archive = fetchurl \\{.*?hash = )\"sha256-[^\"]+\";}{\${1}\"$rusty_v8_archive_hash\";}s;
-   s{(rustyV8Binding = fetchurl \\{.*?hash = )\"sha256-[^\"]+\";}{\${1}\"$rusty_v8_binding_hash\";}s" \
+   s{rustyV8LinuxArchiveHash = \"sha256-[^\"]+\";}{rustyV8LinuxArchiveHash = \"$linux_archive_hash\";};
+   s{rustyV8LinuxBindingHash = \"sha256-[^\"]+\";}{rustyV8LinuxBindingHash = \"$linux_binding_hash\";};
+   s{rustyV8DarwinArchiveHash = \"sha256-[^\"]+\";}{rustyV8DarwinArchiveHash = \"$darwin_archive_hash\";};
+   s{rustyV8DarwinBindingHash = \"sha256-[^\"]+\";}{rustyV8DarwinBindingHash = \"$darwin_binding_hash\";}" \
   "$package_file"
 
 set +e

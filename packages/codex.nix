@@ -4,6 +4,7 @@
   fetchurl,
   lib,
   rustPlatform,
+  stdenv,
 }:
 
 let
@@ -11,13 +12,35 @@ let
   srcHash = "sha256-SMVTW/CcGz4xxyeFe3KUf3Ns6jp+2SRMTvtA2o2+y7Q=";
   cargoHash = "sha256-K58PL588Hhk75FyXgU6b8IEAco8FIz8oGd1S0WgOjyQ=";
   rustyV8Version = "150.4.0";
+  rustyV8LinuxArchiveHash = "sha256-o1x10fJuapg4haRbM0kKTr5U8FBQVosyuJz7QhswtYM=";
+  rustyV8LinuxBindingHash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
+  rustyV8DarwinArchiveHash = "sha256-AK27SHmISMd1UEQcaGc6XoUpuOG3PqvN7iMss5tA9KE=";
+  rustyV8DarwinBindingHash = "sha256-ylrfDPicmnCtRgrnNkiy/om3SqETs8t/dXtqArdYOU8=";
+  rustyV8Target =
+    if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64 then
+      "x86_64-unknown-linux-gnu"
+    else if stdenv.hostPlatform.isDarwin && stdenv.hostPlatform.isAarch64 then
+      "aarch64-apple-darwin"
+    else
+      throw "The managed Codex package does not have rusty_v8 assets for ${stdenv.hostPlatform.system}";
+  rustyV8Hashes = {
+    "x86_64-unknown-linux-gnu" = {
+      archive = rustyV8LinuxArchiveHash;
+      binding = rustyV8LinuxBindingHash;
+    };
+    "aarch64-apple-darwin" = {
+      archive = rustyV8DarwinArchiveHash;
+      binding = rustyV8DarwinBindingHash;
+    };
+  };
+  rustyV8Hash = rustyV8Hashes.${rustyV8Target};
   rustyV8Archive = fetchurl {
-    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/librusty_v8_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.a.gz";
-    hash = "sha256-o1x10fJuapg4haRbM0kKTr5U8FBQVosyuJz7QhswtYM=";
+    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/librusty_v8_ptrcomp_sandbox_release_${rustyV8Target}.a.gz";
+    hash = rustyV8Hash.archive;
   };
   rustyV8Binding = fetchurl {
-    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/src_binding_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.rs";
-    hash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
+    url = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}/src_binding_ptrcomp_sandbox_release_${rustyV8Target}.rs";
+    hash = rustyV8Hash.binding;
   };
 in
 codex.overrideAttrs (_old: rec {
@@ -34,7 +57,12 @@ codex.overrideAttrs (_old: rec {
   sourceRoot = "${src.name}/codex-rs";
 
   cargoDeps = rustPlatform.fetchCargoVendor {
-    inherit pname version src sourceRoot;
+    inherit
+      pname
+      version
+      src
+      sourceRoot
+      ;
     hash = cargoHash;
   };
 
