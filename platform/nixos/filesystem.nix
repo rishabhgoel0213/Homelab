@@ -46,7 +46,6 @@ in
     "d ${cfg.paths.codexHome}/log 0700 rishabh users - -"
     "d ${cfg.paths.codexHome}/plugins 0700 rishabh users - -"
     "d ${cfg.paths.codexHome}/tmp 0700 rishabh users - -"
-    "d ${cfg.paths.opsRoot}/codex 0755 rishabh users - -"
     "d ${cfg.paths.codexPluginRoot} 0755 rishabh users - -"
   ];
 }
