@@ -30,16 +30,16 @@ darwin-lock-sources:
 # Requires MACBOOK_DEPLOY_CONFIRM=deploy. The script delegates aarch64-darwin
 # builds to the Mac and then activates that exact store path over SSH.
 darwin-deploy:
-    scripts/deploy-macbook "{{darwin_host}}"
+    hosts/macbook/deploy "{{darwin_host}}"
 
 routes:
     nix eval --impure --json .#nixosConfigurations.{{host}}.config.homelab.routeTable | jq .
 
 route-add name visibility upstream:
-    scripts/add-route "{{name}}" "{{visibility}}" "{{upstream}}"
+    routes/bin/add "{{name}}" "{{visibility}}" "{{upstream}}"
 
 route-remove name:
-    scripts/remove-route "{{name}}"
+    routes/bin/remove "{{name}}"
 
 logs service:
     journalctl -u "{{service}}" -f
@@ -69,7 +69,7 @@ backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 
 recovery-kit:
-    sudo scripts/create-vps-recovery-kit
+    sudo tools/recovery/create-vps-recovery-kit
 
 blog-list:
     blogctl list
@@ -90,40 +90,40 @@ blog-deploy:
     blogctl build
 
 codex-bootstrap:
-    scripts/codex-bootstrap
+    components/codex/bin/bootstrap
 
 codex-update:
-    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command scripts/update-codex
+    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/codex/bin/update
 
 codex-auto-update:
-    sudo scripts/codex-auto-update
+    sudo components/codex/bin/auto-update
 
 pi-update:
-    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command scripts/update-pi
+    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/pi/bin/update
 
 pi-auto-update:
-    sudo scripts/pi-auto-update
+    sudo components/pi/bin/auto-update
 
 codex-store-auth:
-    scripts/codex-store-auth
+    components/codex/bin/store-auth
 
 codex-migrate-state:
-    scripts/codex-migrate-state
+    components/codex/bin/migrate-state
 
 codex-prune-user-install:
-    scripts/codex-prune-user-install
+    components/codex/bin/prune-user-install
 
 secrets-edit:
-    scripts/secrets-edit
+    tools/secrets/edit
 
 secrets-check:
-    scripts/secrets-check
+    tools/secrets/check
 
 bitwarden-promote:
-    nix shell --inputs-from . nixpkgs#bitwarden-cli nixpkgs#fzf --command scripts/promote-bitwarden-secret
+    nix shell --inputs-from . nixpkgs#bitwarden-cli nixpkgs#fzf --command tools/secrets/promote-bitwarden-secret
 
 cloudflare-store-token:
-    scripts/store-cloudflare-token
+    components/cloudflare/bin/store-token
 
 cloudflare-login:
     cfctl tunnel-login
@@ -141,10 +141,10 @@ cloudflare-dns:
     cfctl dns
 
 singlemail-deploy:
-    scripts/singlemail-cloudflare-deploy
+    components/singlemail/bin/cloudflare-deploy
 
 singlemail-store-token:
-    scripts/store-singlemail-token
+    components/singlemail/bin/store-token
 
 singlemail-doctor:
     singlemail doctor --json
@@ -153,7 +153,7 @@ tailscale-ip:
     tailscale ip -4
 
 tailscale-store-oauth:
-    scripts/store-tailscale-oauth
+    components/tailscale/bin/store-oauth
 
 tailscale-verify:
     tsctl verify
@@ -168,7 +168,7 @@ tailscale-split-dns:
     tsctl api GET /tailnet/-/dns/split-dns
 
 tailscale-apply-internal-dns:
-    scripts/configure-tailscale-internal-dns
+    components/tailscale/bin/configure-internal-dns
 
 mullvad-is-connected:
     curl https://am.i.mullvad.net/connected
@@ -192,13 +192,13 @@ canvas-sync:
     canvas-bridge sync
 
 matrix-doctor:
-    scripts/matrix-doctor
+    components/matrix/bin/doctor
 
 matrix-user-add username="rishabh":
     sudo matrix-synapse-register_new_matrix_user --user "{{username}}" --no-admin
 
 matrix-gmessages-store-secrets:
-    nix shell --inputs-from . nixpkgs#openssl --command scripts/store-matrix-gmessages-secrets
+    nix shell --inputs-from . nixpkgs#openssl --command components/matrix/bin/store-gmessages-secrets
 
 matrix-whatsapp-logs:
     journalctl -u mautrix-whatsapp.service -f
@@ -220,7 +220,7 @@ matrix-pi-logs:
     journalctl -u pi-courier.service -f
 
 t3code-doctor:
-    scripts/t3code-doctor
+    components/t3code/bin/doctor
 
 t3code-pair:
     t3code pair --base-dir /srv/state/t3code --ttl 10m
@@ -232,7 +232,7 @@ t3code-logs:
     journalctl -u t3code.service -f
 
 t3code-mobile-bootstrap:
-    scripts/build-t3code-mobile-bootstrap
+    components/t3code/bin/build-mobile-bootstrap
 
 local-model-fetch model:
     sudo systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"
@@ -246,4 +246,4 @@ local-model-doctor model="":
     local-model-doctor "{{model}}"
 
 github-profile-sync:
-    scripts/sync-github-profile
+    tools/sync-github-profile

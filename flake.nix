@@ -62,8 +62,8 @@
               ];
             }
             ''
-              shellcheck ${./local-models/bonsai/download-model.sh}
-              node --check ${./local-models/bonsai/proxy.mjs}
+              shellcheck ${./components/local-models/bonsai/download-model.sh}
+              node --check ${./components/local-models/bonsai/proxy.mjs}
               touch "$out"
             '';
 
@@ -76,8 +76,8 @@
               ];
             }
             ''
-              shellcheck ${./local-models/nemotron-lightning/download-model.sh}
-              node --check ${./local-models/nemotron-lightning/proxy.mjs}
+              shellcheck ${./components/local-models/nemotron-lightning/download-model.sh}
+              node --check ${./components/local-models/nemotron-lightning/proxy.mjs}
               touch "$out"
             '';
 
@@ -87,13 +87,13 @@
               nativeBuildInputs = [ pkgs.nodejs_24 ];
             }
             ''
-              node --check ${./local-models/mach1/app/server.mjs}
-              node --check ${./local-models/mach1/app/web/runtime.js}
-              node --check ${./local-models/mach1/app/web/reasoning.mjs}
-              node --check ${./local-models/mach1/app/web/tool-calls.mjs}
-              node --check ${./local-models/mach1/download-model.mjs}
-              node ${./local-models/mach1}/tests/test-tool-calls.mjs
-              node ${./local-models/mach1}/tests/test-reasoning.mjs
+              node --check ${./components/local-models/mach1/app/server.mjs}
+              node --check ${./components/local-models/mach1/app/web/runtime.js}
+              node --check ${./components/local-models/mach1/app/web/reasoning.mjs}
+              node --check ${./components/local-models/mach1/app/web/tool-calls.mjs}
+              node --check ${./components/local-models/mach1/download-model.mjs}
+              node ${./components/local-models/mach1}/tests/test-tool-calls.mjs
+              node ${./components/local-models/mach1}/tests/test-reasoning.mjs
               touch "$out"
             '';
 
@@ -106,10 +106,10 @@
               ];
             }
             ''
-              ruff check ${./scripts/projectctl.py} ${./tests/test-projectctl.py}
-              python3 -m py_compile ${./scripts/projectctl.py} ${./tests/test-projectctl.py}
-              PROJECTCTL_SCRIPT=${./scripts/projectctl.py} \
-                python3 ${./tests/test-projectctl.py}
+              ruff check ${./components/projects/bin/projectctl.py} ${./components/projects/tests/test-projectctl.py}
+              python3 -m py_compile ${./components/projects/bin/projectctl.py} ${./components/projects/tests/test-projectctl.py}
+              PROJECTCTL_SCRIPT=${./components/projects/bin/projectctl.py} \
+                python3 ${./components/projects/tests/test-projectctl.py}
               touch "$out"
             '';
 
@@ -123,12 +123,12 @@
               ];
             }
             ''
-              node --check ${./blog-admin/app.js}
-              ruff check ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
-              python3 -m py_compile ${./scripts/blog-admin.py} ${./tests/test-blog-admin.py}
-              BLOG_ADMIN_SCRIPT=${./scripts/blog-admin.py} \
-                BLOG_ADMIN_ASSETS=${./blog-admin} \
-                python3 ${./tests/test-blog-admin.py}
+              node --check ${./components/blog/assets/app.js}
+              ruff check ${./components/blog/bin/blog-admin.py} ${./components/blog/tests/test-blog-admin.py}
+              python3 -m py_compile ${./components/blog/bin/blog-admin.py} ${./components/blog/tests/test-blog-admin.py}
+              BLOG_ADMIN_SCRIPT=${./components/blog/bin/blog-admin.py} \
+                BLOG_ADMIN_ASSETS=${./components/blog/assets} \
+                python3 ${./components/blog/tests/test-blog-admin.py}
               touch "$out"
             '';
 
@@ -141,10 +141,10 @@
               ];
             }
             ''
-              ruff check ${./scripts/canvas-bridge.py} ${./tests/test-canvas-bridge.py}
-              python3 -m py_compile ${./scripts/canvas-bridge.py}
-              CANVAS_BRIDGE_SCRIPT=${./scripts/canvas-bridge.py} \
-                python3 ${./tests/test-canvas-bridge.py}
+              ruff check ${./components/canvas-bridge/bin/canvas-bridge.py} ${./components/canvas-bridge/tests/test-canvas-bridge.py}
+              python3 -m py_compile ${./components/canvas-bridge/bin/canvas-bridge.py}
+              CANVAS_BRIDGE_SCRIPT=${./components/canvas-bridge/bin/canvas-bridge.py} \
+                python3 ${./components/canvas-bridge/tests/test-canvas-bridge.py}
               touch "$out"
             '';
 
@@ -166,13 +166,13 @@
               export XDG_CONFIG_HOME="$TMPDIR/config"
               mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
 
-              ruff check ${./scripts/singlemail.py} ${./tests/test-singlemail.py}
-              python3 -m py_compile ${./scripts/singlemail.py}
-              SINGLEMAIL_SCRIPT=${./scripts/singlemail.py} \
-                python3 ${./tests/test-singlemail.py}
-              shellcheck ${./scripts/singlemail-cloudflare-deploy} \
-                ${./scripts/store-singlemail-token}
-              cp -R ${./cloudflare/singlemail} "$TMPDIR/worker"
+              ruff check ${./components/singlemail/bin/singlemail.py} ${./components/singlemail/tests/test-singlemail.py}
+              python3 -m py_compile ${./components/singlemail/bin/singlemail.py}
+              SINGLEMAIL_SCRIPT=${./components/singlemail/bin/singlemail.py} \
+                python3 ${./components/singlemail/tests/test-singlemail.py}
+              shellcheck ${./components/singlemail/bin/cloudflare-deploy} \
+                ${./components/singlemail/bin/store-token}
+              cp -R ${./components/singlemail/worker} "$TMPDIR/worker"
               chmod -R u+w "$TMPDIR/worker"
               cd "$TMPDIR/worker"
               tsc --noEmit
@@ -186,9 +186,9 @@
               nativeBuildInputs = [ pkgs.python3 ];
             }
             ''
-              python3 -m py_compile ${./scripts/t3code-updates-server.py}
-              T3CODE_UPDATES_SERVER_SCRIPT=${./scripts/t3code-updates-server.py} \
-                python3 ${./tests/test-t3code-updates-server.py}
+              python3 -m py_compile ${./components/t3code/bin/updates-server.py}
+              T3CODE_UPDATES_SERVER_SCRIPT=${./components/t3code/bin/updates-server.py} \
+                python3 ${./components/t3code/tests/test-updates-server.py}
               touch "$out"
             '';
 
@@ -201,10 +201,10 @@
               ];
             }
             ''
-              ruff check ${./scripts/remote-phone-mic.py} ${./tests/test-remote-phone-mic.py}
-              python3 -m py_compile ${./scripts/remote-phone-mic.py}
-              REMOTE_PHONE_SCRIPT=${./scripts/remote-phone-mic.py} \
-                python3 ${./tests/test-remote-phone-mic.py}
+              ruff check ${./components/remote-phone/bin/remote-phone-mic.py} ${./components/remote-phone/tests/test-remote-phone-mic.py}
+              python3 -m py_compile ${./components/remote-phone/bin/remote-phone-mic.py}
+              REMOTE_PHONE_SCRIPT=${./components/remote-phone/bin/remote-phone-mic.py} \
+                python3 ${./components/remote-phone/tests/test-remote-phone-mic.py}
               touch "$out"
             '';
       };

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: routes/bin/remove NAME" >&2
+  exit 2
+fi
+
+name="$1"
+tmp="$(mktemp)"
+jq --arg name "$name" 'del(.[$name])' routes/apps.json > "$tmp"
+mv "$tmp" routes/apps.json
+
+echo "Removed route '$name'. Run: just routes && just switch"

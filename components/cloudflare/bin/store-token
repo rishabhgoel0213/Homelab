@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+domain="therealrishabh.com"
+
+. "${HOMELAB_SECRETS_LIB:-/srv/ops/lib/shell/homelab-secrets}"
+
+need curl
+need jq
+need sops
+need sudo
+
+require_sops_file
+
+printf "Cloudflare API token: " >&2
+IFS= read -rs token
+printf "\n" >&2
+
+if [[ -z "$token" ]]; then
+  echo "Token was empty; nothing changed." >&2
+  exit 1
+fi
+
+tmpdir="$(mktemp -d)"
+chmod 700 "$tmpdir"
+cleanup() {
+  rm -rf "$tmpdir"
+  unset token admin_env dns_env
+}
+trap cleanup EXIT
+
+curl_config="$tmpdir/curl.conf"
+cat > "$curl_config" <<EOF
+header = "Authorization: Bearer $token"
+header = "Content-Type: application/json"
+fail-with-body
+silent
+show-error
+EOF
+chmod 600 "$curl_config"
+
+cf_api() {
+  local method="$1"
+  local path="$2"
+  curl --config "$curl_config" \
+    --request "$method" \
+    "https://api.cloudflare.com/client/v4$path"
+}
+
+echo "Verifying token..." >&2
+verify_json="$(cf_api GET /user/tokens/verify)"
+jq -e '.success == true' >/dev/null <<<"$verify_json"
+status="$(jq -r '.result.status // "unknown"' <<<"$verify_json")"
+echo "Token status: $status" >&2
+
+echo "Finding Cloudflare zone/account for $domain..." >&2
+zone_json="$(cf_api GET "/zones?name=$domain")"
+jq -e '.success == true and (.result | length) == 1' >/dev/null <<<"$zone_json"
+zone_id="$(jq -r '.result[0].id' <<<"$zone_json")"
+account_id="$(jq -r '.result[0].account.id' <<<"$zone_json")"
+
+if [[ -z "$zone_id" || "$zone_id" == "null" || -z "$account_id" || "$account_id" == "null" ]]; then
+  echo "Could not determine zone/account IDs from Cloudflare response." >&2
+  exit 1
+fi
+
+plain_json="$tmpdir/homelab.json"
+updated_json="$tmpdir/homelab.updated.json"
+encrypted_yaml="$tmpdir/homelab.yaml"
+
+echo "Decrypting existing sops file locally..." >&2
+sops_decrypt_json "$plain_json"
+
+admin_env="CLOUDFLARE_API_TOKEN=$token
+CLOUDFLARE_ACCOUNT_ID=$account_id
+CLOUDFLARE_ZONE_ID=$zone_id
+CLOUDFLARE_ZONE=$domain
+"
+dns_env="CLOUDFLARE_API_TOKEN=$token
+"
+
+echo "Updating Cloudflare entries..." >&2
+jq \
+  --arg admin_env "$admin_env" \
+  --arg dns_env "$dns_env" \
+  '.["cloudflare-admin.env"] = $admin_env | .["cloudflare-dns.env"] = $dns_env' \
+  "$plain_json" > "$updated_json"
+chmod 600 "$updated_json"
+
+echo "Re-encrypting $secrets_file..." >&2
+sops_encrypt_json "$updated_json" "$encrypted_yaml"
+
+echo "Checking encrypted file decrypts with the host key..." >&2
+sops_verify
+
+echo "Stored Cloudflare credentials in encrypted sops file." >&2
+echo "Zone ID: $zone_id" >&2
+echo "Account ID: $account_id" >&2
+echo "Done. Tell Codex to continue." >&2

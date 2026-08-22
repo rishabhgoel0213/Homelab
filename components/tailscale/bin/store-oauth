@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+. "${HOMELAB_SECRETS_LIB:-/srv/ops/lib/shell/homelab-secrets}"
+
+need curl
+need jq
+need sops
+need sudo
+
+require_sops_file
+
+printf "Tailscale OAuth client ID: " >&2
+IFS= read -r client_id
+printf "Tailscale OAuth client secret: " >&2
+IFS= read -rs client_secret
+printf "\n" >&2
+printf "Read scopes [dns:read]: " >&2
+IFS= read -r read_scopes
+read_scopes="${read_scopes:-dns:read}"
+printf "Write scopes [dns:write]: " >&2
+IFS= read -r write_scopes
+write_scopes="${write_scopes:-dns:write}"
+printf "Tailnet ID [-]: " >&2
+IFS= read -r tailnet
+tailnet="${tailnet:--}"
+
+if [[ -z "$client_id" || -z "$client_secret" ]]; then
+  echo "Client ID or secret was empty; nothing changed." >&2
+  exit 1
+fi
+
+tmpdir="$(mktemp -d)"
+chmod 700 "$tmpdir"
+cleanup() {
+  rm -rf "$tmpdir"
+  unset client_secret token
+}
+trap cleanup EXIT
+
+echo "Requesting a short-lived Tailscale API token..." >&2
+token_json="$(
+  curl --fail-with-body --silent --show-error \
+    --request POST \
+    --data-urlencode "client_id=$client_id" \
+    --data-urlencode "client_secret=$client_secret" \
+    --data-urlencode "scope=$read_scopes" \
+    "https://api.tailscale.com/api/v2/oauth/token"
+)"
+token="$(jq -r '.access_token // empty' <<<"$token_json")"
+
+if [[ -z "$token" ]]; then
+  echo "Tailscale did not return an access token." >&2
+  exit 1
+fi
+
+echo "Verifying DNS API access..." >&2
+curl --fail-with-body --silent --show-error \
+  --header "Authorization: Bearer $token" \
+  "https://api.tailscale.com/api/v2/tailnet/$tailnet/dns/nameservers" >/dev/null
+
+plain_json="$tmpdir/homelab.json"
+updated_json="$tmpdir/homelab.updated.json"
+encrypted_yaml="$tmpdir/homelab.yaml"
+
+sops_decrypt_json "$plain_json"
+
+shell_quote() {
+  local value="$1"
+  printf "'%s'" "$(printf '%s' "$value" | sed "s/'/'\\\\''/g")"
+}
+
+quoted_client_id="$(shell_quote "$client_id")"
+quoted_client_secret="$(shell_quote "$client_secret")"
+quoted_read_scopes="$(shell_quote "$read_scopes")"
+quoted_write_scopes="$(shell_quote "$write_scopes")"
+quoted_tailnet="$(shell_quote "$tailnet")"
+
+tailscale_env="TAILSCALE_OAUTH_CLIENT_ID=$quoted_client_id
+TAILSCALE_OAUTH_CLIENT_SECRET=$quoted_client_secret
+TAILSCALE_OAUTH_READ_SCOPES=$quoted_read_scopes
+TAILSCALE_OAUTH_WRITE_SCOPES=$quoted_write_scopes
+TAILSCALE_TAILNET=$quoted_tailnet
+"
+
+jq \
+  --arg tailscale_env "$tailscale_env" \
+  '.["tailscale-oauth.env"] = $tailscale_env' \
+  "$plain_json" > "$updated_json"
+chmod 600 "$updated_json"
+
+sops_encrypt_json "$updated_json" "$encrypted_yaml"
+
+sops_verify
+
+echo "Stored Tailscale OAuth credentials in encrypted sops file." >&2
+echo "Done. Run: cd /srv/ops && just switch && just tailscale-verify" >&2

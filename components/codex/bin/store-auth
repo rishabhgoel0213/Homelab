@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+. "${HOMELAB_SECRETS_LIB:-/srv/ops/lib/shell/homelab-secrets}"
+
+need jq
+need sops
+need sudo
+require_sops_file
+
+auth_file="${1:-$homelab_codex_home/auth.json}"
+legacy_auth_file="$homelab_user_home/.codex/auth.json"
+credentials_file="${2:-$homelab_codex_home/.credentials.json}"
+legacy_credentials_file="$homelab_user_home/.codex/.credentials.json"
+
+if [[ ! -f "$auth_file" && -f "$legacy_auth_file" ]]; then
+  auth_file="$legacy_auth_file"
+fi
+if [[ ! -f "$credentials_file" && -f "$legacy_credentials_file" ]]; then
+  credentials_file="$legacy_credentials_file"
+fi
+
+if [[ ! -f "$auth_file" ]]; then
+  echo "Missing Codex auth file. Checked $auth_file and $legacy_auth_file" >&2
+  exit 1
+fi
+
+tmpdir="$(mktemp -d)"
+chmod 700 "$tmpdir"
+trap 'rm -rf "$tmpdir"' EXIT
+
+plain_json="$tmpdir/homelab.json"
+updated_json="$tmpdir/homelab.updated.json"
+encrypted_yaml="$tmpdir/homelab.yaml"
+
+sops_decrypt_json "$plain_json"
+
+if [[ -f "$credentials_file" ]]; then
+  jq \
+    --rawfile codex_auth "$auth_file" \
+    --rawfile codex_credentials "$credentials_file" \
+    '.["codex-auth.json"] = $codex_auth | .["codex-credentials.json"] = $codex_credentials' \
+    "$plain_json" > "$updated_json"
+else
+  jq --rawfile codex_auth "$auth_file" \
+    '.["codex-auth.json"] = $codex_auth' \
+    "$plain_json" > "$updated_json"
+fi
+chmod 600 "$updated_json"
+
+sops_encrypt_json "$updated_json" "$encrypted_yaml"
+sops_verify
+
+echo "Stored Codex auth material in sops." >&2

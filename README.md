@@ -18,6 +18,31 @@ Runtime secrets and personal data are intentionally kept out of this repository.
   `/home/rishabh/.config/homelab/secrets.yaml`.
 - Apple Passwords and Vaultwarden store human-managed credentials.
 
+## Repository layout
+
+The repository is organized by ownership rather than by file type:
+
+```text
+hosts/        host entry points and host-specific operations
+profiles/     reusable compositions of components
+platform/     shared NixOS and nix-darwin foundations
+components/   vertically owned packages, modules, config, scripts, tests, docs
+routes/       declarative routes and route-management commands
+lib/          shared implementation libraries
+tools/        repository-wide operator tooling
+docs/         cross-cutting architecture, bootstrap, recovery, and security docs
+agents/       the intentional agent-launch workspace and its policy files
+```
+
+Keep a service's package, module, helper commands, tests, configuration, and
+runbook together under `components/<name>/`. Host files compose those modules;
+they do not own reusable service implementation.
+
+`/srv/ops/agents` intentionally remains a simple directory from which agents
+can be launched with the repository's `AGENTS.md`, environment, and memory
+guidance immediately available. It is not a component and must not be moved
+under `components/` while that workflow is in use.
+
 ## Common commands
 
 ```bash
@@ -56,19 +81,19 @@ can be bootstrapped in this order:
 
 ## Runbooks
 
-- [First-time setup](runbooks/bootstrap.md)
-- [Notebook blog](runbooks/blog.md)
-- [Cloudflare administration](runbooks/cloudflare.md)
-- [Backups](runbooks/backups.md)
-- [Vaultwarden and sops](runbooks/bitwarden-sops.md)
-- [Codex integration](runbooks/codex.md)
-- [T3 Code and Pi](runbooks/t3code.md)
-- [Local models in Pi](runbooks/local-models.md)
-- [Remote Phone microphone capture](runbooks/remote-phone.md)
-- [UMD Canvas bridge](runbooks/canvas-bridge.md)
-- [Agent environment](runbooks/agents.md)
-- [Durable projects](runbooks/projects.md)
-- [Syncthing](runbooks/syncthing.md)
+- [First-time setup](docs/bootstrap/server.md)
+- [Notebook blog](components/blog/README.md)
+- [Cloudflare administration](components/cloudflare/README.md)
+- [Backups](docs/recovery/backups.md)
+- [Vaultwarden and sops](docs/security/bitwarden-sops.md)
+- [Codex integration](components/codex/RUNBOOK.md)
+- [T3 Code and Pi](components/t3code/README.md)
+- [Local models in Pi](components/local-models/README.md)
+- [Remote Phone microphone capture](components/remote-phone/README.md)
+- [UMD Canvas bridge](components/canvas-bridge/README.md)
+- [Agent environment](agents/RUNBOOK.md)
+- [Durable projects](components/projects/README.md)
+- [Syncthing](components/syncthing/README.md)
 
 ## Repository boundaries
 

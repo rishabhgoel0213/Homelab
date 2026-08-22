@@ -2,9 +2,9 @@
 
 {
   imports = [
-    ../../modules/darwin/base.nix
-    ../../modules/darwin/apps.nix
-    ../../modules/darwin/tailscale.nix
+    ../../platform/darwin/base.nix
+    ../../profiles/darwin/workstation.nix
+    ../../components/tailscale/darwin.nix
   ];
 
   nix-homebrew = {

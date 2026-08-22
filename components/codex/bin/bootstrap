@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# shellcheck source=/srv/ops/lib/shell/homelab-paths
+. "${HOMELAB_PATHS_LIB:-/srv/ops/lib/shell/homelab-paths}"
+
+codex_cmd="${CODEX_CMD:-/run/current-system/sw/bin/codex}"
+if [[ ! -x "$codex_cmd" ]]; then
+  codex_cmd="$(command -v codex)"
+fi
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+need install
+need awk
+need find
+need grep
+need sudo
+
+sudo install -d -m 0700 -o "$homelab_user" -g "$homelab_group" "$homelab_codex_home"
+sudo install -d -m 0700 -o "$homelab_user" -g "$homelab_group" \
+  "$homelab_codex_home/cache" \
+  "$homelab_codex_home/log" \
+  "$homelab_codex_home/plugins" \
+  "$homelab_codex_home/tmp"
+
+if [[ -f "$homelab_codex_config_source" ]]; then
+  sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
+    "$homelab_codex_config_source" \
+    "$homelab_codex_home/config.toml"
+fi
+if [[ -f "$homelab_codex_agents_source" ]]; then
+  sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
+    "$homelab_codex_agents_source" \
+    "$homelab_codex_home/AGENTS.md"
+fi
+
+if [[ ! -s "$homelab_codex_home/auth.json" ]] && [[ -r /run/secrets/codex-auth.json ]]; then
+  sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
+    /run/secrets/codex-auth.json \
+    "$homelab_codex_home/auth.json"
+fi
+if [[ ! -s "$homelab_codex_home/.credentials.json" ]] \
+  && [[ -r /run/secrets/codex-credentials.json ]]; then
+  sudo install -m 0600 -o "$homelab_user" -g "$homelab_group" \
+    /run/secrets/codex-credentials.json \
+    "$homelab_codex_home/.credentials.json"
+fi
+
+export CODEX_HOME="$homelab_codex_home"
+export HOME="$homelab_user_home"
+
+homelab_codex_source_root="${homelab_codex_config_source%/*}"
+homelab_codex_marketplace_file="$homelab_codex_source_root/.agents/plugins/marketplace.json"
+if [[ -f "$homelab_codex_marketplace_file" ]]; then
+  local_marketplace_name="$(awk -F\" '/^[[:space:]]*"name"[[:space:]]*:/ { print $4; exit }' "$homelab_codex_marketplace_file")"
+  if [[ -n "$local_marketplace_name" ]] \
+    && ! "$codex_cmd" plugin marketplace list --json | grep -q "\"name\": \"$local_marketplace_name\""; then
+    echo "Registering Codex plugin marketplace: $local_marketplace_name" >&2
+    "$codex_cmd" plugin marketplace add "$homelab_codex_source_root" >/dev/null
+  fi
+fi
+
+if [[ -f "$homelab_codex_config_source" ]]; then
+  awk '
+    /^\[plugins\."[^"]+"\]$/ {
+      plugin = $0
+      sub(/^\[plugins\."/,"",plugin)
+      sub(/"\]$/,"",plugin)
+      next
+    }
+    /^\[/ {
+      plugin = ""
+      next
+    }
+    plugin != "" && /^[[:space:]]*enabled[[:space:]]*=[[:space:]]*true([[:space:]]*(#.*)?)?$/ {
+      print plugin
+    }
+  ' "$homelab_codex_config_source" | while IFS= read -r plugin; do
+    [[ -z "$plugin" ]] && continue
+
+    plugin_name="${plugin%@*}"
+    plugin_marketplace="${plugin#*@}"
+    plugin_cache_dir="$homelab_codex_home/plugins/cache/$plugin_marketplace/$plugin_name"
+    if [[ -d "$plugin_cache_dir" ]] \
+      && find "$plugin_cache_dir" -mindepth 1 -maxdepth 1 -type d -print -quit | grep -q .; then
+      echo "Codex plugin already cached: $plugin" >&2
+      continue
+    fi
+
+    echo "Installing Codex plugin: $plugin" >&2
+    "$codex_cmd" plugin add "$plugin"
+  done
+fi
+
+echo "Codex bootstrap complete for CODEX_HOME=$CODEX_HOME" >&2

@@ -5,7 +5,7 @@ services. Product and company names belong to their respective owners.
 
 ## Instructure Canvas Android
 
-The UMD Canvas bridge in `scripts/canvas-bridge.py` uses the Canvas mobile
+The UMD Canvas bridge in `components/canvas-bridge/bin/canvas-bridge.py` uses the Canvas mobile
 verification endpoint and OAuth parameters needed to interoperate with Canvas.
 Those protocol details were verified against Instructure's open-source Canvas
 Android implementation:

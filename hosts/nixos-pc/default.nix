@@ -9,39 +9,39 @@
   imports = [
     ./hardware-configuration.nix
 
-    ../../modules/homelab/options.nix
-    ../../modules/homelab/ingress.nix
+    ../../platform/shared/options.nix
+    ../../platform/nixos/ingress.nix
 
-    ../../modules/core/base.nix
-    ../../modules/core/agents.nix
-    ../../modules/core/codex.nix
-    ../../modules/core/pi.nix
-    ../../modules/core/containers.nix
-    ../../modules/core/filesystem.nix
-    ../../modules/core/projects.nix
-    ../../modules/core/gpu.nix
-    ../../modules/core/remote-phone.nix
-    ../../modules/core/secrets.nix
-    ../../modules/core/dns.nix
-    ../../modules/core/cloudflare.nix
-    ../../modules/core/tailscale-api.nix
-    ../../modules/core/vscode-remote.nix
+    ../../platform/nixos/base.nix
+    ../../platform/nixos/agents.nix
+    ../../components/codex/nixos.nix
+    ../../components/pi/nixos.nix
+    ../../platform/nixos/containers.nix
+    ../../platform/nixos/filesystem.nix
+    ../../components/projects/nixos.nix
+    ../../platform/nixos/gpu.nix
+    ../../components/remote-phone/nixos.nix
+    ../../platform/nixos/secrets.nix
+    ../../components/tailscale/dns.nix
+    ../../components/cloudflare/nixos.nix
+    ../../components/tailscale/api.nix
+    ../../components/vscode-remote/nixos.nix
 
-    ../../modules/services/vaultwarden.nix
-    ../../modules/services/matrix.nix
-    ../../modules/services/backrest.nix
-    ../../modules/services/canvas-bridge.nix
-    ../../modules/services/kicad.nix
-    ../../modules/services/jellyfin.nix
-    ../../modules/services/bonsai-ternary.nix
-    ../../modules/services/mach1-additive.nix
-    ../../modules/services/nemotron-lightning.nix
-    ../../modules/services/jupyterlab.nix
-    ../../modules/services/t3code.nix
-    ../../modules/services/blog-site.nix
-    ../../modules/services/syncthing.nix
-    ../../modules/services/singlemail.nix
-    ../../modules/services/samba.nix
+    ../../components/vaultwarden/nixos.nix
+    ../../components/matrix/nixos.nix
+    ../../components/backrest/nixos.nix
+    ../../components/canvas-bridge/nixos.nix
+    ../../components/kicad/nixos.nix
+    ../../components/jellyfin/nixos.nix
+    ../../components/local-models/bonsai/nixos.nix
+    ../../components/local-models/mach1/nixos.nix
+    ../../components/local-models/nemotron-lightning/nixos.nix
+    ../../components/jupyterlab/nixos.nix
+    ../../components/t3code/nixos.nix
+    ../../components/blog/nixos.nix
+    ../../components/syncthing/nixos.nix
+    ../../components/singlemail/nixos.nix
+    ../../components/samba/nixos.nix
 
     ../../routes
   ];
