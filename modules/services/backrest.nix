@@ -69,7 +69,9 @@ in
         "${cfg.paths.stateRoot}:/backup/srv/state:ro"
         "${cfg.paths.opsRoot}:/backup/srv/ops:ro"
         "/etc/nixos:/backup/etc/nixos:ro"
+        "/etc/ssh:/backup/etc/ssh:ro"
         "${cfg.paths.userHome}:/backup/home/rishabh:ro"
+        "/var/lib:/backup/var/lib:ro"
       ];
       environment = {
         BACKREST_CONFIG = "/data/config.json";

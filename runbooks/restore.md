@@ -1,5 +1,11 @@
 # Restore Runbook
 
+For total-host loss or migration to a blank VPS, use the complete procedure in
+[`backups.md`](backups.md#blank-vps-recovery-procedure). That procedure covers
+the offline credential bundle, direct Restic access without Backrest, staged
+path restoration, VPS-specific NixOS changes, network cutover, service ordering,
+verification, and safe failback.
+
 ## Backrest UI
 
 Backrest owns this repository. Prefer browsing snapshots and restoring files

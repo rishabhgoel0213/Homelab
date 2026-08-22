@@ -56,6 +56,9 @@ project-jupyter project:
 backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 
+recovery-kit:
+    sudo scripts/create-vps-recovery-kit
+
 blog-list:
     blogctl list
 

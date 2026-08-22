@@ -3,6 +3,7 @@
 let
   cfg = config.homelab;
   host = "vault.${cfg.internalDomain}";
+  stateDir = "${cfg.paths.stateRoot}/vaultwarden";
 in
 {
   config = lib.mkIf cfg.vaultwarden.enable {
@@ -11,6 +12,7 @@ in
       domain = host;
       environmentFile = [ config.sops.secrets."vaultwarden.env".path ];
       config = {
+        DATA_FOLDER = stateDir;
         ROCKET_ADDRESS = "127.0.0.1";
         ROCKET_PORT = 8222;
         SIGNUPS_ALLOWED = false;
@@ -28,8 +30,10 @@ in
     };
 
     systemd.tmpfiles.rules = [
-      "d ${cfg.paths.stateRoot}/vaultwarden 0700 vaultwarden vaultwarden - -"
+      "d ${stateDir} 0700 vaultwarden vaultwarden - -"
     ];
+
+    systemd.services.vaultwarden.serviceConfig.ReadWritePaths = [ stateDir ];
 
     assertions = [
       {

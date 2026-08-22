@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "Run this command as root (or through: just recovery-kit)." >&2
+  exit 1
+fi
+
+output="${1:-/home/rishabh/nixos-pc-vps-recovery-$(date +%F).tar.age}"
+recipient_file="/etc/ssh/authorized_keys.d/rishabh"
+
+if [[ -e "$output" ]]; then
+  echo "Refusing to overwrite existing recovery kit: $output" >&2
+  exit 1
+fi
+
+required=(
+  /etc/ssh/ssh_host_ed25519_key
+  /etc/ssh/ssh_host_ed25519_key.pub
+  /etc/ssh/ssh_host_rsa_key
+  /etc/ssh/ssh_host_rsa_key.pub
+  /home/rishabh/.config/homelab/secrets.yaml
+  /run/secrets/restic-password
+  /srv/ops/.sops.yaml
+  /srv/state/backrest/config.json
+  /srv/state/backrest/ssh/config
+  /srv/state/backrest/ssh/known_hosts
+  /srv/state/backrest/ssh/restic-ssh-key
+  "$recipient_file"
+)
+
+for path in "${required[@]}"; do
+  if [[ ! -s "$path" ]]; then
+    echo "Required recovery input is missing or empty: $path" >&2
+    exit 1
+  fi
+done
+
+work_dir="$(mktemp -d /tmp/nixos-pc-vps-recovery.XXXXXXXX)"
+cleanup() {
+  rm -rf -- "$work_dir"
+}
+trap cleanup EXIT
+
+install -d -m 0700 \
+  "$work_dir/recovery/etc/ssh" \
+  "$work_dir/recovery/home/rishabh/.config/homelab" \
+  "$work_dir/recovery/restic" \
+  "$work_dir/recovery/srv/ops" \
+  "$work_dir/recovery/srv/state/backrest"
+
+install -m 0600 /etc/ssh/ssh_host_ed25519_key "$work_dir/recovery/etc/ssh/"
+install -m 0644 /etc/ssh/ssh_host_ed25519_key.pub "$work_dir/recovery/etc/ssh/"
+install -m 0600 /etc/ssh/ssh_host_rsa_key "$work_dir/recovery/etc/ssh/"
+install -m 0644 /etc/ssh/ssh_host_rsa_key.pub "$work_dir/recovery/etc/ssh/"
+install -m 0600 /home/rishabh/.config/homelab/secrets.yaml \
+  "$work_dir/recovery/home/rishabh/.config/homelab/secrets.yaml"
+install -m 0644 /srv/ops/.sops.yaml "$work_dir/recovery/srv/ops/.sops.yaml"
+install -m 0600 /run/secrets/restic-password "$work_dir/recovery/restic/restic-password"
+install -m 0600 /srv/state/backrest/ssh/restic-ssh-key "$work_dir/recovery/restic/restic-ssh-key"
+install -m 0644 /srv/state/backrest/ssh/known_hosts "$work_dir/recovery/restic/known_hosts"
+install -m 0600 /srv/state/backrest/ssh/config "$work_dir/recovery/restic/ssh-config"
+install -m 0600 /srv/state/backrest/config.json "$work_dir/recovery/srv/state/backrest/config.json"
+install -m 0644 "$recipient_file" "$work_dir/recovery/RECIPIENTS"
+
+install -m 0600 /dev/null "$work_dir/recovery/README.txt"
+printf '%s\n' \
+  'NixOS PC VPS recovery credential bundle' \
+  '' \
+  'This archive contains private credentials. Keep it encrypted, copy it to at' \
+  'least two trusted devices, and never commit or upload the decrypted contents.' \
+  '' \
+  'It is encrypted to the SSH public key in RECIPIENTS. Decrypt with the matching' \
+  'private key:' \
+  '' \
+  '  age -d -i /path/to/admin-private-key nixos-pc-vps-recovery-YYYY-MM-DD.tar.age | tar -xvf -' \
+  '' \
+  'Repository: sftp:u614006@u614006.your-storagebox.de:/home/restic/nixos-pc' \
+  'SSH port: 23' \
+  '' \
+  'restic/restic-password and restic/restic-ssh-key provide direct repository access.' \
+  'etc/ssh/ssh_host_ed25519_key decrypts the SOPS file under home/rishabh.' \
+  'See /srv/ops/runbooks/backups.md in the restored repository for the full procedure.' \
+  > "$work_dir/recovery/README.txt"
+
+umask 077
+mkdir -p "$(dirname "$output")"
+tar --sort=name --owner=0 --group=0 --numeric-owner -C "$work_dir" -cf - recovery \
+  | age -R "$recipient_file" -o "$output"
+chown rishabh:users "$output"
+chmod 0600 "$output"
+
+echo "Created encrypted VPS recovery kit: $output"
+ssh-keygen -lf "$recipient_file"
+echo "Copy it to at least two trusted devices and test decryption with the matching private key."
