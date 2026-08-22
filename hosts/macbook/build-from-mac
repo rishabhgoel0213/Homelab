@@ -38,8 +38,7 @@ test -z "$(git status --porcelain)"
 printf '%s\n' \
   "$(git rev-parse HEAD)" \
   "$(jq -r '.nodes["tabby-terminal"].locked.rev' flake.lock)" \
-  "$(jq -r '.nodes["zen-browser"].locked.rev' flake.lock)" \
-  "$(jq -r '.nodes["mautrix-meta-homelab"].locked.rev' flake.lock)"
+  "$(jq -r '.nodes["zen-browser"].locked.rev' flake.lock)"
 REMOTE
 })"
 
@@ -47,7 +46,7 @@ revisions=()
 while IFS= read -r revision; do
   revisions+=("$revision")
 done <<<"$revision_data"
-if [[ "${#revisions[@]}" -ne 4 ]]; then
+if [[ "${#revisions[@]}" -ne 3 ]]; then
   echo "Unable to resolve the committed server and source revisions" >&2
   exit 1
 fi
@@ -55,12 +54,27 @@ fi
 ops_rev="${revisions[0]}"
 tabby_rev="${revisions[1]}"
 zen_rev="${revisions[2]}"
-mautrix_rev="${revisions[3]}"
 
-flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}"
-tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}"
-zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}"
-mautrix="git+ssh://${server}/home/rishabh/Projects/mautrix-meta?ref=main&rev=${mautrix_rev}"
+empty_source="$(mktemp -d "${TMPDIR:-/tmp}/darwin-empty-source.XXXXXX")"
+trap 'rm -rf "$empty_source"' EXIT
+
+flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}&shallow=1"
+tabby="path:${empty_source}"
+zen="path:${empty_source}"
+mautrix="path:${empty_source}"
+
+case "$target" in
+  tabby|macbook-system)
+    tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}&shallow=1"
+    ;;
+esac
+
+case "$target" in
+  zen|macbook-system)
+    zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}&shallow=1"
+    ;;
+esac
+
 installable="${flake}#packages.aarch64-darwin.${target}"
 
 echo "Building committed $installable locally without activation" >&2
