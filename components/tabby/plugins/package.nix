@@ -7,7 +7,7 @@ buildNpmPackage {
   pname = "tabby-managed-plugins";
   version = "2026-08-22";
 
-  src = ../tabby-plugins;
+  src = lib.cleanSource ./.;
   npmDepsHash = "sha256-/cqS9qJEocp78oxqJ+b9yc2XQuGkYY0l7JTtzq5anJg=";
   npmFlags = [ "--legacy-peer-deps" ];
   dontNpmBuild = true;

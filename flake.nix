@@ -44,7 +44,24 @@
     }:
     let
       system = "x86_64-linux";
+      darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
+      darwinPkgs = import nixpkgs {
+        system = darwinSystem;
+        config = {
+          allowUnfree = true;
+          permittedInsecurePackages = [ "electron-38.8.4" ];
+        };
+      };
+      darwinCodex = darwinPkgs.callPackage ./components/codex/package.nix { };
+      darwinTabbyPlugins = darwinPkgs.callPackage ./components/tabby/plugins/package.nix { };
+      darwinTabby = darwinPkgs.callPackage ./components/tabby/package.nix {
+        src = inputs.tabby-terminal;
+        tabbyPlugins = darwinTabbyPlugins;
+      };
+      darwinZen = darwinPkgs.callPackage ./components/zen/package.nix {
+        src = inputs.zen-browser;
+      };
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
       pythonForBlog = pkgs.python3.withPackages (ps: [
         ps.aiohttp
@@ -207,6 +224,14 @@
                 python3 ${./components/remote-phone/tests/test-remote-phone-mic.py}
               touch "$out"
             '';
+      };
+
+      packages.${darwinSystem} = {
+        codex = darwinCodex;
+        tabby-plugins = darwinTabbyPlugins;
+        tabby = darwinTabby;
+        zen = darwinZen;
+        macbook-system = self.darwinConfigurations.macbook.system;
       };
 
       devShells.${system}.default = pkgs.mkShell {

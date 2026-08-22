@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+target="${1:-macbook-system}"
+configuration="${2:-macbook}"
+ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@Rishabhs-MacBook-Air-4}"
+builder="${MACBOOK_NIX_BUILDER:-ssh-ng://$ssh_host}"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+need nix
+
+case "$target" in
+  codex|tabby-plugins|tabby|zen)
+    installable=".#packages.aarch64-darwin.$target"
+    ;;
+  macbook-system|system)
+    installable=".#darwinConfigurations.$configuration.system"
+    ;;
+  *)
+    echo "Unknown Darwin build target: $target" >&2
+    echo "Expected one of: codex, tabby-plugins, tabby, zen, macbook-system" >&2
+    exit 2
+    ;;
+esac
+
+if [[ ! -d "$repo" ]]; then
+  echo "Missing ops repository: $repo" >&2
+  exit 1
+fi
+
+cd "$repo"
+
+echo "Checking Mac builder $builder" >&2
+nix store ping --store "$builder" >/dev/null
+
+echo "Building $installable on $builder without activation" >&2
+output="$({
+  nix build \
+    --impure \
+    --no-link \
+    --print-out-paths \
+    --max-jobs 0 \
+    --builders "$builder" \
+    "$installable"
+})"
+
+if [[ -z "$output" || "$output" != /nix/store/* ]]; then
+  echo "Unexpected build output: $output" >&2
+  exit 1
+fi
+
+printf '%s\n' "$output"

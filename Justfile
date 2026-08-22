@@ -27,6 +27,10 @@ darwin-eval:
 darwin-lock-sources:
     nix flake lock --impure --update-input tabby-terminal --update-input zen-browser
 
+# Builds one isolated target on the Mac remote builder without activation.
+darwin-build target="macbook-system":
+    hosts/macbook/build "{{target}}" "{{darwin_host}}"
+
 # Requires MACBOOK_DEPLOY_CONFIRM=deploy. The script delegates aarch64-darwin
 # builds to the Mac and then activates that exact store path over SSH.
 darwin-deploy:
