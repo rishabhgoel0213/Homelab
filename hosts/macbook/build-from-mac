@@ -43,7 +43,10 @@ printf '%s\n' \
 REMOTE
 })"
 
-mapfile -t revisions <<<"$revision_data"
+revisions=()
+while IFS= read -r revision; do
+  revisions+=("$revision")
+done <<<"$revision_data"
 if [[ "${#revisions[@]}" -ne 4 ]]; then
   echo "Unable to resolve the committed server and source revisions" >&2
   exit 1
