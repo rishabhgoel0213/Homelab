@@ -3,8 +3,7 @@ set -euo pipefail
 
 repo="${DARWIN_OPS_ROOT:-/srv/ops}"
 configuration="${1:-macbook}"
-ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@Rishabhs-MacBook-Air-4}"
-builder="${MACBOOK_NIX_BUILDER:-ssh-ng://$ssh_host}"
+ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@macbook.tail2f4d27.ts.net}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -25,7 +24,7 @@ Review hosts/macbook/README.md, then run:
 
 Optional connection overrides:
   MACBOOK_SSH_HOST=user@tailscale-name
-  MACBOOK_NIX_BUILDER=ssh-ng://user@tailscale-name
+  MACBOOK_NIX_STORE=ssh-ng://user@tailscale-name
 EOF
   exit 2
 fi
@@ -37,25 +36,20 @@ fi
 
 cd "$repo"
 
-echo "Building darwinConfigurations.$configuration on $builder" >&2
-system_path="$(
-  nix build \
-    --impure \
-    --no-link \
-    --print-out-paths \
-    --max-jobs 0 \
-    --builders "$builder" \
-    ".#darwinConfigurations.$configuration.system"
-)"
+"$repo/hosts/macbook/copy-apps"
+
+echo "Building the committed Darwin system locally on $ssh_host" >&2
+system_path="$({
+  ssh "$ssh_host" \
+    "env NIX_BIN=/nix/var/nix/profiles/default/bin/nix MACBOOK_BUILD_SERVER=nixos-pc DARWIN_OPS_ROOT=/srv/ops /bin/bash -s -- macbook-system" \
+    < "$repo/hosts/macbook/build-from-mac"
+})"
 
 if [[ -z "$system_path" || "$system_path" != /nix/store/* ]]; then
   echo "Unexpected system output path: $system_path" >&2
   exit 1
 fi
 
-echo "Copying $system_path to $builder" >&2
-nix copy --to "$builder" "$system_path"
-
 echo "Activating $system_path on $ssh_host" >&2
 ssh -t "$ssh_host" \
-  "sudo -H nix-env -p /nix/var/nix/profiles/system --set '$system_path' && sudo -H '$system_path/activate'"
+  "sudo -H /nix/var/nix/profiles/default/bin/nix-env -p /nix/var/nix/profiles/system --set '$system_path' && sudo -H '$system_path/activate'"

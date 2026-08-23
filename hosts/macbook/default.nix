@@ -4,6 +4,7 @@
   imports = [
     ../../platform/darwin/base.nix
     ../../profiles/darwin/workstation.nix
+    ../../components/darwin-deploy/darwin.nix
     ../../components/tailscale/darwin.nix
   ];
 

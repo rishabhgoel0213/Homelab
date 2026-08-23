@@ -19,6 +19,7 @@
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
     ../../components/projects/nixos.nix
+    ../../components/darwin-deploy/nixos.nix
     ../../platform/nixos/gpu.nix
     ../../components/remote-phone/nixos.nix
     ../../platform/nixos/secrets.nix

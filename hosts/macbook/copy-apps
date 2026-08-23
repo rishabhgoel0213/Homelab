@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@macbook.tail2f4d27.ts.net}"
+store="${MACBOOK_NIX_STORE:-ssh-ng://$ssh_host}"
+signing_key="${MACBOOK_SIGNING_KEY:-/var/lib/homelab-nix-cache/macbook-1.sec}"
+public_key_file="$repo/components/darwin-deploy/cache-public-key.txt"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+need nix
+need ssh
+need sudo
+
+cd "$repo"
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Refusing to deploy store paths from a dirty ops worktree." >&2
+  exit 1
+fi
+
+if ! sudo -n test -r "$signing_key"; then
+  echo "Missing readable root-only signing key: $signing_key" >&2
+  exit 1
+fi
+
+public_key="$(<"$public_key_file")"
+installables=(
+  .#packages.x86_64-linux.macbook-codex
+  .#packages.x86_64-linux.macbook-tabby-plugins
+  .#packages.x86_64-linux.macbook-tabby
+  .#packages.x86_64-linux.macbook-zen
+)
+
+outputs=()
+for installable in "${installables[@]}"; do
+  output="$(nix build --impure --no-link --print-out-paths "$installable")"
+  if [[ -z "$output" || "$output" != /nix/store/* ]]; then
+    echo "Unexpected build output for $installable: $output" >&2
+    exit 1
+  fi
+  outputs+=("$output")
+done
+
+echo "Signing ${#outputs[@]} application payloads on nixos-pc" >&2
+sudo -n nix store sign --recursive --key-file "$signing_key" "${outputs[@]}"
+sudo -n nix store verify --trusted-public-keys "$public_key" "${outputs[@]}"
+
+echo "Copying signed payloads to $store without activation" >&2
+nix copy --to "$store" "${outputs[@]}"
+
+for output in "${outputs[@]}"; do
+  # The validated store path is intentionally expanded into the remote command.
+  # shellcheck disable=SC2029
+  ssh "$ssh_host" /nix/var/nix/profiles/default/bin/nix path-info "$output" >/dev/null
+  printf '%s\n' "$output"
+done

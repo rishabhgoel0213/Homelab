@@ -27,14 +27,18 @@ darwin-eval:
 darwin-lock-sources:
     nix flake lock --impure --update-input tabby-terminal --update-input zen-browser
 
-# Builds one isolated target on the Mac remote builder without activation.
+# Builds one isolated target on the server or locally on the Mac without activation.
 darwin-build target="macbook-system":
     hosts/macbook/build "{{target}}" "{{darwin_host}}"
 
-# Requires MACBOOK_DEPLOY_CONFIRM=deploy. The script delegates aarch64-darwin
-# builds to the Mac and then activates that exact store path over SSH.
+# Requires MACBOOK_DEPLOY_CONFIRM=deploy. Darwin-only work builds locally on
+# the Mac before the exact store path is activated over Tailscale SSH.
 darwin-deploy:
     hosts/macbook/deploy "{{darwin_host}}"
+
+# Builds, signs, and copies Mac application payloads without activation.
+darwin-copy-apps:
+    hosts/macbook/copy-apps
 
 routes:
     nix eval --impure --json .#nixosConfigurations.{{host}}.config.homelab.routeTable | jq .

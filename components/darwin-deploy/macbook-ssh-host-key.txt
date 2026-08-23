@@ -1,0 +1,1 @@
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOd8oBZn9rUvllB2/Xk06m0oKHd/0Xt0nHQgycfn+Z6H root@macbook.tail2f4d27.ts.net

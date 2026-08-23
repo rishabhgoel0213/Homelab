@@ -4,8 +4,7 @@ set -euo pipefail
 repo="${DARWIN_OPS_ROOT:-/srv/ops}"
 target="${1:-macbook-system}"
 configuration="${2:-macbook}"
-ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@Rishabhs-MacBook-Air-4}"
-builder="${MACBOOK_NIX_BUILDER:-ssh-ng://$ssh_host}"
+ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@macbook.tail2f4d27.ts.net}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -47,18 +46,14 @@ if [[ "$build_location" == "server" ]]; then
   echo "Building $installable on nixos-pc without activation" >&2
   output="$(nix build --impure --no-link --print-out-paths "$installable")"
 else
-  echo "Checking Mac builder $builder" >&2
-  nix store ping --store "$builder" >/dev/null
-
-  echo "Building $installable on $builder without activation" >&2
+  need ssh
+  echo "Building $target locally on $ssh_host without activation" >&2
   output="$({
-    nix build \
-      --impure \
-      --no-link \
-      --print-out-paths \
-      --max-jobs 0 \
-      --builders "$builder" \
-      "$installable"
+    # target is constrained by the case statement above.
+    # shellcheck disable=SC2029
+    ssh "$ssh_host" \
+      "env NIX_BIN=/nix/var/nix/profiles/default/bin/nix MACBOOK_BUILD_SERVER=nixos-pc DARWIN_OPS_ROOT=/srv/ops /bin/bash -s -- $target" \
+      < "$repo/hosts/macbook/build-from-mac"
   })"
 fi
 

@@ -1,0 +1,116 @@
+#!/bin/sh
+set -eu
+
+server_public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII8IyVfvB2RAcTDlJf199W1WI89tLMsD26NIep4eJ3Dj rishabh@nixos-pc'
+mac_user=rishabhgoel
+mac_group=staff
+mac_home=/Users/rishabhgoel
+anchor_name=com.rishabhgoel.tailscale-ssh
+anchor_file=/etc/pf.anchors/com.rishabhgoel.tailscale-ssh
+runner=/usr/local/libexec/com.rishabhgoel.tailscale-ssh-pf
+service=/Library/LaunchDaemons/com.rishabhgoel.tailscale-ssh-pf.plist
+
+if [ "$(/usr/bin/id -u)" -ne 0 ]; then
+  echo "Run this Tailscale SSH bootstrap as root." >&2
+  exit 1
+fi
+
+/usr/bin/install -d -o "$mac_user" -g "$mac_group" -m 0700 "$mac_home/.ssh"
+if [ ! -f "$mac_home/.ssh/authorized_keys" ]; then
+  /usr/bin/install -o "$mac_user" -g "$mac_group" -m 0600 /dev/null "$mac_home/.ssh/authorized_keys"
+fi
+if ! /usr/bin/grep -Fqx "$server_public_key" "$mac_home/.ssh/authorized_keys"; then
+  /usr/bin/printf '%s\n' "$server_public_key" >> "$mac_home/.ssh/authorized_keys"
+fi
+/usr/sbin/chown "$mac_user:$mac_group" "$mac_home/.ssh/authorized_keys"
+/bin/chmod 0600 "$mac_home/.ssh/authorized_keys"
+
+anchor_candidate="$(/usr/bin/mktemp /etc/pf.anchors/.tailscale-ssh.XXXXXX)"
+pf_candidate="$(/usr/bin/mktemp /etc/.pf.conf.XXXXXX)"
+runner_candidate="$(/usr/bin/mktemp /usr/local/libexec/.tailscale-ssh-pf.XXXXXX)"
+service_candidate="$(/usr/bin/mktemp /Library/LaunchDaemons/.tailscale-ssh-pf.XXXXXX)"
+rules_candidate="$(/usr/bin/mktemp /private/tmp/.tailscale-ssh-rules.XXXXXX)"
+trap '/bin/rm -f "$anchor_candidate" "$pf_candidate" "$runner_candidate" "$service_candidate" "$rules_candidate"' EXIT
+
+/bin/cat > "$anchor_candidate" <<'RULES'
+pass in quick on lo0 proto tcp from any to any port 22 flags S/SA keep state
+pass in quick inet proto tcp from 100.64.0.0/10 to any port 22 flags S/SA keep state
+pass in quick inet6 proto tcp from fd7a:115c:a1e0::/48 to any port 22 flags S/SA keep state
+block return in quick proto tcp from any to any port 22
+RULES
+/sbin/pfctl -nf "$anchor_candidate"
+/usr/bin/install -o root -g wheel -m 0644 "$anchor_candidate" "$anchor_file"
+
+/bin/cp /etc/pf.conf "$pf_candidate"
+if ! /usr/bin/grep -Fqx "anchor \"$anchor_name\"" "$pf_candidate"; then
+  /usr/bin/printf '\nanchor "%s"\n' "$anchor_name" >> "$pf_candidate"
+fi
+if ! /usr/bin/grep -Fqx "load anchor \"$anchor_name\" from \"$anchor_file\"" "$pf_candidate"; then
+  /usr/bin/printf 'load anchor "%s" from "%s"\n' "$anchor_name" "$anchor_file" >> "$pf_candidate"
+fi
+/sbin/pfctl -nf "$pf_candidate"
+/usr/bin/install -o root -g wheel -m 0644 "$pf_candidate" /etc/pf.conf
+
+/bin/cat > "$runner_candidate" <<'RUNNER'
+#!/bin/sh
+set -eu
+/sbin/pfctl -nf /etc/pf.conf
+/sbin/pfctl -f /etc/pf.conf
+if ! /sbin/pfctl -s info | /usr/bin/grep -q '^Status: Enabled'; then
+  /sbin/pfctl -e
+fi
+RUNNER
+/usr/bin/install -o root -g wheel -m 0755 "$runner_candidate" "$runner"
+
+/bin/cat > "$service_candidate" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.rishabhgoel.tailscale-ssh-pf</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/libexec/com.rishabhgoel.tailscale-ssh-pf</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+PLIST
+/usr/bin/plutil -lint "$service_candidate" >/dev/null
+/usr/bin/install -o root -g wheel -m 0644 "$service_candidate" "$service"
+
+if /bin/launchctl print "system/$anchor_name-pf" >/dev/null 2>&1; then
+  /bin/launchctl bootout "system/$anchor_name-pf"
+fi
+/bin/launchctl bootstrap system "$service"
+
+attempt=0
+while ! /sbin/pfctl -a "$anchor_name" -sr > "$rules_candidate" 2>/dev/null \
+  || ! /usr/bin/grep -Eq 'block return in quick.*port( =)? (22|ssh)' "$rules_candidate"; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 15 ]; then
+    echo "The Tailscale-only PF anchor could not be verified." >&2
+    exit 1
+  fi
+  /bin/sleep 1
+done
+
+/usr/bin/ssh-keygen -A
+/bin/launchctl enable system/com.openssh.sshd
+if ! /bin/launchctl print system/com.openssh.sshd >/dev/null 2>&1; then
+  /bin/launchctl bootstrap system /System/Library/LaunchDaemons/ssh.plist
+fi
+
+attempt=0
+while ! /usr/bin/nc -z 127.0.0.1 22 >/dev/null 2>&1; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 15 ]; then
+    echo "Remote Login did not start after the PF restriction was active." >&2
+    exit 1
+  fi
+  /bin/sleep 1
+done
+
+echo "Remote Login is active behind the Tailscale-only PF anchor."

@@ -22,8 +22,9 @@ replacement path has been tested from another terminal.
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.
-- Nix installs Codex CLI from `components/codex/package.nix`. Codex.app itself remains
-  unmanaged. Both intentionally share `~/.codex/config.toml` and auth state.
+- Nix installs the server-cross-compiled Codex CLI from
+  `components/codex/cross-package.nix`. Codex.app itself remains unmanaged.
+  Both intentionally share `~/.codex/config.toml` and auth state.
 - Nix/Homebrew manages the official standalone `tailscale-app` package. Do not
   also enable nix-darwin's open-source `services.tailscale` module during this
   migration because it uses a different local service and state layout.
@@ -119,13 +120,61 @@ locally from pinned Git revisions. Those targets require the server-built
 inputs to be available through an explicitly trusted signed-store path; do not
 weaken the daemon's global trust settings to bootstrap them.
 
-## Server-driven deployment
+## Signed store transport
+
+The server signing key is root-readable at
+`/var/lib/homelab-nix-cache/macbook-1.sec`. Only its public key is committed in
+`components/darwin-deploy/cache-public-key.txt`. The Mac trusts that public key
+without adding the regular user to `trusted-users` or disabling signature
+checks.
+
+The one-time trust bootstrap changes only the installer-owned custom Nix
+configuration and restarts the Nix daemon:
+
+```sh
+scp nixos-pc:/srv/ops/hosts/macbook/bootstrap-trust /private/tmp/bootstrap-trust
+chmod 0700 /private/tmp/bootstrap-trust
+sudo /private/tmp/bootstrap-trust
+```
+
+Before inbound SSH is enabled, import all four signed payloads from the Mac:
+
+```sh
+scp nixos-pc:/srv/ops/hosts/macbook/pull-apps-from-mac /private/tmp/pull-mac-apps
+chmod 0700 /private/tmp/pull-mac-apps
+/private/tmp/pull-mac-apps
+```
+
+This populates `/nix/store` only. It does not create a profile generation,
+install into `/Applications`, run Homebrew, launch an app, or read an app
+profile.
+
+## Tailscale-only deployment SSH
+
+`components/darwin-deploy/darwin.nix` declares key-only Remote Login plus a PF
+anchor that accepts port 22 from loopback and the Tailscale address ranges,
+then rejects every other source. The one-time bootstrap installs and validates
+the PF restriction before it enables Remote Login:
+
+```sh
+scp nixos-pc:/srv/ops/hosts/macbook/bootstrap-tailscale-ssh /private/tmp/bootstrap-tailscale-ssh
+chmod 0700 /private/tmp/bootstrap-tailscale-ssh
+sudo /private/tmp/bootstrap-tailscale-ssh
+```
+
+After the Mac host key is pinned on the server, a store-only server push is:
+
+```sh
+cd /srv/ops
+just darwin-copy-apps
+```
+
+## Server-driven activation
 
 The Linux server cross-builds Codex and packages the selected upstream app
-bundles. `hosts/macbook/deploy` still uses the Mac as a restricted builder for
-the remaining nix-darwin system derivations, copies the exact result back to
-the Mac, and activates it over SSH. The regular Mac user is not made a global
-Nix trusted user.
+bundles, signs them, and copies them over the tailnet. The remaining Darwin
+derivations build locally on the Mac from the committed server revision.
+`hosts/macbook/deploy` then activates that exact result over SSH.
 
 After the pre-deployment review:
 
@@ -134,10 +183,9 @@ cd /srv/ops
 MACBOOK_DEPLOY_CONFIRM=deploy just darwin-deploy
 ```
 
-Set `MACBOOK_SSH_HOST` and `MACBOOK_NIX_BUILDER` if the MagicDNS name differs.
-The first bootstrap may require a one-time, narrowly scoped Nix remote-builder
-permission adjustment on the Mac; inspect the exact error before changing any
-trust setting.
+Set `MACBOOK_SSH_HOST` or `MACBOOK_NIX_STORE` if the MagicDNS name differs. The
+activation remains deliberately interactive and requires the explicit
+`MACBOOK_DEPLOY_CONFIRM=deploy` guard plus Mac sudo authentication.
 
 ## State-preserving application cutover
 

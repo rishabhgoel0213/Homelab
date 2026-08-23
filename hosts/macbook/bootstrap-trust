@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+cache_public_key='nixos-pc-macbook-1:oDiKhMQfjOvsiM02MlTOFfDts1WsoIHBgDysBRAQbGs='
+config=/etc/nix/nix.custom.conf
+nix_bin=/nix/var/nix/profiles/default/bin/nix
+
+if [ "$(/usr/bin/id -u)" -ne 0 ]; then
+  echo "Run this trust-only bootstrap as root." >&2
+  exit 1
+fi
+
+candidate="$(/usr/bin/mktemp /etc/nix/.nix.custom.conf.XXXXXX)"
+trap '/bin/rm -f "$candidate"' EXIT
+
+if [ -f "$config" ]; then
+  /bin/cp "$config" "$candidate"
+fi
+
+if ! /usr/bin/grep -Fq "$cache_public_key" "$candidate"; then
+  /usr/bin/printf '\nextra-trusted-public-keys = %s\n' "$cache_public_key" >> "$candidate"
+fi
+
+/usr/bin/install -o root -g wheel -m 0644 "$candidate" "$config"
+/bin/launchctl kickstart -k system/org.nixos.nix-daemon
+
+attempt=0
+while ! "$nix_bin" store ping >/dev/null 2>&1; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 15 ]; then
+    echo "The Nix daemon did not return after the trust update." >&2
+    exit 1
+  fi
+  /bin/sleep 1
+done
+
+"$nix_bin" config show 2>/dev/null \
+  | /usr/bin/grep '^trusted-public-keys = ' \
+  | /usr/bin/grep -Fq "$cache_public_key"
+
+echo "Trusted nixos-pc-macbook-1 without changing trusted-users."

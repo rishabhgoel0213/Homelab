@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+server="${MACBOOK_BUILD_SERVER:-nixos-pc}"
+ops_repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+nix_bin="${NIX_BIN:-/nix/var/nix/profiles/default/bin/nix}"
+
+for command in ssh "$nix_bin"; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Missing required command: $command" >&2
+    exit 1
+  fi
+done
+
+output_lines="$({
+  ssh "$server" bash -s -- "$ops_repo" <<'REMOTE'
+set -euo pipefail
+repo="$1"
+signing_key=/var/lib/homelab-nix-cache/macbook-1.sec
+cd "$repo"
+test -z "$(git status --porcelain)"
+
+installables=(
+  .#packages.x86_64-linux.macbook-codex
+  .#packages.x86_64-linux.macbook-tabby-plugins
+  .#packages.x86_64-linux.macbook-tabby
+  .#packages.x86_64-linux.macbook-zen
+)
+outputs=()
+for installable in "${installables[@]}"; do
+  outputs+=("$(nix build --impure --no-link --print-out-paths "$installable")")
+done
+
+sudo -n nix store sign --recursive --key-file "$signing_key" "${outputs[@]}"
+printf '%s\n' "${outputs[@]}"
+REMOTE
+})"
+
+paths=()
+while IFS= read -r output; do
+  if [[ -z "$output" || "$output" != /nix/store/* ]]; then
+    echo "Unexpected signed server output: $output" >&2
+    exit 1
+  fi
+  paths+=("$output")
+done <<<"$output_lines"
+
+if [[ "${#paths[@]}" -ne 4 ]]; then
+  echo "Expected four signed application payloads, got ${#paths[@]}." >&2
+  exit 1
+fi
+
+echo "Pulling four signed payloads from $server without activation" >&2
+"$nix_bin" copy --from "ssh-ng://$server" "${paths[@]}"
+"$nix_bin" path-info "${paths[@]}"
