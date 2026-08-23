@@ -10,8 +10,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
-
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -44,7 +42,6 @@
       nixpkgs,
       nix-darwin,
       sops-nix,
-      nix-homebrew,
       ...
     }:
     let
@@ -323,7 +320,6 @@
           inherit inputs macbookArtifacts self;
         };
         modules = [
-          nix-homebrew.darwinModules.nix-homebrew
           ./hosts/macbook
         ];
       };

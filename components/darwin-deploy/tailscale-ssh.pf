@@ -1,6 +1,0 @@
-# Permit local administration and SSH from the tailnet. Reject every other
-# inbound source before Remote Login is enabled.
-pass in quick on lo0 proto tcp from any to any port 22 flags S/SA keep state
-pass in quick inet proto tcp from 100.64.0.0/10 to any port 22 flags S/SA keep state
-pass in quick inet6 proto tcp from fd7a:115c:a1e0::/48 to any port 22 flags S/SA keep state
-block return in quick proto tcp from any to any port 22

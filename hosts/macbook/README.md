@@ -25,9 +25,9 @@ replacement path has been tested from another terminal.
 - Nix installs the server-cross-compiled Codex CLI from
   `components/codex/cross-package.nix`. Codex.app itself remains unmanaged.
   Both intentionally share `~/.codex/config.toml` and auth state.
-- Nix/Homebrew manages the official standalone `tailscale-app` package. Do not
-  also enable nix-darwin's open-source `services.tailscale` module during this
-  migration because it uses a different local service and state layout.
+- Tailscale is outside the Darwin configuration. The existing standalone app,
+  service, node identity, and local state remain unmanaged and untouched. The
+  deployment scripts may use its existing network path only as transport.
 
 ## Encrypted recovery set
 
@@ -67,10 +67,9 @@ private key or decrypted archive to the Mac merely to inspect it.
 
 1. Use a terminal other than Tabby for the cutover.
 2. Confirm the encrypted recovery set is still readable.
-3. Record the current app bundle locations and Homebrew/package receipts.
-4. Confirm `/Library/Tailscale/profile-data` still exists. The first activation
-   must not run `brew uninstall --zap`, because the cask's zap stanza deletes
-   `/Library/Tailscale`.
+3. Record the current app bundle locations.
+4. Confirm the existing Tailscale connection works, but do not migrate,
+   install, upgrade, restart, or remove Tailscale during this deployment.
 5. Review any existing regular `~/.codex/config.toml`. Activation refuses to
    overwrite it; remove it deliberately only after confirming it is unused.
 6. Run `just darwin-eval`. This evaluates only and does not build or activate.
@@ -156,12 +155,14 @@ This populates `/nix/store` and creates staging GC roots under
 profile generation, install into `/Applications`, run Homebrew, launch an app,
 or read an app profile.
 
-## Tailscale-only deployment SSH
+## Existing deployment transport
 
-`components/darwin-deploy/darwin.nix` declares key-only Remote Login plus a PF
-anchor that accepts port 22 from loopback and the Tailscale address ranges,
-then rejects every other source. The one-time bootstrap installs and validates
-the PF restriction before it enables Remote Login:
+The Darwin configuration declares key-only Remote Login and the server's SSH
+key, but it does not declare Tailscale, PF rules, or a Tailscale package. The
+deployment scripts use the Mac's existing network path without managing it.
+
+The earlier one-time bootstrap installed and validated the current PF
+restriction outside nix-darwin before enabling Remote Login:
 
 ```sh
 scp nixos-pc:/srv/ops/hosts/macbook/bootstrap-tailscale-ssh /private/tmp/bootstrap-tailscale-ssh
@@ -175,6 +176,8 @@ After the Mac host key is pinned on the server, a store-only server push is:
 cd /srv/ops
 just darwin-copy-apps
 ```
+
+Re-running the bootstrap is not part of normal Darwin deployment.
 
 ## Server-driven activation
 
@@ -205,6 +208,6 @@ Only after both apps have passed a launch/state check should their old app
 bundles or package receipts be removed. Removing an app bundle must remain
 separate from removing its profile data.
 
-For Tailscale, verify the same tailnet node identity, MagicDNS reachability,
-and SSH access before adding declarative Serve/Funnel rules. Keep Serve changes
-in `components/tailscale/darwin.nix` and review their exposure separately.
+Tailscale remains outside this configuration after the application cutover.
+Any future Tailscale package or Serve/Funnel migration must be designed,
+backed up, reviewed, and deployed as a separate project.
