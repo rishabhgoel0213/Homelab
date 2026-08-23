@@ -145,6 +145,15 @@ chmod 0700 /private/tmp/bootstrap-trust
 sudo /private/tmp/bootstrap-trust
 ```
 
+The first guarded activation verifies that this custom file still contains
+only the expected server signing key. It then saves the file as
+`/etc/nix/nix.custom.conf.before-nix-darwin` immediately before activation.
+The Darwin configuration preserves Lix 2.95.2, the Lix binary cache and key,
+the prompt prefix, and the substitute policy that the Lix installer placed in
+`nix.conf`. The server signing key is also carried into the managed settings.
+If the custom file differs from the known bootstrap result, deployment stops
+without moving it.
+
 Before inbound SSH is enabled, import all four signed payloads from the Mac:
 
 ```sh
@@ -188,6 +197,11 @@ The Linux server cross-builds Codex and packages the selected upstream app
 bundles, signs them, and copies them over the tailnet. The remaining Darwin
 derivations build locally on the Mac from the committed server revision.
 `hosts/macbook/deploy` then activates that exact result over SSH.
+
+If activation stops after selecting the system profile but before creating
+`/run/current-system`, correct the reported cause and rerun the guarded
+deployment. The selected profile alone is an incomplete activation, and the
+deployment helper safely selects the same or newer built result again.
 
 After the pre-deployment review:
 

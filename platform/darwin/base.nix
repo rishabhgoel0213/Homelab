@@ -12,10 +12,21 @@
   networking.hostName = "Rishabhs-MacBook-Air-4";
 
   nix = {
-    settings.experimental-features = [
-      "nix-command"
-      "flakes"
-    ];
+    # Keep the implementation and installer settings already in use on the
+    # Mac. The initial nix-darwin activation takes ownership of nix.conf.
+    package = pkgs.lixPackageSets.latest.lix;
+    settings = {
+      always-allow-substitutes = true;
+      bash-prompt-prefix = "(nix:$name) ";
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+      trusted-substituters = [ "https://cache.lix.systems" ];
+      trusted-public-keys = [
+        "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
+      ];
+    };
     gc = {
       automatic = true;
       interval = {

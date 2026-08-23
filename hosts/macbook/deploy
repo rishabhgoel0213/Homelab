@@ -4,6 +4,7 @@ set -euo pipefail
 repo="${DARWIN_OPS_ROOT:-/srv/ops}"
 configuration="${1:-macbook}"
 ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@macbook.tail2f4d27.ts.net}"
+custom_nix_conf_sha256="4f48b9e6d9a59da05967722720ff6b118e0b3a2bea39e25a7af4a84b641b5938"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -51,5 +52,44 @@ if [[ -z "$system_path" || "$system_path" != /nix/store/* ]]; then
 fi
 
 echo "Activating $system_path on $ssh_host" >&2
-ssh -t "$ssh_host" \
-  "sudo -H /nix/var/nix/profiles/default/bin/nix-env -p /nix/var/nix/profiles/system --set '$system_path' && sudo -H '$system_path/activate'"
+ssh -t "$ssh_host" "
+  set -euo pipefail
+
+  custom_conf=/etc/nix/nix.custom.conf
+  saved_custom_conf=/etc/nix/nix.custom.conf.before-nix-darwin
+  migrated_custom_conf=0
+
+  if [[ -e \"\$custom_conf\" ]]; then
+    actual_sha256=\$(/usr/bin/shasum -a 256 \"\$custom_conf\")
+    actual_sha256=\${actual_sha256%% *}
+
+    if [[ \"\$actual_sha256\" != '$custom_nix_conf_sha256' ]]; then
+      echo \"Refusing to migrate unexpected custom Nix settings: \$custom_conf\" >&2
+      echo \"Expected SHA-256: $custom_nix_conf_sha256\" >&2
+      echo \"Actual SHA-256:   \$actual_sha256\" >&2
+      exit 1
+    fi
+
+    if [[ -e \"\$saved_custom_conf\" ]]; then
+      echo \"Refusing to overwrite existing migration backup: \$saved_custom_conf\" >&2
+      exit 1
+    fi
+  fi
+
+  sudo -H /nix/var/nix/profiles/default/bin/nix-env \
+    -p /nix/var/nix/profiles/system --set '$system_path'
+
+  if [[ -e \"\$custom_conf\" ]]; then
+    sudo -H /bin/mv \"\$custom_conf\" \"\$saved_custom_conf\"
+    migrated_custom_conf=1
+  fi
+
+  if ! sudo -H '$system_path/activate'; then
+    if [[ \"\$migrated_custom_conf\" -eq 1 ]] &&
+       /usr/bin/grep -Eq '^[[:space:]]*!include[[:space:]]+nix\\.custom\\.conf([[:space:]]|$)' /etc/nix/nix.conf; then
+      echo \"Activation failed before nix-darwin replaced nix.conf; restoring \$custom_conf\" >&2
+      sudo -H /bin/mv \"\$saved_custom_conf\" \"\$custom_conf\"
+    fi
+    exit 1
+  fi
+"
