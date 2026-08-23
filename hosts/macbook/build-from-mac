@@ -93,13 +93,13 @@ zen="path:${empty_source}"
 mautrix="path:${empty_source}"
 
 case "$target" in
-  tabby-source|macbook-system)
+  tabby-source)
     tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}&shallow=1"
     ;;
 esac
 
 case "$target" in
-  zen-source|macbook-system)
+  zen-source)
     zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}&shallow=1"
     ;;
 esac
