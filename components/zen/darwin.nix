@@ -2,8 +2,8 @@
   config,
   inputs,
   lib,
+  macbookArtifacts,
   pkgs,
-  self,
   ...
 }:
 
@@ -12,8 +12,7 @@ let
   sourcePackage = pkgs.callPackage ./package.nix {
     src = inputs.zen-browser;
   };
-  selectedPackage =
-    if cfg.packageSource == "source" then sourcePackage else self.packages.x86_64-linux.macbook-zen;
+  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookArtifacts.zen;
 in
 {
   options.homelab.apps.zen.packageSource = lib.mkOption {

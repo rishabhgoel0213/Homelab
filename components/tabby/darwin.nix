@@ -2,20 +2,19 @@
   config,
   inputs,
   lib,
+  macbookArtifacts,
   pkgs,
-  self,
   ...
 }:
 
 let
   cfg = config.homelab.apps.tabby;
-  tabbyPlugins = self.packages.x86_64-linux.macbook-tabby-plugins;
+  tabbyPlugins = macbookArtifacts.tabbyPlugins;
   sourcePackage = pkgs.callPackage ./package.nix {
     src = inputs.tabby-terminal;
     inherit tabbyPlugins;
   };
-  selectedPackage =
-    if cfg.packageSource == "source" then sourcePackage else self.packages.x86_64-linux.macbook-tabby;
+  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookArtifacts.tabby;
 in
 {
   options.homelab.apps.tabby.packageSource = lib.mkOption {

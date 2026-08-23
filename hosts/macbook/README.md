@@ -128,6 +128,12 @@ The server signing key is root-readable at
 without adding the regular user to `trusted-users` or disabling signature
 checks.
 
+`components/darwin-deploy/artifacts.nix` records the four signed output paths
+consumed by Darwin evaluation. This prevents the Mac from evaluating or
+realizing Linux build-tool derivations merely to discover their output paths.
+`hosts/macbook/copy-apps` refuses deployment if a newly built output does not
+match the committed manifest.
+
 The one-time trust bootstrap changes only the installer-owned custom Nix
 configuration and restarts the Nix daemon:
 

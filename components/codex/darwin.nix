@@ -1,7 +1,7 @@
 {
   lib,
+  macbookArtifacts,
   pkgs,
-  self,
   ...
 }:
 
@@ -10,7 +10,7 @@ let
   userHome = "/Users/${user}";
   codexHome = "${userHome}/.codex";
   codexConfig = pkgs.writeText "codex-cli-config.toml" (builtins.readFile ./config/macbook.toml);
-  codexPackage = self.packages.x86_64-linux.macbook-codex;
+  codexPackage = macbookArtifacts.codex;
 in
 {
   environment.systemPackages = [ codexPackage ];

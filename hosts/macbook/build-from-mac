@@ -109,6 +109,7 @@ installable="${flake}#packages.aarch64-darwin.${target}"
 echo "Building committed $installable locally without activation" >&2
 "$nix_bin" build \
   --extra-experimental-features "nix-command flakes" \
+  --impure \
   --no-link \
   --print-out-paths \
   --override-input tabby-terminal "$tabby" \

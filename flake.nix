@@ -84,6 +84,8 @@
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
       macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-package.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-package.nix { };
+      macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
+      macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
       darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
         src = inputs.tabby-terminal;
         tabbyPlugins = macbookTabbyPlugins;
@@ -318,7 +320,7 @@
       darwinConfigurations.macbook = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
         specialArgs = {
-          inherit inputs self;
+          inherit inputs macbookArtifacts self;
         };
         modules = [
           nix-homebrew.darwinModules.nix-homebrew
