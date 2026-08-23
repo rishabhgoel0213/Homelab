@@ -203,6 +203,12 @@ If activation stops after selecting the system profile but before creating
 deployment. The selected profile alone is an incomplete activation, and the
 deployment helper safely selects the same or newer built result again.
 
+On macOS 27, `/etc/pam.d/sudo_local` remains owned by macOS. The stock sudo
+policy already includes this optional local file, and it is absent on this
+Mac. nix-darwin's otherwise-default empty symlink is disabled because macOS 27
+rejects creation at that protected path. No Touch ID, Watch ID, or PAM override
+is enabled by this host configuration.
+
 After the pre-deployment review:
 
 ```sh

@@ -47,6 +47,11 @@
 
   programs.zsh.enable = true;
 
+  # macOS 27 protects /etc/pam.d/sudo_local from symlink creation. Its stock
+  # sudo policy already includes the optional, currently absent local file, so
+  # leave that path under macOS ownership instead of creating an empty link.
+  security.pam.services.sudo_local.enable = false;
+
   environment.systemPackages = with pkgs; [
     git
     just
