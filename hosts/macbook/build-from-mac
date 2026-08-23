@@ -30,7 +30,7 @@ case "$target" in
 esac
 
 case "$target" in
-  codex|tabby-plugins|tabby|zen)
+  codex|tabby-plugins)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
       ssh "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'

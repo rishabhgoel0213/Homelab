@@ -2,7 +2,7 @@
   config,
   inputs,
   lib,
-  macbookArtifacts,
+  macbookPackages,
   pkgs,
   ...
 }:
@@ -12,7 +12,7 @@ let
   sourcePackage = pkgs.callPackage ./package.nix {
     src = inputs.zen-browser;
   };
-  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookArtifacts.zen;
+  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookPackages.zen;
 in
 {
   options.homelab.apps.zen.packageSource = lib.mkOption {
@@ -24,5 +24,21 @@ in
     description = "Whether to use the pinned upstream bundle or the managed source checkout.";
   };
 
-  config.environment.systemPackages = [ selectedPackage ];
+  config = {
+    environment.systemPackages = [ selectedPackage ];
+
+    # Mozilla supports macOS enterprise policy through this system preference
+    # domain. Keeping policy outside Zen.app preserves the vendor signature.
+    system.defaults.CustomSystemPreferences."/Library/Preferences/org.mozilla.firefox" = {
+      EnterprisePoliciesEnabled = true;
+      DisableAppUpdate = true;
+      ExtensionSettings = {
+        "*".installation_mode = "allowed";
+        "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
+          installation_mode = "force_installed";
+          install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
+        };
+      };
+    };
+  };
 }

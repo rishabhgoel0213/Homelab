@@ -3,6 +3,7 @@
   inputs,
   lib,
   macbookArtifacts,
+  macbookPackages,
   pkgs,
   ...
 }:
@@ -14,7 +15,7 @@ let
     src = inputs.tabby-terminal;
     inherit tabbyPlugins;
   };
-  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookArtifacts.tabby;
+  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookPackages.tabby;
 in
 {
   options.homelab.apps.tabby.packageSource = lib.mkOption {

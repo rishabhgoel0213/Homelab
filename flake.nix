@@ -79,10 +79,20 @@
         rustToolchain = darwinRustToolchain;
       };
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
-      macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-package.nix { };
-      macbookZen = pkgs.callPackage ./components/zen/prebuilt-package.nix { };
+      macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
+      macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
       macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
       macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
+      darwinTabbyPrebuilt = darwinPkgs.callPackage ./components/tabby/prebuilt-package.nix {
+        archive = macbookArtifacts.tabby;
+      };
+      darwinZenPrebuilt = darwinPkgs.callPackage ./components/zen/prebuilt-package.nix {
+        archive = macbookArtifacts.zen;
+      };
+      macbookPackages = {
+        tabby = darwinTabbyPrebuilt;
+        zen = darwinZenPrebuilt;
+      };
       darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
         src = inputs.tabby-terminal;
         tabbyPlugins = macbookTabbyPlugins;
@@ -264,9 +274,9 @@
       packages.${darwinSystem} = {
         codex = macbookCodex;
         tabby-plugins = macbookTabbyPlugins;
-        tabby = macbookTabby;
+        tabby = darwinTabbyPrebuilt;
         tabby-source = darwinTabbySource;
-        zen = macbookZen;
+        zen = darwinZenPrebuilt;
         zen-source = darwinZenSource;
         macbook-system = self.darwinConfigurations.macbook.system;
       };
@@ -317,7 +327,12 @@
       darwinConfigurations.macbook = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
         specialArgs = {
-          inherit inputs macbookArtifacts self;
+          inherit
+            inputs
+            macbookArtifacts
+            macbookPackages
+            self
+            ;
         };
         modules = [
           ./hosts/macbook

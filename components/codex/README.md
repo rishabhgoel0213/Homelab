@@ -5,6 +5,9 @@ integration.
 
 - `config/server.toml` is the Codex config seeded into `/srv/state/codex`; enabled
   plugin blocks in this file are installed during bootstrap.
+- `config/macbook.toml` is the immutable config shared by the Nix-managed CLI
+  and unmanaged Codex.app. It contains only declarative settings; clients must
+  not try to edit the Nix-store target in place.
 - `AGENTS.md` is the Codex-specific guidance seeded into `/srv/state/codex`.
   It points server-aware chats at the deployed harness-neutral policy under
   `/etc/agents` and at durable projects under `/home/rishabh/Projects`.

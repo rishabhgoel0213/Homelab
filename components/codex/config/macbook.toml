@@ -2,3 +2,8 @@
 #
 # Keep MCP servers, profiles, and shared CLI/desktop settings here. Nix manages
 # this config and the CLI package, but it does not install or manage Codex.app.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+
+[projects."/Users/rishabhgoel"]
+trust_level = "trusted"

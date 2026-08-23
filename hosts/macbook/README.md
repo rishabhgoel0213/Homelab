@@ -7,8 +7,10 @@ replacement path has been tested from another terminal.
 ## Managed boundary
 
 - The active MacBook profile uses pinned upstream Zen and Tabby application
-  bundles. Linux downloads, verifies, and packages them without compiling
-  Electron or Firefox on the Mac.
+  archives. Linux downloads, verifies, signs, and transfers the archives. The
+  Mac only performs native ZIP/DMG extraction, preserving executable modes and
+  the vendors' notarized Developer ID signatures; it does not compile Electron
+  or Firefox.
 - Source builds remain available as `zen-source` and `tabby-source`. Their
   pinned inputs live in `/home/rishabh/Projects/zen-browser` and
   `/home/rishabh/Projects/tabby`. Set the component's `packageSource` option to
@@ -18,13 +20,16 @@ replacement path has been tested from another terminal.
   macOS application-support locations. They are not copied into the Nix store.
 - Zen's Bitwarden extension is force-installed by enterprise policy in both
   package variants. Add future browser extensions to the corresponding policy
-  in `components/zen/prebuilt-package.nix` and `components/zen/package.nix`.
+  in `components/zen/darwin.nix`. The policy uses Mozilla's supported macOS
+  system preference domain and does not modify the signed application bundle.
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.
 - Nix installs the server-cross-compiled Codex CLI from
   `components/codex/cross-package.nix`. Codex.app itself remains unmanaged.
-  Both intentionally share `~/.codex/config.toml` and auth state.
+  Both intentionally share `~/.codex/config.toml` and auth state. The managed
+  Mac config trusts `/Users/rishabhgoel` and uses the automatic approval
+  reviewer for on-request approvals.
 - Tailscale is outside the Darwin configuration. The existing standalone app,
   service, node identity, and local state remain unmanaged and untouched. The
   deployment scripts may use its existing network path only as transport.
@@ -84,8 +89,8 @@ private key or decrypted archive to the Mac merely to inspect it.
 
 Build targets are exported independently so package failures can be isolated
 without activating nix-darwin or launching either app. Codex is cross-compiled
-for `aarch64-darwin` on Linux; the prebuilt application bundles and locked
-Tabby plugins are also realized on Linux:
+for `aarch64-darwin` on Linux; the pinned application archives and locked Tabby
+plugins are also realized on Linux. Native app extraction happens on the Mac:
 
 ```sh
 just darwin-build codex
@@ -95,11 +100,10 @@ just darwin-build zen
 just darwin-build macbook-system
 ```
 
-Only `macbook-system`, `tabby-source`, and `zen-source` require a Darwin
-builder. The selected Zen and Tabby bundles are ad-hoc re-signed on Linux so
-their managed contents have a valid Apple code envelope. Building or copying
-any of these paths does not activate a profile, install an app bundle, launch
-an app, or read mutable app state.
+`tabby`, `zen`, `macbook-system`, `tabby-source`, and `zen-source` require a
+Darwin builder. The prebuilt paths perform only native archive extraction and
+verify the original Developer ID signatures. Building or copying any of these
+paths does not activate a profile, launch an app, or read mutable app state.
 
 Before inbound SSH is enabled, the Mac can pull a committed server-built
 payload over its existing outbound SSH connection into an isolated temporary
@@ -111,11 +115,12 @@ chmod 0700 /private/tmp/build-mac-apps
 /private/tmp/build-mac-apps codex
 ```
 
-Repeat the final command for `tabby-plugins`, `tabby`, and `zen`. The helper
-refuses a dirty server worktree, builds the Linux-hosted target on the server,
-and prints the Mac staging path. Staging does not import the payload into the
-Mac's Nix store, activate a system profile, run Homebrew, install app bundles,
-launch apps, or read mutable app profiles.
+Repeat the final command for `tabby-plugins`. The helper refuses a dirty server
+worktree, builds the Linux-hosted target on the server, and prints the Mac
+staging path. Tabby and Zen first require their signed archives to be copied
+with `just darwin-copy-apps`; their final build targets then extract natively.
+None of these actions activates a profile, runs Homebrew, launches apps, or
+reads mutable app profiles.
 
 The helper can also build `tabby-source`, `zen-source`, or `macbook-system`
 locally from pinned Git revisions. Those targets require the server-built
@@ -131,8 +136,9 @@ without adding the regular user to `trusted-users` or disabling signature
 checks.
 
 `components/darwin-deploy/artifacts.nix` records the four signed output paths
-consumed by Darwin evaluation. This prevents the Mac from evaluating or
-realizing Linux build-tool derivations merely to discover their output paths.
+consumed by Darwin evaluation: Codex, Tabby plugins, the upstream Tabby ZIP,
+and the upstream Zen DMG. This prevents the Mac from evaluating or realizing
+Linux build-tool derivations merely to discover their output paths.
 `hosts/macbook/copy-apps` refuses deployment if a newly built output does not
 match the committed manifest.
 
@@ -194,8 +200,9 @@ Re-running the bootstrap is not part of normal Darwin deployment.
 ## Server-driven activation
 
 The Linux server cross-builds Codex and packages the selected upstream app
-bundles, signs them, and copies them over the tailnet. The remaining Darwin
-derivations build locally on the Mac from the committed server revision.
+archives, signs their Nix store paths, and copies them over the tailnet. The
+remaining Darwin derivations natively extract and verify the vendor-signed app
+bundles on the Mac from the committed server revision.
 `hosts/macbook/deploy` then activates that exact result over SSH.
 
 If activation stops after selecting the system profile but before creating
@@ -223,7 +230,7 @@ activation remains deliberately interactive and requires the explicit
 ## State-preserving application cutover
 
 Do not delete Zen or Tabby profiles. First launch the Nix app from
-`~/Applications/Nix Apps` and verify the expected profile/config appears. If
+`/Applications/Nix Apps` and verify the expected profile/config appears. If
 macOS chooses a new profile because a bundle identifier changed, stop and map
 the old profile explicitly rather than importing or overwriting it blindly.
 
