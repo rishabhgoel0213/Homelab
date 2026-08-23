@@ -151,9 +151,10 @@ chmod 0700 /private/tmp/pull-mac-apps
 /private/tmp/pull-mac-apps
 ```
 
-This populates `/nix/store` only. It does not create a profile generation,
-install into `/Applications`, run Homebrew, launch an app, or read an app
-profile.
+This populates `/nix/store` and creates staging GC roots under
+`~/Library/Application Support/Homelab/nix-gcroots`. It does not create a
+profile generation, install into `/Applications`, run Homebrew, launch an app,
+or read an app profile.
 
 ## Tailscale-only deployment SSH
 

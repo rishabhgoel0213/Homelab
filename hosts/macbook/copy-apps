@@ -70,9 +70,26 @@ sudo -n nix store verify --trusted-public-keys "$public_key" "${outputs[@]}"
 echo "Copying signed payloads to $store without activation" >&2
 nix copy --to "$store" "${outputs[@]}"
 
-for output in "${outputs[@]}"; do
-  # The validated store path is intentionally expanded into the remote command.
-  # shellcheck disable=SC2029
-  ssh "$ssh_host" /nix/var/nix/profiles/default/bin/nix path-info "$output" >/dev/null
+# The validated store paths are intentionally passed as remote arguments.
+# shellcheck disable=SC2029
+ssh "$ssh_host" /bin/bash -s -- "${outputs[@]}" <<'REMOTE'
+set -euo pipefail
+root_dir="$HOME/Library/Application Support/Homelab/nix-gcroots"
+mkdir -p "$root_dir"
+
+for output in "$@"; do
+  case "$output" in
+    /nix/store/*) ;;
+    *)
+      echo "Unexpected store path: $output" >&2
+      exit 1
+      ;;
+  esac
+  root="$root_dir/${output##*/}"
+  /nix/var/nix/profiles/default/bin/nix-store \
+    --add-root "$root" \
+    --indirect \
+    --realise "$output" >/dev/null
   printf '%s\n' "$output"
 done
+REMOTE

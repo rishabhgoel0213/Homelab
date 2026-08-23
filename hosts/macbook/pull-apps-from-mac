@@ -52,4 +52,14 @@ fi
 
 echo "Pulling four signed payloads from $server without activation" >&2
 "$nix_bin" copy --from "ssh-ng://$server" "${paths[@]}"
-"$nix_bin" path-info "${paths[@]}"
+
+root_dir="$HOME/Library/Application Support/Homelab/nix-gcroots"
+mkdir -p "$root_dir"
+for path in "${paths[@]}"; do
+  root="$root_dir/${path##*/}"
+  /nix/var/nix/profiles/default/bin/nix-store \
+    --add-root "$root" \
+    --indirect \
+    --realise "$path" >/dev/null
+  printf '%s\n' "$path"
+done
