@@ -8,6 +8,8 @@ in
   # store or Git. NixOS owns only the root-only state directory boundary.
   systemd.tmpfiles.rules = [
     "d /var/lib/homelab-nix-cache 0700 root root -"
+    "d /var/lib/homelab-migration-backups 0710 root users -"
+    "d /var/lib/homelab-migration-backups/macbook 0700 rishabh users -"
   ];
 
   programs.ssh.knownHosts.macbook-tailnet = {

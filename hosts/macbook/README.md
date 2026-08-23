@@ -33,13 +33,16 @@ replacement path has been tested from another terminal.
 
 The server-only recovery set is:
 
-`/home/rishabh/Documents/system-migration-backups/20260822T053411Z-macbook`
+`/var/lib/homelab-migration-backups/macbook/20260822T053411Z-macbook`
 
 It contains encrypted Zen, Tabby, SSH, Tailscale user state, and protected
 `/Library/Tailscale` machine state. The archives were streamed directly from
 the Mac into `age` on the server; no plaintext or encrypted archive was left on
 the Mac. Every archive was test-decrypted through `gzip -t` without extracting
 it.
+
+The parent path is server-only state outside the Syncthing-backed Documents
+tree. It is included in the existing Backrest `/var/lib` backup source.
 
 SHA-256 checksums:
 
