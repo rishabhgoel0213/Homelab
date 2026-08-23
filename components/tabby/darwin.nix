@@ -1,16 +1,38 @@
 {
+  config,
   inputs,
+  lib,
   pkgs,
+  self,
   ...
 }:
 
 let
-  tabbyPlugins = pkgs.callPackage ./plugins/package.nix { };
-  tabbyTerminal = pkgs.callPackage ./package.nix {
+  cfg = config.homelab.apps.tabby;
+  tabbyPlugins = self.packages.x86_64-linux.macbook-tabby-plugins;
+  sourcePackage = pkgs.callPackage ./package.nix {
     src = inputs.tabby-terminal;
     inherit tabbyPlugins;
   };
+  selectedPackage =
+    if cfg.packageSource == "source" then sourcePackage else self.packages.x86_64-linux.macbook-tabby;
 in
 {
-  environment.systemPackages = [ tabbyTerminal ];
+  options.homelab.apps.tabby.packageSource = lib.mkOption {
+    type = lib.types.enum [
+      "prebuilt"
+      "source"
+    ];
+    default = "prebuilt";
+    description = "Whether to use the pinned upstream bundle or the managed source checkout.";
+  };
+
+  config = {
+    environment.systemPackages = [ selectedPackage ];
+
+    # Tabby supports an external plugin search path. Keeping plugins outside
+    # the app preserves the upstream bundle and lets Linux build their locked
+    # JavaScript dependency tree.
+    launchd.user.envVariables.TABBY_PLUGINS = "${tabbyPlugins}/lib/tabby/plugins";
+  };
 }

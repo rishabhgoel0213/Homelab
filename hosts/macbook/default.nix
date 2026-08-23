@@ -18,4 +18,9 @@
     autoMigrate = true;
     mutableTaps = true;
   };
+
+  homelab.apps = {
+    tabby.packageSource = "prebuilt";
+    zen.packageSource = "prebuilt";
+  };
 }

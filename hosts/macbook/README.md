@@ -6,14 +6,19 @@ replacement path has been tested from another terminal.
 
 ## Managed boundary
 
-- Nix builds Zen and Tabby from the pinned server Git inputs in
-  `/home/rishabh/Projects/zen-browser` and `/home/rishabh/Projects/tabby`.
-  Commit source changes, then run `just darwin-lock-sources` to advance the
-  flake lock to those revisions.
+- The active MacBook profile uses pinned upstream Zen and Tabby application
+  bundles. Linux downloads, verifies, and packages them without compiling
+  Electron or Firefox on the Mac.
+- Source builds remain available as `zen-source` and `tabby-source`. Their
+  pinned inputs live in `/home/rishabh/Projects/zen-browser` and
+  `/home/rishabh/Projects/tabby`. Set the component's `packageSource` option to
+  `source`, commit source changes, then run `just darwin-lock-sources` to swap
+  one back in.
 - Zen profile data and Tabby configuration remain mutable in their normal
   macOS application-support locations. They are not copied into the Nix store.
-- Zen's Bitwarden extension is force-installed by enterprise policy in the app
-  bundle. Add future browser extensions to `components/zen/package.nix`.
+- Zen's Bitwarden extension is force-installed by enterprise policy in both
+  package variants. Add future browser extensions to the corresponding policy
+  in `components/zen/prebuilt-package.nix` and `components/zen/package.nix`.
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.
@@ -68,13 +73,16 @@ private key or decrypted archive to the Mac merely to inspect it.
 5. Review any existing regular `~/.codex/config.toml`. Activation refuses to
    overwrite it; remove it deliberately only after confirming it is unused.
 6. Run `just darwin-eval`. This evaluates only and does not build or activate.
-7. Run a full remote build before switch. Zen is a large Firefox build and the
-   first build can take a long time.
+7. Run a full remote build before switch. The source variants remain optional;
+   the selected prebuilt Zen and Tabby bundles do not trigger application
+   compilation on the Mac.
 
 ## Build-only validation
 
 Build targets are exported independently so package failures can be isolated
-without activating nix-darwin or launching either app:
+without activating nix-darwin or launching either app. Codex is cross-compiled
+for `aarch64-darwin` on Linux; the prebuilt application bundles and locked
+Tabby plugins are also realized on Linux:
 
 ```sh
 just darwin-build codex
@@ -84,10 +92,15 @@ just darwin-build zen
 just darwin-build macbook-system
 ```
 
-Those commands run on the server and require the Mac's restricted SSH builder
-path to be available. During initial bootstrap, before inbound SSH is enabled,
-the Mac can fetch the same committed configuration and pinned sources over its
-existing outbound SSH connection:
+Only `macbook-system`, `tabby-source`, and `zen-source` require a Darwin
+builder. The selected Zen and Tabby bundles are ad-hoc re-signed on Linux so
+their managed contents have a valid Apple code envelope. Building or copying
+any of these paths does not activate a profile, install an app bundle, launch
+an app, or read mutable app state.
+
+Before inbound SSH is enabled, the Mac can pull a committed server-built
+payload over its existing outbound SSH connection into an isolated temporary
+directory:
 
 ```sh
 scp nixos-pc:/srv/ops/hosts/macbook/build-from-mac /private/tmp/build-mac-apps
@@ -95,18 +108,24 @@ chmod 0700 /private/tmp/build-mac-apps
 /private/tmp/build-mac-apps codex
 ```
 
-Repeat the final command for each target in the order shown above. The helper
-refuses a dirty server worktree and pins the ops, Tabby, Zen, and mautrix-meta
-Git revisions before invoking Nix. It writes only to the Mac's Nix store; it
-does not activate a system profile, run Homebrew, install app bundles, launch
-apps, or read mutable app profiles.
+Repeat the final command for `tabby-plugins`, `tabby`, and `zen`. The helper
+refuses a dirty server worktree, builds the Linux-hosted target on the server,
+and prints the Mac staging path. Staging does not import the payload into the
+Mac's Nix store, activate a system profile, run Homebrew, install app bundles,
+launch apps, or read mutable app profiles.
+
+The helper can also build `tabby-source`, `zen-source`, or `macbook-system`
+locally from pinned Git revisions. Those targets require the server-built
+inputs to be available through an explicitly trusted signed-store path; do not
+weaken the daemon's global trust settings to bootstrap them.
 
 ## Server-driven deployment
 
-The Linux server cannot build Apple binaries locally. `hosts/macbook/deploy`
-uses the Mac's Nix store as an `aarch64-darwin` remote builder, copies the exact
-result back to the Mac, and activates it over SSH. The regular Mac user is not
-made a global Nix trusted user.
+The Linux server cross-builds Codex and packages the selected upstream app
+bundles. `hosts/macbook/deploy` still uses the Mac as a restricted builder for
+the remaining nix-darwin system derivations, copies the exact result back to
+the Mac, and activates it over SSH. The regular Mac user is not made a global
+Nix trusted user.
 
 After the pre-deployment review:
 

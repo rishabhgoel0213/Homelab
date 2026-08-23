@@ -12,6 +12,11 @@
 
     nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
 
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     tabby-terminal = {
       url = "git+file:///home/rishabh/Projects/tabby?ref=master";
       flake = false;
@@ -46,6 +51,10 @@
       system = "x86_64-linux";
       darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
+      unsupportedLinuxPkgs = import nixpkgs {
+        inherit system;
+        config.allowUnsupportedSystem = true;
+      };
       darwinPkgs = import nixpkgs {
         system = darwinSystem;
         config = {
@@ -53,13 +62,33 @@
           permittedInsecurePackages = [ "electron-38.8.4" ];
         };
       };
-      darwinCodex = darwinPkgs.callPackage ./components/codex/package.nix { };
-      darwinTabbyPlugins = darwinPkgs.callPackage ./components/tabby/plugins/package.nix { };
-      darwinTabby = darwinPkgs.callPackage ./components/tabby/package.nix {
-        src = inputs.tabby-terminal;
-        tabbyPlugins = darwinTabbyPlugins;
+      fenixPackages = inputs.fenix.packages.${system};
+      rustManifestHash = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+      hostRustToolchain = fenixPackages.fromToolchainName {
+        name = "1.95.0";
+        sha256 = rustManifestHash;
       };
-      darwinZen = darwinPkgs.callPackage ./components/zen/package.nix {
+      darwinRustTarget = fenixPackages.targets."aarch64-apple-darwin".fromToolchainName {
+        name = "1.95.0";
+        sha256 = rustManifestHash;
+      };
+      darwinRustToolchain = fenixPackages.combine [
+        hostRustToolchain.cargo
+        hostRustToolchain.rustc
+        darwinRustTarget.rust-std
+      ];
+      macbookCodex = pkgs.callPackage ./components/codex/cross-package.nix {
+        macosSdk = unsupportedLinuxPkgs.apple-sdk_15.src;
+        rustToolchain = darwinRustToolchain;
+      };
+      macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
+      macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-package.nix { };
+      macbookZen = pkgs.callPackage ./components/zen/prebuilt-package.nix { };
+      darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
+        src = inputs.tabby-terminal;
+        tabbyPlugins = macbookTabbyPlugins;
+      };
+      darwinZenSource = darwinPkgs.callPackage ./components/zen/package.nix {
         src = inputs.zen-browser;
       };
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
@@ -226,11 +255,20 @@
             '';
       };
 
+      packages.${system} = {
+        macbook-codex = macbookCodex;
+        macbook-tabby-plugins = macbookTabbyPlugins;
+        macbook-tabby = macbookTabby;
+        macbook-zen = macbookZen;
+      };
+
       packages.${darwinSystem} = {
-        codex = darwinCodex;
-        tabby-plugins = darwinTabbyPlugins;
-        tabby = darwinTabby;
-        zen = darwinZen;
+        codex = macbookCodex;
+        tabby-plugins = macbookTabbyPlugins;
+        tabby = macbookTabby;
+        tabby-source = darwinTabbySource;
+        zen = macbookZen;
+        zen-source = darwinZenSource;
         macbook-system = self.darwinConfigurations.macbook.system;
       };
 

@@ -24,6 +24,6 @@ buildNpmPackage {
   meta = {
     description = "Declaratively managed third-party plugins for Tabby Terminal";
     license = lib.licenses.mit;
-    platforms = lib.platforms.darwin;
+    platforms = lib.platforms.all;
   };
 }

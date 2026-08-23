@@ -18,14 +18,20 @@ need nix
 
 case "$target" in
   codex|tabby-plugins|tabby|zen)
+    installable=".#packages.x86_64-linux.macbook-$target"
+    build_location="server"
+    ;;
+  tabby-source|zen-source)
     installable=".#packages.aarch64-darwin.$target"
+    build_location="mac"
     ;;
   macbook-system|system)
     installable=".#darwinConfigurations.$configuration.system"
+    build_location="mac"
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, tabby, zen, macbook-system" >&2
+    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, zen-source, macbook-system" >&2
     exit 2
     ;;
 esac
@@ -37,19 +43,24 @@ fi
 
 cd "$repo"
 
-echo "Checking Mac builder $builder" >&2
-nix store ping --store "$builder" >/dev/null
+if [[ "$build_location" == "server" ]]; then
+  echo "Building $installable on nixos-pc without activation" >&2
+  output="$(nix build --impure --no-link --print-out-paths "$installable")"
+else
+  echo "Checking Mac builder $builder" >&2
+  nix store ping --store "$builder" >/dev/null
 
-echo "Building $installable on $builder without activation" >&2
-output="$({
-  nix build \
-    --impure \
-    --no-link \
-    --print-out-paths \
-    --max-jobs 0 \
-    --builders "$builder" \
-    "$installable"
-})"
+  echo "Building $installable on $builder without activation" >&2
+  output="$({
+    nix build \
+      --impure \
+      --no-link \
+      --print-out-paths \
+      --max-jobs 0 \
+      --builders "$builder" \
+      "$installable"
+  })"
+fi
 
 if [[ -z "$output" || "$output" != /nix/store/* ]]; then
   echo "Unexpected build output: $output" >&2

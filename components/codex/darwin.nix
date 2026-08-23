@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  self,
   ...
 }:
 
@@ -8,17 +9,11 @@ let
   user = "rishabhgoel";
   userHome = "/Users/${user}";
   codexHome = "${userHome}/.codex";
-  codexConfig = pkgs.writeText "codex-cli-config.toml" (
-    builtins.readFile ./config/macbook.toml
-  );
-  codexPackage = pkgs.callPackage ./package.nix { };
-  codexCli = pkgs.writeShellScriptBin "codex" ''
-    export CODEX_HOME=${lib.escapeShellArg codexHome}
-    exec ${codexPackage}/bin/codex "$@"
-  '';
+  codexConfig = pkgs.writeText "codex-cli-config.toml" (builtins.readFile ./config/macbook.toml);
+  codexPackage = self.packages.x86_64-linux.macbook-codex;
 in
 {
-  environment.systemPackages = [ codexCli ];
+  environment.systemPackages = [ codexPackage ];
 
   # Codex.app remains outside Nix, but the app and managed CLI intentionally
   # share ~/.codex configuration and authentication state.

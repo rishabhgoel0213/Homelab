@@ -14,20 +14,49 @@ need() {
 }
 
 need ssh
-need "$nix_bin"
+need rsync
 
 case "$target" in
-  codex|tabby-plugins|tabby|zen|macbook-system)
+  codex|tabby-plugins|tabby|zen|tabby-source|zen-source|macbook-system)
     ;;
   system)
     target="macbook-system"
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, tabby, zen, macbook-system" >&2
+    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, zen-source, macbook-system" >&2
     exit 2
     ;;
 esac
+
+case "$target" in
+  codex|tabby-plugins|tabby|zen)
+    remote_installable=".#packages.x86_64-linux.macbook-$target"
+    output="$({
+      ssh "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
+set -euo pipefail
+repo="$1"
+installable="$2"
+cd "$repo"
+test -z "$(git status --porcelain)"
+nix build --impure --no-link --print-out-paths "$installable"
+REMOTE
+    })"
+
+    if [[ -z "$output" || "$output" != /nix/store/* ]]; then
+      echo "Unexpected server build output: $output" >&2
+      exit 1
+    fi
+
+    stage_root="$(mktemp -d "${TMPDIR:-/tmp}/darwin-server-artifacts.XXXXXX")"
+    echo "Staging $output from $server without importing or activating it" >&2
+    rsync -a "$server:$output" "$stage_root/"
+    printf '%s/%s\n' "$stage_root" "$(basename "$output")"
+    exit 0
+    ;;
+esac
+
+need "$nix_bin"
 
 revision_data="$({
   ssh "$server" bash -s -- "$ops_repo" <<'REMOTE'
@@ -64,13 +93,13 @@ zen="path:${empty_source}"
 mautrix="path:${empty_source}"
 
 case "$target" in
-  tabby|macbook-system)
+  tabby-source|macbook-system)
     tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}&shallow=1"
     ;;
 esac
 
 case "$target" in
-  zen|macbook-system)
+  zen-source|macbook-system)
     zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}&shallow=1"
     ;;
 esac
