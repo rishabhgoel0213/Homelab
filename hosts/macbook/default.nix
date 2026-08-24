@@ -9,6 +9,6 @@
 
   homelab.apps = {
     tabby.packageSource = "prebuilt";
-    zen.packageSource = "prebuilt";
+    zen.packageSource = "source";
   };
 }

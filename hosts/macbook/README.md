@@ -6,16 +6,15 @@ replacement path has been tested from another terminal.
 
 ## Managed boundary
 
-- The active MacBook profile uses pinned upstream Zen and Tabby application
-  archives. Linux downloads, verifies, signs, and transfers the archives. The
-  Mac only performs native ZIP/DMG extraction, preserving executable modes and
-  the vendors' notarized Developer ID signatures; it does not compile Electron
-  or Firefox.
-- Source builds remain available as `zen-source` and `tabby-source`. Their
-  pinned inputs live in `/home/rishabh/Projects/zen-browser` and
-  `/home/rishabh/Projects/tabby`. Set the component's `packageSource` option to
-  `source`, commit source changes, then run `just darwin-lock-sources` to swap
-  one back in.
+- The active MacBook profile uses server-cross-compiled Zen and the pinned
+  upstream Tabby archive. Linux builds Zen for `aarch64-apple-darwin` with the
+  Firefox toolchain and a pinned Apple SDK, then signs and transfers its Nix
+  output. The Mac only copies the finished Zen bundle, applies an ad-hoc code
+  signature, and verifies it; Firefox is never compiled on the Mac.
+- The pinned Zen input lives in `/home/rishabh/Projects/zen-browser`; Tabby's
+  source input lives in `/home/rishabh/Projects/tabby`. Commit source changes
+  and run `just darwin-lock-sources` to update either lock. Zen's `prebuilt`
+  package source remains available as a rollback option.
 - Zen profile data and Tabby configuration remain mutable in their normal
   macOS application-support locations. They are not copied into the Nix store.
 - Zen's Bitwarden extension is force-installed by enterprise policy in both
@@ -81,16 +80,16 @@ private key or decrypted archive to the Mac merely to inspect it.
 5. Review any existing regular `~/.codex/config.toml`. Activation refuses to
    overwrite it; remove it deliberately only after confirming it is unused.
 6. Run `just darwin-eval`. This evaluates only and does not build or activate.
-7. Run a full remote build before switch. The source variants remain optional;
-   the selected prebuilt Zen and Tabby bundles do not trigger application
-   compilation on the Mac.
+7. Run a full remote build before switch. Zen is compiled for Apple silicon on
+   the Linux server; Tabby's selected prebuilt bundle is extracted on the Mac.
 
 ## Build-only validation
 
 Build targets are exported independently so package failures can be isolated
-without activating nix-darwin or launching either app. Codex is cross-compiled
-for `aarch64-darwin` on Linux; the pinned application archives and locked Tabby
-plugins are also realized on Linux. Native app extraction happens on the Mac:
+without activating nix-darwin or launching either app. Codex and Zen are
+cross-compiled for Apple silicon on Linux; the pinned application archives and
+locked Tabby plugins are also realized there. Native archive extraction and
+Zen's final ad-hoc signature happen on the Mac:
 
 ```sh
 just darwin-build codex
@@ -100,10 +99,12 @@ just darwin-build zen
 just darwin-build macbook-system
 ```
 
-`tabby`, `zen`, `macbook-system`, `tabby-source`, and `zen-source` require a
-Darwin builder. The prebuilt paths perform only native archive extraction and
-verify the original Developer ID signatures. Building or copying any of these
-paths does not activate a profile, launch an app, or read mutable app state.
+`tabby`, `zen`, `macbook-system`, and `tabby-source` require a Darwin builder.
+`zen-source` is the completed Linux cross-build payload; the selected Darwin
+system wraps it with policy and an ad-hoc signature. The prebuilt paths perform
+only native archive extraction and verify the original Developer ID
+signatures. Building or copying any of these paths does not activate a profile,
+launch an app, or read mutable app state.
 
 Before inbound SSH is enabled, the Mac can pull a committed server-built
 payload over its existing outbound SSH connection into an isolated temporary
@@ -115,17 +116,18 @@ chmod 0700 /private/tmp/build-mac-apps
 /private/tmp/build-mac-apps codex
 ```
 
-Repeat the final command for `tabby-plugins`. The helper refuses a dirty server
-worktree, builds the Linux-hosted target on the server, and prints the Mac
-staging path. Tabby and Zen first require their signed archives to be copied
-with `just darwin-copy-apps`; their final build targets then extract natively.
+Repeat the final command for `tabby-plugins` or `zen-source`. The helper refuses
+a dirty server worktree, builds the Linux-hosted target on the server, and
+prints the Mac staging path. Tabby and both Zen variants first require their
+signed payloads to be copied with `just darwin-copy-apps`; their final Darwin
+build targets then extract or wrap them natively.
 None of these actions activates a profile, runs Homebrew, launches apps, or
 reads mutable app profiles.
 
-The helper can also build `tabby-source`, `zen-source`, or `macbook-system`
-locally from pinned Git revisions. Those targets require the server-built
-inputs to be available through an explicitly trusted signed-store path; do not
-weaken the daemon's global trust settings to bootstrap them.
+The helper can also build `tabby-source` or `macbook-system` locally from pinned
+Git revisions. Those targets require the server-built inputs to be available
+through an explicitly trusted signed-store path; do not weaken the daemon's
+global trust settings to bootstrap them.
 
 ## Signed store transport
 
@@ -135,10 +137,11 @@ The server signing key is root-readable at
 without adding the regular user to `trusted-users` or disabling signature
 checks.
 
-`components/darwin-deploy/artifacts.nix` records the four signed output paths
+`components/darwin-deploy/artifacts.nix` records the five signed output paths
 consumed by Darwin evaluation: Codex, Tabby plugins, the upstream Tabby ZIP,
-and the upstream Zen DMG. This prevents the Mac from evaluating or realizing
-Linux build-tool derivations merely to discover their output paths.
+the upstream Zen DMG, and the Linux-cross-compiled Zen application. This
+prevents the Mac from evaluating or realizing Linux build-tool derivations
+merely to discover their output paths.
 `hosts/macbook/copy-apps` refuses deployment if a newly built output does not
 match the committed manifest.
 
@@ -160,7 +163,7 @@ the prompt prefix, and the substitute policy that the Lix installer placed in
 If the custom file differs from the known bootstrap result, deployment stops
 without moving it.
 
-Before inbound SSH is enabled, import all four signed payloads from the Mac:
+Before inbound SSH is enabled, import all five signed payloads from the Mac:
 
 ```sh
 scp nixos-pc:/srv/ops/hosts/macbook/pull-apps-from-mac /private/tmp/pull-mac-apps
@@ -199,10 +202,10 @@ Re-running the bootstrap is not part of normal Darwin deployment.
 
 ## Server-driven activation
 
-The Linux server cross-builds Codex and packages the selected upstream app
+The Linux server cross-builds Codex and Zen and packages the upstream fallback
 archives, signs their Nix store paths, and copies them over the tailnet. The
-remaining Darwin derivations natively extract and verify the vendor-signed app
-bundles on the Mac from the committed server revision.
+remaining Darwin derivations natively extract vendor-signed bundles or ad-hoc
+sign the source-built Zen bundle on the Mac from the committed server revision.
 `hosts/macbook/deploy` then activates that exact result over SSH.
 
 If activation stops after selecting the system profile but before creating

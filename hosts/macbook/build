@@ -16,11 +16,11 @@ need() {
 need nix
 
 case "$target" in
-  codex|tabby-plugins)
+  codex|tabby-plugins|zen-source)
     installable=".#packages.x86_64-linux.macbook-$target"
     build_location="server"
     ;;
-  tabby|zen|tabby-source|zen-source)
+  tabby|zen|tabby-source)
     installable=".#packages.aarch64-darwin.$target"
     build_location="mac"
     ;;

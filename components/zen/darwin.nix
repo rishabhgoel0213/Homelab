@@ -1,18 +1,14 @@
 {
   config,
-  inputs,
   lib,
   macbookPackages,
-  pkgs,
   ...
 }:
 
 let
   cfg = config.homelab.apps.zen;
-  sourcePackage = pkgs.callPackage ./package.nix {
-    src = inputs.zen-browser;
-  };
-  selectedPackage = if cfg.packageSource == "source" then sourcePackage else macbookPackages.zen;
+  selectedPackage =
+    if cfg.packageSource == "source" then macbookPackages.zenSource else macbookPackages.zen;
 in
 {
   options.homelab.apps.zen.packageSource = lib.mkOption {
@@ -21,7 +17,7 @@ in
       "source"
     ];
     default = "prebuilt";
-    description = "Whether to use the pinned upstream bundle or the managed source checkout.";
+    description = "Whether to use the pinned upstream bundle or the server-cross-compiled source bundle.";
   };
 
   config = {

@@ -30,7 +30,7 @@ case "$target" in
 esac
 
 case "$target" in
-  codex|tabby-plugins)
+  codex|tabby-plugins|zen-source)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
       ssh "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
@@ -66,8 +66,7 @@ cd "$repo"
 test -z "$(git status --porcelain)"
 printf '%s\n' \
   "$(git rev-parse HEAD)" \
-  "$(jq -r '.nodes["tabby-terminal"].locked.rev' flake.lock)" \
-  "$(jq -r '.nodes["zen-browser"].locked.rev' flake.lock)"
+  "$(jq -r '.nodes["tabby-terminal"].locked.rev' flake.lock)"
 REMOTE
 })"
 
@@ -75,14 +74,13 @@ revisions=()
 while IFS= read -r revision; do
   revisions+=("$revision")
 done <<<"$revision_data"
-if [[ "${#revisions[@]}" -ne 3 ]]; then
+if [[ "${#revisions[@]}" -ne 2 ]]; then
   echo "Unable to resolve the committed server and source revisions" >&2
   exit 1
 fi
 
 ops_rev="${revisions[0]}"
 tabby_rev="${revisions[1]}"
-zen_rev="${revisions[2]}"
 
 empty_source="$(mktemp -d "${TMPDIR:-/tmp}/darwin-empty-source.XXXXXX")"
 trap 'rm -rf "$empty_source"' EXIT
@@ -95,12 +93,6 @@ mautrix="path:${empty_source}"
 case "$target" in
   tabby-source)
     tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}&shallow=1"
-    ;;
-esac
-
-case "$target" in
-  zen-source)
-    zen="git+ssh://${server}/home/rishabh/Projects/zen-browser?ref=dev&rev=${zen_rev}&shallow=1"
     ;;
 esac
 

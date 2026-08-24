@@ -36,6 +36,7 @@ installables=(
   .#packages.x86_64-linux.macbook-tabby-plugins
   .#packages.x86_64-linux.macbook-tabby
   .#packages.x86_64-linux.macbook-zen
+  .#packages.x86_64-linux.macbook-zen-source
 )
 
 outputs=()
@@ -52,7 +53,7 @@ manifest_json="$(nix eval --impure --json --file "$repo/components/darwin-deploy
 manifest_paths=()
 while IFS= read -r path; do
   manifest_paths+=("$path")
-done < <(jq -r '[.codex, .tabbyPlugins, .tabby, .zen][]' <<<"$manifest_json")
+done < <(jq -r '[.codex, .tabbyPlugins, .tabby, .zen, .zenSource][]' <<<"$manifest_json")
 
 for index in "${!outputs[@]}"; do
   if [[ "${outputs[$index]}" != "${manifest_paths[$index]:-}" ]]; then

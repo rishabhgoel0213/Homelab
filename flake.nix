@@ -48,6 +48,7 @@
       system = "x86_64-linux";
       darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
+      unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${system};
       unsupportedLinuxPkgs = import nixpkgs {
         inherit system;
         config.allowUnsupportedSystem = true;
@@ -81,6 +82,14 @@
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
       macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
+      zenEngineSource = pkgs.callPackage ./components/zen/source-engine.nix {
+        src = inputs.zen-browser;
+      };
+      macbookZenSource = pkgs.callPackage ./components/zen/cross-package.nix {
+        engineSource = zenEngineSource;
+        rustCbindgen = unstablePkgs.rust-cbindgen;
+        rustToolchain = darwinRustToolchain;
+      };
       macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
       macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
       darwinTabbyPrebuilt = darwinPkgs.callPackage ./components/tabby/prebuilt-package.nix {
@@ -98,7 +107,10 @@
         tabbyPlugins = macbookTabbyPlugins;
       };
       darwinZenSource = darwinPkgs.callPackage ./components/zen/package.nix {
-        src = inputs.zen-browser;
+        archive = macbookArtifacts.zenSource;
+      };
+      macbookPackagesWithZenSource = macbookPackages // {
+        zenSource = darwinZenSource;
       };
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
       pythonForBlog = pkgs.python3.withPackages (ps: [
@@ -269,6 +281,8 @@
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
+        macbook-zen-engine-source = zenEngineSource;
+        macbook-zen-source = macbookZenSource;
       };
 
       packages.${darwinSystem} = {
@@ -330,9 +344,9 @@
           inherit
             inputs
             macbookArtifacts
-            macbookPackages
             self
             ;
+          macbookPackages = macbookPackagesWithZenSource;
         };
         modules = [
           ./hosts/macbook

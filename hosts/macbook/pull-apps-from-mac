@@ -25,6 +25,7 @@ installables=(
   .#packages.x86_64-linux.macbook-tabby-plugins
   .#packages.x86_64-linux.macbook-tabby
   .#packages.x86_64-linux.macbook-zen
+  .#packages.x86_64-linux.macbook-zen-source
 )
 outputs=()
 for installable in "${installables[@]}"; do
@@ -45,12 +46,12 @@ while IFS= read -r output; do
   paths+=("$output")
 done <<<"$output_lines"
 
-if [[ "${#paths[@]}" -ne 4 ]]; then
-  echo "Expected four signed application payloads, got ${#paths[@]}." >&2
+if [[ "${#paths[@]}" -ne 5 ]]; then
+  echo "Expected five signed application payloads, got ${#paths[@]}." >&2
   exit 1
 fi
 
-echo "Pulling four signed payloads from $server without activation" >&2
+echo "Pulling five signed payloads from $server without activation" >&2
 "$nix_bin" copy --from "ssh-ng://$server" "${paths[@]}"
 
 root_dir="$HOME/Library/Application Support/Homelab/nix-gcroots"
