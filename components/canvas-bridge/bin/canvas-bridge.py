@@ -303,16 +303,29 @@ class TextExtractor(HTMLParser):
         super().__init__()
         self.parts: list[str] = []
         self.hidden_depth = 0
+        self.links: list[str] = []
+        self.open_links: list[tuple[str, int]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in {"script", "style", "svg"}:
             self.hidden_depth += 1
+        elif tag == "a" and not self.hidden_depth:
+            target = normalize_link_target(dict(attrs).get("href"))
+            if target:
+                if target not in self.links:
+                    self.links.append(target)
+                self.open_links.append((target, len(self.parts)))
         elif tag in self.BLOCK_TAGS:
             self.parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
         if tag in {"script", "style", "svg"} and self.hidden_depth:
             self.hidden_depth -= 1
+        elif tag == "a" and not self.hidden_depth and self.open_links:
+            target, start = self.open_links.pop()
+            label = re.sub(r"\s+", " ", "".join(self.parts[start:])).strip()
+            if target not in label:
+                self.parts.append(f" ({target})" if label else target)
         elif tag in self.BLOCK_TAGS:
             self.parts.append("\n")
 
@@ -328,6 +341,37 @@ class TextExtractor(HTMLParser):
         return value.strip()
 
 
+SENSITIVE_LINK_QUERY_KEYS = {
+    "access_token",
+    "api_key",
+    "auth_token",
+    "client_secret",
+    "passcode",
+    "password",
+    "pwd",
+    "refresh_token",
+    "secure_params",
+    "token",
+    "verifier",
+}
+
+
+def normalize_link_target(value: str | None) -> str | None:
+    if not value:
+        return None
+    target = html.unescape(value).strip()
+    if not target:
+        return None
+    parsed = urllib.parse.urlsplit(target)
+    if parsed.scheme.lower() not in {"", "http", "https", "mailto"}:
+        return None
+    if parsed.username or parsed.password:
+        return None
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    safe_query = [(key, item) for key, item in query if key.lower() not in SENSITIVE_LINK_QUERY_KEYS]
+    return urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(safe_query, doseq=True)))
+
+
 def html_to_text(value: str | None) -> str:
     if not value:
         return ""
@@ -336,6 +380,26 @@ def html_to_text(value: str | None) -> str:
         parser.feed(value)
         return parser.text()
     return re.sub(r"<[^>]+>", " ", value).strip()
+
+
+def html_links(value: str | None) -> list[str]:
+    if not value:
+        return []
+    parser = TextExtractor()
+    with contextlib.suppress(Exception):
+        parser.feed(value)
+        return parser.links
+    return []
+
+
+def canvas_page_urls_from_html(value: str | None, course_id: str) -> set[str]:
+    pattern = re.compile(rf"(?:^|/)courses/{re.escape(str(course_id))}/pages/([^/]+)$")
+    page_urls: set[str] = set()
+    for target in html_links(value):
+        match = pattern.search(urllib.parse.urlsplit(target).path.rstrip("/"))
+        if match:
+            page_urls.add(urllib.parse.unquote(match.group(1)))
+    return page_urls
 
 
 def safe_filename(value: str, fallback: str = "file") -> str:
@@ -795,7 +859,7 @@ class SyncEngine:
                         {"source": "course.syllabus_body"},
                     )
                     summary["documents"] += 1
-                course_summary = self._sync_course(course_id)
+                course_summary = self._sync_course(course_id, course)
                 for key, count in course_summary.items():
                     summary[key] += count
                 summary["courses"] += 1
@@ -816,13 +880,14 @@ class SyncEngine:
             self.db.commit()
             raise
 
-    def _sync_course(self, course_id: str) -> dict[str, int]:
+    def _sync_course(self, course_id: str, course: dict[str, Any]) -> dict[str, int]:
         counts = {"modules": 0, "items": 0, "documents": 0, "files_downloaded": 0, "files_skipped": 0}
         timestamp = now_iso()
         modules = self.canvas.paginated(f"/api/v1/courses/{course_id}/modules?include[]=items&per_page=100")
         module_ids: list[str] = []
         item_ids: list[str] = []
         page_urls: set[str] = set()
+        page_cache: dict[str, dict[str, Any]] = {}
         file_ids: set[str] = set()
         for module in modules:
             module_id = str(module["id"])
@@ -961,9 +1026,23 @@ class SyncEngine:
             counts["documents"] += 1
         self._delete_missing_documents(course_id, "announcement", announcement_ids)
 
+        if course.get("default_view") == "wiki":
+            try:
+                front_page, _ = self.canvas.api_json(f"/api/v1/courses/{course_id}/front_page")
+            except RuntimeError as error:
+                if "HTTP 404" not in str(error):
+                    raise
+            else:
+                front_page_url = str(front_page.get("url") or "front_page")
+                page_urls.add(front_page_url)
+                page_cache[front_page_url] = front_page
+                page_urls.update(canvas_page_urls_from_html(front_page.get("body"), course_id))
+
         for page_url in sorted(page_urls):
-            quoted = urllib.parse.quote(page_url, safe="")
-            page, _ = self.canvas.api_json(f"/api/v1/courses/{course_id}/pages/{quoted}")
+            page = page_cache.get(page_url)
+            if page is None:
+                quoted = urllib.parse.quote(page_url, safe="")
+                page, _ = self.canvas.api_json(f"/api/v1/courses/{course_id}/pages/{quoted}")
             file_ids.update(canvas_file_ids_from_html(page.get("body")))
             self._upsert_document(
                 "page",
@@ -1183,6 +1262,7 @@ def list_documents(
         f"""
         SELECT d.kind, d.course_id, c.name AS course_name, d.object_id, d.title,
                d.html_url, d.due_at, d.updated_at, d.local_path,
+               d.metadata_json,
                substr(COALESCE(d.body, ''), 1, 1200) AS excerpt
         FROM documents d JOIN courses c ON c.id = d.course_id
         {where}
@@ -1191,7 +1271,14 @@ def list_documents(
         """,
         values,
     ).fetchall()
-    return [dict(row) for row in rows]
+    documents = []
+    for row in rows:
+        document = dict(row)
+        metadata = json.loads(document.pop("metadata_json"))
+        if document["kind"] == "page":
+            document["front_page"] = bool(metadata.get("front_page"))
+        documents.append(document)
+    return documents
 
 
 def get_document(db: sqlite3.Connection, course_id: str, kind: str, object_id: str) -> dict[str, Any]:
@@ -1277,7 +1364,7 @@ TOOLS = [
     },
     {
         "name": "canvas_sync",
-        "description": "Synchronize UMD Canvas courses, modules, assignments, announcements, pages, and linked files into the local read-only mirror. Optionally limit the refresh to one course.",
+        "description": "Synchronize UMD Canvas courses, home pages, modules, assignments, announcements, linked pages, and files into the local read-only mirror. Optionally limit the refresh to one course.",
         "inputSchema": {
             "type": "object",
             "properties": {"course_id": {"type": "string"}},
@@ -1305,7 +1392,7 @@ TOOLS = [
     },
     {
         "name": "canvas_list_documents",
-        "description": "List synchronized assignments, announcements, pages, syllabi, or files, optionally limited to one course and kind.",
+        "description": "List synchronized assignments, announcements, pages (including configured course home pages), syllabi, or files, optionally limited to one course and kind.",
         "inputSchema": {
             "type": "object",
             "properties": {

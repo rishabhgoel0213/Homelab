@@ -36,12 +36,17 @@ starts the first sync.
 The service attempts a read-only sync every 15 minutes. A sync fetches:
 
 - active courses and term metadata;
+- the configured wiki home page and same-course pages linked from it;
 - the instructor-curated module and module-item order;
 - assignments and due dates;
 - recent announcements;
 - module-linked pages;
-- module-linked files up to 50 MiB when their type is suitable for text
+- home-page and module-linked files up to 50 MiB when their type is suitable for text
   extraction.
+
+Normalized Canvas HTML retains safe link destinations so Codex can inspect
+linked resources. Sensitive URL query parameters are removed before links are
+stored, and external links are exposed without being fetched automatically.
 
 PDF text is extracted with `pdftotext`. Text, HTML, Markdown, CSV, JSON, DOCX,
 PPTX, and XLSX files receive lightweight local text extraction. Videos and

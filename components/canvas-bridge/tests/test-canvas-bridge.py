@@ -78,6 +78,85 @@ class CanvasBridgeTests(unittest.TestCase):
         self.assertEqual("Week 1\n\nRead chapter 2.", value)
         self.assertNotIn("steal", value)
 
+    def test_html_to_text_preserves_safe_links_without_secret_parameters(self):
+        value = self.bridge.html_to_text(
+            '<p><a href="https://example.test/setup?token=secret&amp;pwd=meeting-secret&amp;week=1">Setup guide</a></p>'
+            '<p><a href="javascript:alert(1)">Unsafe</a></p>'
+        )
+        self.assertEqual("Setup guide (https://example.test/setup?week=1)\n\nUnsafe", value)
+        self.assertNotIn("secret", value)
+        self.assertNotIn("pwd", value)
+        self.assertNotIn("javascript", value)
+
+    def test_canvas_page_urls_only_returns_same_course_pages(self):
+        value = (
+            '<a href="/courses/10/pages/setup-guide">Setup</a>'
+            '<a href="https://umd.instructure.com/courses/10/pages/lab-1?module_item_id=4">Lab</a>'
+            '<a href="/courses/11/pages/private">Other course</a>'
+        )
+        self.assertEqual(
+            {"setup-guide", "lab-1"},
+            self.bridge.canvas_page_urls_from_html(value, "10"),
+        )
+
+    def test_wiki_front_page_and_linked_course_page_are_mirrored_without_modules(self):
+        with self.bridge.db_session() as db:
+            db.execute(
+                """
+                INSERT INTO courses(id, name, active, json, synced_at)
+                VALUES('10', 'CMSC 216', 1, '{}', '2026-01-01T00:00:00+00:00')
+                """
+            )
+            engine = self.bridge.SyncEngine(db)
+
+            def paginated(path):
+                if "/modules?" in path or "/assignments?" in path or path.startswith("/api/v1/announcements?"):
+                    return []
+                self.fail(f"Unexpected paginated request: {path}")
+
+            def api_json(path):
+                if path == "/api/v1/courses/10/front_page":
+                    return (
+                        {
+                            "url": "home",
+                            "title": "Course Home",
+                            "body": (
+                                '<p><a href="/courses/10/pages/setup-guide">Setup guide</a></p>'
+                                '<p><a href="https://example.test/resources">Resources</a></p>'
+                            ),
+                            "html_url": "https://umd.instructure.com/courses/10/pages/home",
+                            "updated_at": "2026-08-30T00:00:00Z",
+                            "front_page": True,
+                        },
+                        mock.Mock(),
+                    )
+                if path == "/api/v1/courses/10/pages/setup-guide":
+                    return (
+                        {
+                            "url": "setup-guide",
+                            "title": "Setup Guide",
+                            "body": "<p>Install the compiler.</p>",
+                            "html_url": "https://umd.instructure.com/courses/10/pages/setup-guide",
+                            "updated_at": "2026-08-30T00:00:00Z",
+                            "front_page": False,
+                        },
+                        mock.Mock(),
+                    )
+                self.fail(f"Unexpected API request: {path}")
+
+            with mock.patch.object(engine.canvas, "paginated", side_effect=paginated):
+                with mock.patch.object(engine.canvas, "api_json", side_effect=api_json):
+                    counts = engine._sync_course("10", {"default_view": "wiki"})
+            db.commit()
+            documents = self.bridge.list_documents(db, course_id="10", kind="page")
+            home = self.bridge.get_document(db, "10", "page", "home")
+
+        self.assertEqual(2, counts["documents"])
+        self.assertEqual({"Course Home", "Setup Guide"}, {item["title"] for item in documents})
+        self.assertTrue(next(item for item in documents if item["title"] == "Course Home")["front_page"])
+        self.assertIn("Setup guide (/courses/10/pages/setup-guide)", home["body"])
+        self.assertIn("Resources (https://example.test/resources)", home["body"])
+
     def test_pairing_code_is_single_use(self):
         with self.bridge.db_session() as db:
             security = self.bridge.WebSecurity(db)
