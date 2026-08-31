@@ -25,13 +25,30 @@ let
     };
   };
 
-  managedVscodium = pkgs.vscode-with-extensions.override {
-    vscode = pkgs.vscodium;
-    vscodeExtensions = [
-      pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd
-      sftpNeo
-    ];
+  managedExtensions = [
+    pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd
+    sftpNeo
+  ];
+
+  extensionJsonFile = pkgs.writeTextFile {
+    name = "cmsc216-vscode-extensions-json";
+    destination = "/share/vscode/extensions/extensions.json";
+    text = pkgs.vscode-utils.toExtensionJson managedExtensions;
   };
+
+  managedExtensionDir = pkgs.buildEnv {
+    name = "cmsc216-vscode-extensions";
+    paths = managedExtensions ++ [ extensionJsonFile ];
+  };
+
+  # nixpkgs' generic vscode-with-extensions Darwin wrapper assumes that every
+  # VS Code bundle uses Contents/MacOS/Electron. VSCodium uses
+  # Contents/MacOS/VSCodium, so use the stable CLI entry point directly.
+  managedVscodium = pkgs.writeShellScriptBin "codium" ''
+    exec ${pkgs.vscodium}/bin/codium \
+      --extensions-dir ${managedExtensionDir}/share/vscode/extensions \
+      "$@"
+  '';
 
   cli = pkgs.writeShellApplication {
     name = "cmsc216";
@@ -259,7 +276,7 @@ let
     cp ${launcher} "$app/Contents/MacOS/CMSC216"
     chmod 0755 "$app/Contents/MacOS/CMSC216"
     ln -s \
-      ${managedVscodium}/Applications/VSCodium.app/Contents/Resources/VSCodium.icns \
+      ${pkgs.vscodium}/Applications/VSCodium.app/Contents/Resources/VSCodium.icns \
       "$app/Contents/Resources/CMSC216.icns"
   '';
 in
