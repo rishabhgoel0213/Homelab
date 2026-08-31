@@ -140,6 +140,14 @@
             ''
               bash -n ${./components/cmsc216/bin/cmsc216}
               shellcheck ${./components/cmsc216/bin/cmsc216}
+              awk '
+                /set \+u/ { nounset_disabled = NR }
+                /^[[:space:]]*set --[[:space:]]*$/ { arguments_cleared = NR }
+                /source ~profk\/bin\/cmsc216-setup/ { setup_sourced = NR }
+                END {
+                  exit !(nounset_disabled < setup_sourced && arguments_cleared < setup_sourced)
+                }
+              ' ${./components/cmsc216/bin/cmsc216}
               jq -e . ${cmsc216CheckPackages.settings} >/dev/null
               jq -e . ${cmsc216CheckPackages.sftpConfig} >/dev/null
               jq -e . ${cmsc216CheckPackages.workspace} >/dev/null

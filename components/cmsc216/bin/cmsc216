@@ -293,6 +293,12 @@ if [[ ! -r ~profk/bin/cmsc216-setup ]]; then
   exit 1
 fi
 
+# Zaratan's /etc/bashrc and the professor's setup script intentionally inspect
+# unset shell variables. Keep strict mode for our bootstrap work, but do not
+# leak nounset or our wrapper's positional arguments into their sourced code.
+set +u
+set --
+
 # This is the one-time setup command required by the professor's guide.
 source ~profk/bin/cmsc216-setup
 REMOTE
