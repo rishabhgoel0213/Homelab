@@ -34,6 +34,7 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out/Applications"
     /usr/bin/ditto --noextattr --noqtn \
       "${archive}/Applications/Zen.app" "$out/Applications/Zen.app"
+    chmod -R u+w "$out/Applications/Zen.app"
 
     mkdir -p "$out/Applications/Zen.app/Contents/Resources/distribution"
     printf '%s\n' ${lib.escapeShellArg policies} \
