@@ -82,8 +82,8 @@ let
     builtins.toJSON {
       folders = [
         {
-          name = "216-sync";
-          path = "${localRoot}/216-sync";
+          name = "cmsc216";
+          path = localRoot;
         }
       ];
       extensions = {
@@ -123,7 +123,7 @@ let
               inherit (task) label args;
               type = "process";
               command = "${cli}/bin/cmsc216";
-              options.cwd = "\${workspaceFolder:216-sync}";
+              options.cwd = "\${workspaceFolder:cmsc216}";
               presentation = {
                 reveal = "always";
                 panel = "dedicated";
@@ -224,7 +224,7 @@ let
 
   launcher = pkgs.writeShellScript "CMSC216" ''
     set -eu
-    mkdir -p ${lib.escapeShellArg localRoot} ${lib.escapeShellArg "${localRoot}/216-sync"} ${lib.escapeShellArg dataRoot}
+    mkdir -p ${lib.escapeShellArg localRoot} ${lib.escapeShellArg dataRoot}
     exec ${managedVscodium}/bin/codium \
       --user-data-dir ${lib.escapeShellArg dataRoot} \
       --new-window \

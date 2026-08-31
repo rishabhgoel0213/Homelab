@@ -2,9 +2,10 @@
 
 This component produces an isolated `CMSC 216.app` for the managed MacBook.
 The app launches a fixed VSCodium build with only clangd, opens the local
-`216-sync` workspace, and exposes Zaratan tasks backed by the `cmsc216`
-command. File transfer, remote commands, testing, formatting, and shells all
-use that command instead of an editor-specific SFTP extension.
+`~/Projects/fall-2026/cmsc216` folder as a managed workspace, and exposes
+Zaratan tasks backed by the `cmsc216` command. File transfer, remote commands,
+testing, formatting, and shells all use that command instead of an
+editor-specific SFTP extension.
 
 ## Declarative boundary
 
@@ -44,7 +45,10 @@ separately installed, but this environment neither opens it nor depends on it.
 
 ## Normal workflow
 
-The local directory is canonical. Uploads never request remote deletion.
+The local `~/Projects/fall-2026/cmsc216` directory is canonical and is synced
+with the rest of the Fall 2026 project through Syncthing. There is no nested
+local `216-sync` directory. Uploads to Zaratan's required `~/216-sync` path
+never request remote deletion.
 
 ```bash
 cmsc216 doctor

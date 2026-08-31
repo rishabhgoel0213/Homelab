@@ -10,7 +10,7 @@ set -euo pipefail
 
 ssh_alias="${CMSC216_SSH_ALIAS:-cmsc216-zaratan}"
 auth_persist="${CMSC216_AUTH_PERSIST:-8h}"
-sync_root="$CMSC216_LOCAL_ROOT/216-sync"
+sync_root="$CMSC216_LOCAL_ROOT"
 
 ssh_bin="${CMSC216_SSH_BIN:-/usr/bin/ssh}"
 
@@ -33,7 +33,7 @@ Commands:
   auth            Authenticate with Duo and cache the live SSH connection
   auth-status     Show whether a reusable Zaratan connection is active
   auth-clear      Close the cached Zaratan connection
-  sync             Upload 216-sync to Zaratan without deleting remote files
+  sync             Upload the course workspace without deleting remote files
   shell            Open a login shell in Zaratan's ~/216-sync
   run COMMAND...   Sync, then run COMMAND in the matching Zaratan directory
   test [COMMAND]   Sync, then run COMMAND (default: make test) on Zaratan
@@ -51,7 +51,6 @@ require_macos_tool() {
 ensure_local_directories() {
   mkdir -p \
     "$CMSC216_LOCAL_ROOT" \
-    "$sync_root" \
     "$CMSC216_DATA_ROOT" \
     "$HOME/.ssh/control"
   chmod 0700 "$HOME/.ssh" "$HOME/.ssh/control"
@@ -214,8 +213,7 @@ doctor() {
   fi
 
   for entry in \
-    "$CMSC216_LOCAL_ROOT:course root" \
-    "$sync_root:216-sync directory" \
+    "$sync_root:CMSC 216 workspace" \
     "$CMSC216_DATA_ROOT:isolated VSCodium state"
   do
     path="${entry%%:*}"

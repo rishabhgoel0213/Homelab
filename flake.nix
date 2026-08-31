@@ -120,7 +120,7 @@
       cmsc216CheckPackages = pkgs.callPackage ./components/cmsc216/package.nix {
         inherit pkgs;
         directoryId = "r1shabhg";
-        localRoot = "/Users/rishabhgoel/Coursework/CMSC216";
+        localRoot = "/Users/rishabhgoel/Projects/fall-2026/cmsc216";
         remoteRoot = "/home/r1shabhg/216-sync";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
       };
@@ -159,12 +159,15 @@
               grep -Fq 'PubkeyAuthentication no' ${./components/cmsc216/darwin.nix}
               grep -Fq 'PreferredAuthentications keyboard-interactive,password' ${./components/cmsc216/darwin.nix}
               grep -Fq 'ControlPersist' ${./components/cmsc216/darwin.nix}
+              grep -Fq 'sync_root="$CMSC216_LOCAL_ROOT"' ${./components/cmsc216/bin/cmsc216}
               ! grep -Fq 'GlobalProtect' ${./components/cmsc216/bin/cmsc216}
               ! grep -Fq 'sftp-neo' ${./components/cmsc216/bin/cmsc216}
               jq -e . ${cmsc216CheckPackages.settings} >/dev/null
               jq -e . ${cmsc216CheckPackages.workspace} >/dev/null
 
               jq -e '.extensions.recommendations == ["llvm-vs-code-extensions.vscode-clangd"]' \
+                ${cmsc216CheckPackages.workspace} >/dev/null
+              jq -e '.folders == [{"name":"cmsc216","path":"/Users/rishabhgoel/Projects/fall-2026/cmsc216"}]' \
                 ${cmsc216CheckPackages.workspace} >/dev/null
               jq -e '.extensions.unwantedRecommendations | index("PhilipDaoud.sftp-neo") != null' \
                 ${cmsc216CheckPackages.workspace} >/dev/null

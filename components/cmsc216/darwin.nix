@@ -53,8 +53,8 @@ in
 
     localRoot = lib.mkOption {
       type = lib.types.str;
-      default = "${userHome}/Coursework/CMSC216";
-      description = "Mutable local course root; 216-sync is created below it.";
+      default = "${userHome}/Projects/fall-2026/cmsc216";
+      description = "Mutable CMSC 216 folder inside the Syncthing-managed Fall 2026 project.";
     };
 
     remoteRoot = lib.mkOption {
@@ -123,12 +123,12 @@ in
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
       course_root=${lib.escapeShellArg cfg.localRoot}
-      sync_root="$course_root/216-sync"
-      editor_config="$course_root/.vscode"
       data_root=${lib.escapeShellArg cfg.dataRoot}
       ssh_root=${lib.escapeShellArg "${userHome}/.ssh"}
+      workspace_link="$data_root/CMSC 216.code-workspace"
+      legacy_course_root=${lib.escapeShellArg "${userHome}/Coursework/CMSC216"}
 
-      install -d -m 0755 -o ${user} -g staff "$course_root" "$sync_root" "$editor_config"
+      install -d -m 0755 -o ${user} -g staff "$course_root"
       install -d -m 0700 -o ${user} -g staff "$data_root" "$data_root/User"
       install -d -m 0700 -o ${user} -g staff "$ssh_root" "$ssh_root/control"
 
@@ -143,13 +143,17 @@ in
         chown -h ${user}:staff "$target"
       }
 
-      old_sftp_config="$editor_config/sftp.json"
-      if [[ -L "$old_sftp_config" ]]; then
-        rm "$old_sftp_config"
-      fi
-
       manage_link "$data_root/User/settings.json" ${packageSet.settings}
-      manage_link "$course_root/CMSC 216.code-workspace" ${packageSet.workspace}
+      manage_link "$workspace_link" ${packageSet.workspace}
+
+      for legacy_link in \
+        "$legacy_course_root/CMSC 216.code-workspace" \
+        "$legacy_course_root/.vscode/sftp.json"
+      do
+        if [[ -L "$legacy_link" ]]; then
+          rm "$legacy_link"
+        fi
+      done
     '';
   };
 }
