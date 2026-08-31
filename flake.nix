@@ -122,7 +122,6 @@
         directoryId = "r1shabhg";
         localRoot = "/Users/rishabhgoel/Coursework/CMSC216";
         remoteRoot = "/home/r1shabhg/216-sync";
-        identityFile = "/Users/rishabhgoel/.ssh/cmsc216-zaratan-ed25519";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
       };
     in
@@ -140,6 +139,15 @@
             ''
               bash -n ${./components/cmsc216/bin/cmsc216}
               shellcheck ${./components/cmsc216/bin/cmsc216}
+              bash -n ${./components/cmsc216/tests/auth.bash}
+              bash -n ${./components/cmsc216/tests/fake-ssh}
+              shellcheck ${./components/cmsc216/tests/auth.bash}
+              shellcheck ${./components/cmsc216/tests/fake-ssh}
+              cp ${./components/cmsc216/tests/fake-ssh} "$TMPDIR/fake-ssh"
+              chmod +x "$TMPDIR/fake-ssh"
+              patchShebangs "$TMPDIR/fake-ssh"
+              bash ${./components/cmsc216/tests/auth.bash} \
+                ${./components/cmsc216/bin/cmsc216} "$TMPDIR/fake-ssh"
               awk '
                 /set \+u/ { nounset_disabled = NR }
                 /^[[:space:]]*set --[[:space:]]*$/ { arguments_cleared = NR }
@@ -148,19 +156,20 @@
                   exit !(nounset_disabled < setup_sourced && arguments_cleared < setup_sourced)
                 }
               ' ${./components/cmsc216/bin/cmsc216}
-              awk '
-                /IgnoreUnknown UseKeychain/ { ignore_unknown = NR }
-                /UseKeychain yes/ { use_keychain = NR }
-                END { exit !(ignore_unknown < use_keychain) }
-              ' ${./components/cmsc216/darwin.nix}
+              grep -Fq 'PubkeyAuthentication no' ${./components/cmsc216/darwin.nix}
+              grep -Fq 'PreferredAuthentications keyboard-interactive,password' ${./components/cmsc216/darwin.nix}
+              grep -Fq 'ControlPersist' ${./components/cmsc216/darwin.nix}
+              ! grep -Fq 'GlobalProtect' ${./components/cmsc216/bin/cmsc216}
+              ! grep -Fq 'sftp-neo' ${./components/cmsc216/bin/cmsc216}
               jq -e . ${cmsc216CheckPackages.settings} >/dev/null
-              jq -e . ${cmsc216CheckPackages.sftpConfig} >/dev/null
               jq -e . ${cmsc216CheckPackages.workspace} >/dev/null
 
-              test "$(jq -r '.syncOption.delete' ${cmsc216CheckPackages.sftpConfig})" = false
-              test "$(jq -r '.watcher.autoDelete' ${cmsc216CheckPackages.sftpConfig})" = false
-              test "$(jq -r '.uploadOnSave' ${cmsc216CheckPackages.sftpConfig})" = true
-              test "$(jq -r '.algorithms.serverHostKey[0]' ${cmsc216CheckPackages.sftpConfig})" = ssh-ed25519
+              jq -e '.extensions.recommendations == ["llvm-vs-code-extensions.vscode-clangd"]' \
+                ${cmsc216CheckPackages.workspace} >/dev/null
+              jq -e '.extensions.unwantedRecommendations | index("PhilipDaoud.sftp-neo") != null' \
+                ${cmsc216CheckPackages.workspace} >/dev/null
+              jq -e '[.tasks.tasks[].args[0]] | contains(["auth", "auth-status", "auth-clear", "sync", "test", "shell", "run", "format", "exam-check"])' \
+                ${cmsc216CheckPackages.workspace} >/dev/null
 
               fingerprint="$(ssh-keygen -lf ${./components/cmsc216/config/zaratan-known-hosts} -E sha256 | awk '{print $2}')"
               test "$fingerprint" = "SHA256:Ot4bTjdmv3t8Lwn2uETVlAFPzhFoQafQ7tt+oHAN69w"

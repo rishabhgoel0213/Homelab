@@ -4,31 +4,12 @@
   directoryId,
   localRoot,
   remoteRoot,
-  identityFile,
   dataRoot,
-  autoOpenGlobalProtect ? true,
-  globalProtectApp ? "/Applications/GlobalProtect.app",
+  authPersist ? "8h",
 }:
 
 let
-  sftpNeo = pkgs.vscode-utils.buildVscodeMarketplaceExtension {
-    mktplcRef = {
-      name = "sftp-neo";
-      publisher = "PhilipDaoud";
-      version = "3.4.0";
-      hash = "sha256-E15/nwSGLZj2C0UQFEHUhRnieZNmcN6+UToY+PlpxEA=";
-    };
-    meta = {
-      description = "Modern SFTP extension used by the CMSC 216 coding environment";
-      homepage = "https://marketplace.visualstudio.com/items?itemName=PhilipDaoud.sftp-neo";
-      license = lib.licenses.mit;
-    };
-  };
-
-  managedExtensions = [
-    pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd
-    sftpNeo
-  ];
+  managedExtensions = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
 
   extensionJsonFile = pkgs.writeTextFile {
     name = "cmsc216-vscode-extensions-json";
@@ -62,11 +43,9 @@ let
       export CMSC216_DIRECTORY_ID=${lib.escapeShellArg directoryId}
       export CMSC216_LOCAL_ROOT=${lib.escapeShellArg localRoot}
       export CMSC216_REMOTE_ROOT=${lib.escapeShellArg remoteRoot}
-      export CMSC216_IDENTITY_FILE=${lib.escapeShellArg identityFile}
       export CMSC216_DATA_ROOT=${lib.escapeShellArg dataRoot}
       export CMSC216_CODIUM_BIN=${lib.escapeShellArg "${managedVscodium}/bin/codium"}
-      export CMSC216_AUTO_OPEN_VPN=${if autoOpenGlobalProtect then "1" else "0"}
-      export CMSC216_GLOBAL_PROTECT_APP=${lib.escapeShellArg globalProtectApp}
+      export CMSC216_AUTH_PERSIST=${lib.escapeShellArg authPersist}
 
       ${builtins.readFile ./bin/cmsc216}
     '';
@@ -110,7 +89,6 @@ let
       extensions = {
         recommendations = [
           "llvm-vs-code-extensions.vscode-clangd"
-          "PhilipDaoud.sftp-neo"
         ];
         unwantedRecommendations = [
           "GitHub.copilot"
@@ -118,6 +96,7 @@ let
           "OpenAI.chatgpt"
           "anthropic.claude-code"
           "Continue.continue"
+          "PhilipDaoud.sftp-neo"
         ];
       };
       settings = {
@@ -158,6 +137,18 @@ let
                 args = [ "doctor" ];
               }
               {
+                label = "CMSC 216: Authenticate with Duo";
+                args = [ "auth" ];
+              }
+              {
+                label = "CMSC 216: Authentication Status";
+                args = [ "auth-status" ];
+              }
+              {
+                label = "CMSC 216: Clear Cached Authentication";
+                args = [ "auth-clear" ];
+              }
+              {
                 label = "CMSC 216: Sync to Zaratan";
                 args = [ "sync" ];
               }
@@ -170,62 +161,34 @@ let
                 args = [ "shell" ];
               }
               {
+                label = "CMSC 216: Run Command on Zaratan";
+                args = [
+                  "run"
+                  "bash"
+                  "-lc"
+                  "\${input:zaratanCommand}"
+                ];
+              }
+              {
+                label = "CMSC 216: Format Current File";
+                args = [
+                  "format"
+                  "\${file}"
+                ];
+              }
+              {
                 label = "CMSC 216: Exam Check";
                 args = [ "exam-check" ];
               }
             ];
-      };
-    }
-  );
-
-  sftpConfig = pkgs.writeText "cmsc216-sftp.json" (
-    builtins.toJSON {
-      name = "CMSC 216 Zaratan";
-      context = "216-sync";
-      protocol = "sftp";
-      host = "login.zaratan.umd.edu";
-      port = 22;
-      username = directoryId;
-      remotePath = remoteRoot;
-      privateKeyPath = identityFile;
-      interactiveAuth = true;
-      uploadOnSave = true;
-      downloadOnOpen = false;
-      useTempFile = false;
-      openSsh = false;
-      concurrency = 4;
-      connectTimeout = 20000;
-      keepalive = 30000;
-      algorithms.serverHostKey = [ "ssh-ed25519" ];
-      sshConfigPath = "/etc/ssh/ssh_config";
-      ignore = [
-        ".DS_Store"
-        ".git/**"
-        ".vscode/**"
-        ".cmsc216-sftp-backups/**"
-      ];
-      watcher = {
-        files = "**/*";
-        autoUpload = false;
-        autoDelete = false;
-        autoRename = false;
-      };
-      syncOption = {
-        delete = false;
-        skipCreate = false;
-        ignoreExisting = false;
-        update = false;
-      };
-      backup = {
-        enabled = true;
-        location = "local";
-        folder = "../.cmsc216-sftp-backups";
-        versions = 5;
-        onDelete = false;
-      };
-      hooks = {
-        preUpload = "${cli}/bin/cmsc216 vpn-if-needed";
-        preSync = "${cli}/bin/cmsc216 vpn-if-needed";
+        inputs = [
+          {
+            id = "zaratanCommand";
+            type = "promptString";
+            description = "Command to run in the matching Zaratan directory";
+            default = "make test";
+          }
+        ];
       };
     }
   );
@@ -286,8 +249,6 @@ in
     cli
     managedVscodium
     settings
-    sftpConfig
-    sftpNeo
     workspace
     ;
 }

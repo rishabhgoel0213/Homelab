@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+: "${CMSC216_TEST_SSH_STATE:?CMSC216_TEST_SSH_STATE is required}"
+
+if [[ "${1:-}" == "-O" ]]; then
+  case "${2:-}" in
+    check)
+      [[ -f "$CMSC216_TEST_SSH_STATE" ]]
+      ;;
+    exit)
+      rm -f "$CMSC216_TEST_SSH_STATE"
+      ;;
+    *)
+      exit 2
+      ;;
+  esac
+  exit
+fi
+
+for argument in "$@"; do
+  if [[ "$argument" == "-Nf" ]]; then
+    touch "$CMSC216_TEST_SSH_STATE"
+    exit
+  fi
+done
+
+exit 2
