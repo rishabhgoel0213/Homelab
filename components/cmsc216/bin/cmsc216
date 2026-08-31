@@ -1,0 +1,382 @@
+# shellcheck shell=bash
+
+set -euo pipefail
+
+: "${CMSC216_DIRECTORY_ID:?CMSC216_DIRECTORY_ID is required}"
+: "${CMSC216_LOCAL_ROOT:?CMSC216_LOCAL_ROOT is required}"
+: "${CMSC216_REMOTE_ROOT:?CMSC216_REMOTE_ROOT is required}"
+: "${CMSC216_IDENTITY_FILE:?CMSC216_IDENTITY_FILE is required}"
+: "${CMSC216_DATA_ROOT:?CMSC216_DATA_ROOT is required}"
+: "${CMSC216_CODIUM_BIN:?CMSC216_CODIUM_BIN is required}"
+
+ssh_alias="${CMSC216_SSH_ALIAS:-cmsc216-zaratan}"
+auto_open_vpn="${CMSC216_AUTO_OPEN_VPN:-1}"
+global_protect_app="${CMSC216_GLOBAL_PROTECT_APP:-/Applications/GlobalProtect.app}"
+sync_root="$CMSC216_LOCAL_ROOT/216-sync"
+
+ssh_bin="${CMSC216_SSH_BIN:-/usr/bin/ssh}"
+ssh_keygen_bin="${CMSC216_SSH_KEYGEN_BIN:-/usr/bin/ssh-keygen}"
+ssh_add_bin="${CMSC216_SSH_ADD_BIN:-/usr/bin/ssh-add}"
+open_bin="${CMSC216_OPEN_BIN:-/usr/bin/open}"
+
+die() {
+  printf 'cmsc216: %s\n' "$*" >&2
+  exit 1
+}
+
+note() {
+  printf 'cmsc216: %s\n' "$*" >&2
+}
+
+usage() {
+  cat <<'EOF'
+Usage: cmsc216 COMMAND [ARGS...]
+
+Commands:
+  doctor          Check the Mac, editor, SSH, VPN, and Zaratan setup
+  bootstrap       Create the device key and initialize the Zaratan account
+  vpn-if-needed   Open GlobalProtect after a passwordless SSH probe fails
+  sync             Upload 216-sync to Zaratan without deleting remote files
+  shell            Open a login shell in Zaratan's ~/216-sync
+  run COMMAND...   Sync, then run COMMAND in the matching Zaratan directory
+  test [COMMAND]   Sync, then run COMMAND (default: make test) on Zaratan
+  format FILE...   Apply the course's default clang-format style
+  exam-check       Check the isolated editor profile for prohibited AI tools
+EOF
+}
+
+require_macos_tool() {
+  local path="$1"
+  local label="$2"
+  [[ -x "$path" ]] || die "$label is unavailable at $path"
+}
+
+ensure_local_directories() {
+  mkdir -p \
+    "$CMSC216_LOCAL_ROOT" \
+    "$sync_root" \
+    "$CMSC216_DATA_ROOT" \
+    "$(dirname "$CMSC216_IDENTITY_FILE")"
+  chmod 0700 "$(dirname "$CMSC216_IDENTITY_FILE")"
+}
+
+ssh_probe() {
+  [[ -x "$ssh_bin" ]] || return 1
+  "$ssh_bin" \
+    -o BatchMode=yes \
+    -o ConnectTimeout=5 \
+    "$ssh_alias" true </dev/null >/dev/null 2>&1
+}
+
+vpn_if_needed() {
+  if ssh_probe; then
+    return 0
+  fi
+
+  if [[ "$auto_open_vpn" != "1" ]]; then
+    note "Zaratan is not available through noninteractive SSH; automatic GlobalProtect launch is disabled."
+    return 0
+  fi
+
+  if [[ -d "$global_protect_app" && -x "$open_bin" ]]; then
+    note "Zaratan needs authentication or VPN access; opening GlobalProtect for access.umd.edu."
+    "$open_bin" -g "$global_protect_app" >/dev/null 2>&1 || true
+  else
+    note "GlobalProtect was not found at $global_protect_app; continuing with interactive SSH/Duo."
+  fi
+}
+
+remote_directory_for_cwd() {
+  local relative
+
+  case "$PWD" in
+    "$sync_root")
+      relative=""
+      ;;
+    "$sync_root"/*)
+      relative="${PWD#"$sync_root"/}"
+      ;;
+    *)
+      die "run this command from $sync_root or one of its subdirectories"
+      ;;
+  esac
+
+  if [[ -n "$relative" ]]; then
+    printf '%s/%s\n' "$CMSC216_REMOTE_ROOT" "$relative"
+  else
+    printf '%s\n' "$CMSC216_REMOTE_ROOT"
+  fi
+}
+
+shell_quote() {
+  printf '%q' "$1"
+}
+
+build_remote_command() {
+  local remote_directory="$1"
+  shift
+
+  local command_text
+  command_text="cd $(shell_quote "$remote_directory") && exec"
+  while [[ "$#" -gt 0 ]]; do
+    command_text+=" $(shell_quote "$1")"
+    shift
+  done
+  printf '%s\n' "$command_text"
+}
+
+sync_to_zaratan() {
+  ensure_local_directories
+  vpn_if_needed
+
+  note "Uploading $sync_root to $ssh_alias:$CMSC216_REMOTE_ROOT without remote deletion."
+  rsync \
+    --archive \
+    --compress \
+    --human-readable \
+    --itemize-changes \
+    --exclude=.DS_Store \
+    --exclude=.git/ \
+    --exclude=.vscode/ \
+    --exclude=.cmsc216-sftp-backups/ \
+    --rsh="$ssh_bin" \
+    "$sync_root/" "$ssh_alias:$CMSC216_REMOTE_ROOT/"
+}
+
+run_remote() {
+  local remote_directory
+  local remote_command
+
+  [[ "$#" -gt 0 ]] || die "run requires a command"
+  remote_directory="$(remote_directory_for_cwd)"
+  sync_to_zaratan
+  remote_command="$(build_remote_command "$remote_directory" "$@")"
+  "$ssh_bin" -t "$ssh_alias" "$remote_command"
+}
+
+check_extension_allowlist() {
+  local extensions
+  local forbidden_pattern
+
+  forbidden_pattern='copilot|chatgpt|codex|claude|gemini|continue|tabnine|codeium|amazon-q|blackbox|supermaven'
+  extensions="$("$CMSC216_CODIUM_BIN" \
+    --user-data-dir "$CMSC216_DATA_ROOT" \
+    --list-extensions 2>/dev/null || true)"
+
+  if printf '%s\n' "$extensions" | grep -Eiq "$forbidden_pattern"; then
+    printf '%s\n' "$extensions" | grep -Ei "$forbidden_pattern" >&2 || true
+    die "the isolated CMSC 216 editor exposes an AI/chat extension"
+  fi
+
+  if ! printf '%s\n' "$extensions" | grep -Fixq 'llvm-vs-code-extensions.vscode-clangd'; then
+    die "the managed clangd extension is missing"
+  fi
+  if ! printf '%s\n' "$extensions" | grep -Fixq 'PhilipDaoud.sftp-neo'; then
+    die "the managed SFTP Neo extension is missing"
+  fi
+}
+
+doctor() {
+  local failed=0
+
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    note "this deployment is intended for macOS; current system is $(uname -s)"
+    failed=1
+  fi
+
+  for entry in \
+    "$CMSC216_LOCAL_ROOT:course root" \
+    "$sync_root:216-sync directory" \
+    "$CMSC216_DATA_ROOT:isolated VSCodium state"
+  do
+    path="${entry%%:*}"
+    label="${entry#*:}"
+    if [[ -d "$path" ]]; then
+      printf 'ok: %s (%s)\n' "$label" "$path"
+    else
+      printf 'missing: %s (%s)\n' "$label" "$path" >&2
+      failed=1
+    fi
+  done
+
+  if [[ -d "$global_protect_app" ]]; then
+    printf 'ok: GlobalProtect is installed (%s)\n' "$global_protect_app"
+  else
+    printf 'missing: GlobalProtect (%s)\n' "$global_protect_app" >&2
+    failed=1
+  fi
+
+  if [[ -f "$CMSC216_IDENTITY_FILE" && -f "$CMSC216_IDENTITY_FILE.pub" ]]; then
+    printf 'ok: device-local Zaratan key exists (%s)\n' "$CMSC216_IDENTITY_FILE"
+  else
+    printf 'missing: device-local Zaratan key; run cmsc216 bootstrap\n' >&2
+    failed=1
+  fi
+
+  if "$ssh_bin" -G "$ssh_alias" 2>/dev/null | grep -Fq "hostname login.zaratan.umd.edu"; then
+    printf 'ok: SSH alias %s resolves to login.zaratan.umd.edu\n' "$ssh_alias"
+  else
+    printf 'invalid: SSH alias %s is not using the managed Zaratan configuration\n' "$ssh_alias" >&2
+    failed=1
+  fi
+
+  if ssh_probe; then
+    printf 'ok: noninteractive Zaratan SSH succeeds\n'
+    if "$ssh_bin" -o BatchMode=yes "$ssh_alias" \
+      "test -d $(shell_quote "$CMSC216_REMOTE_ROOT") && command -v gcc >/dev/null && command -v gdb >/dev/null"; then
+      printf 'ok: remote directory, gcc, and gdb are available\n'
+    else
+      printf 'incomplete: Zaratan course directory or toolchain is missing; run cmsc216 bootstrap\n' >&2
+      failed=1
+    fi
+  else
+    printf 'unavailable: noninteractive Zaratan SSH failed; connect GlobalProtect or run cmsc216 bootstrap\n' >&2
+    failed=1
+  fi
+
+  if ! check_extension_allowlist; then
+    failed=1
+  else
+    printf 'ok: isolated VSCodium extension allowlist passed\n'
+  fi
+
+  return "$failed"
+}
+
+bootstrap() {
+  local public_key_b64
+
+  require_macos_tool "$ssh_bin" "macOS OpenSSH"
+  require_macos_tool "$ssh_keygen_bin" "macOS ssh-keygen"
+  ensure_local_directories
+
+  if [[ ! -f "$CMSC216_IDENTITY_FILE" ]]; then
+    note "Creating a passphrase-protected CMSC 216 key. The private key remains outside Nix and Git."
+    "$ssh_keygen_bin" \
+      -t ed25519 \
+      -a 100 \
+      -C "cmsc216@$CMSC216_DIRECTORY_ID" \
+      -f "$CMSC216_IDENTITY_FILE"
+  fi
+
+  chmod 0600 "$CMSC216_IDENTITY_FILE"
+  chmod 0644 "$CMSC216_IDENTITY_FILE.pub"
+
+  if [[ -x "$ssh_add_bin" ]]; then
+    "$ssh_add_bin" --apple-use-keychain "$CMSC216_IDENTITY_FILE" || \
+      note "Could not add the key to macOS Keychain; SSH can still prompt for its passphrase."
+  fi
+
+  public_key_b64="$(base64 < "$CMSC216_IDENTITY_FILE.pub" | tr -d '\n')"
+  vpn_if_needed
+
+  note "Authorizing this Mac and initializing the course environment on Zaratan."
+  "$ssh_bin" -t "$ssh_alias" bash -s -- "$public_key_b64" "$CMSC216_REMOTE_ROOT" <<'REMOTE'
+set -euo pipefail
+
+public_key_b64="$1"
+remote_root="$2"
+public_key="$(printf '%s' "$public_key_b64" | base64 --decode)"
+
+umask 077
+mkdir -p "$HOME/.ssh"
+touch "$HOME/.ssh/authorized_keys"
+if ! grep -Fqx -- "$public_key" "$HOME/.ssh/authorized_keys"; then
+  printf '%s\n' "$public_key" >> "$HOME/.ssh/authorized_keys"
+fi
+chmod 0700 "$HOME/.ssh"
+chmod 0600 "$HOME/.ssh/authorized_keys"
+mkdir -p "$remote_root"
+
+if [[ ! -r ~profk/bin/cmsc216-setup ]]; then
+  printf 'Missing course setup script: ~profk/bin/cmsc216-setup\n' >&2
+  exit 1
+fi
+
+# This is the one-time setup command required by the professor's guide.
+source ~profk/bin/cmsc216-setup
+REMOTE
+
+  if ssh_probe; then
+    note "Bootstrap complete. Passwordless Zaratan SSH is working."
+  else
+    die "bootstrap finished, but passwordless SSH still fails; connect GlobalProtect and run cmsc216 doctor"
+  fi
+}
+
+exam_check() {
+  local failed=0
+
+  if ! check_extension_allowlist; then
+    failed=1
+  else
+    printf 'ok: no prohibited AI/chat extension is exposed by the isolated editor\n'
+  fi
+
+  if ssh_probe; then
+    printf 'ok: Zaratan SSH is available\n'
+  else
+    printf 'unavailable: Zaratan SSH is not ready; connect GlobalProtect before the exam\n' >&2
+    failed=1
+  fi
+
+  cat <<'EOF'
+Reminder: this check covers the managed CMSC 216 editor only. Course rules also
+prohibit AI, internet search, chat, email, shared documents, and unauthorized
+websites during exams. It does not close or inspect other applications.
+EOF
+
+  return "$failed"
+}
+
+command="${1:-help}"
+if [[ "$#" -gt 0 ]]; then
+  shift
+fi
+
+case "$command" in
+  help|-h|--help)
+    usage
+    ;;
+  doctor)
+    doctor
+    ;;
+  bootstrap)
+    bootstrap
+    ;;
+  vpn-if-needed|vpn)
+    vpn_if_needed
+    ;;
+  sync)
+    sync_to_zaratan
+    ;;
+  shell)
+    ensure_local_directories
+    vpn_if_needed
+    "$ssh_bin" -t "$ssh_alias" \
+      "cd $(shell_quote "$CMSC216_REMOTE_ROOT") && exec bash -l"
+    ;;
+  run)
+    run_remote "$@"
+    ;;
+  test)
+    if [[ "$#" -eq 0 ]]; then
+      set -- make test
+    fi
+    run_remote "$@"
+    ;;
+  format)
+    [[ "$#" -gt 0 ]] || die "format requires at least one C or header file"
+    clang-format \
+      -i \
+      --style='{BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 80}' \
+      "$@"
+    ;;
+  exam-check)
+    exam_check
+    ;;
+  *)
+    usage >&2
+    die "unknown command: $command"
+    ;;
+esac

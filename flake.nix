@@ -117,9 +117,43 @@
         ps.aiohttp
         ps.pyyaml
       ]);
+      cmsc216CheckPackages = pkgs.callPackage ./components/cmsc216/package.nix {
+        inherit pkgs;
+        directoryId = "r1shabhg";
+        localRoot = "/Users/rishabhgoel/Coursework/CMSC216";
+        remoteRoot = "/home/r1shabhg/216-sync";
+        identityFile = "/Users/rishabhgoel/.ssh/cmsc216-zaratan-ed25519";
+        dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
+      };
     in
     {
       checks.${system} = {
+        cmsc216 =
+          pkgs.runCommand "cmsc216-check"
+            {
+              nativeBuildInputs = [
+                pkgs.jq
+                pkgs.openssh
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              bash -n ${./components/cmsc216/bin/cmsc216}
+              shellcheck ${./components/cmsc216/bin/cmsc216}
+              jq -e . ${cmsc216CheckPackages.settings} >/dev/null
+              jq -e . ${cmsc216CheckPackages.sftpConfig} >/dev/null
+              jq -e . ${cmsc216CheckPackages.workspace} >/dev/null
+
+              test "$(jq -r '.syncOption.delete' ${cmsc216CheckPackages.sftpConfig})" = false
+              test "$(jq -r '.watcher.autoDelete' ${cmsc216CheckPackages.sftpConfig})" = false
+              test "$(jq -r '.uploadOnSave' ${cmsc216CheckPackages.sftpConfig})" = true
+              test "$(jq -r '.algorithms.serverHostKey[0]' ${cmsc216CheckPackages.sftpConfig})" = ssh-ed25519
+
+              fingerprint="$(ssh-keygen -lf ${./components/cmsc216/config/zaratan-known-hosts} -E sha256 | awk '{print $2}')"
+              test "$fingerprint" = "SHA256:Ot4bTjdmv3t8Lwn2uETVlAFPzhFoQafQ7tt+oHAN69w"
+              touch "$out"
+            '';
+
         bonsai-ternary =
           pkgs.runCommand "bonsai-ternary-check"
             {
@@ -286,6 +320,8 @@
       };
 
       packages.${darwinSystem} = {
+        cmsc216 = self.darwinConfigurations.macbook.config.homelab.coursework.cmsc216.package;
+        cmsc216-cli = self.darwinConfigurations.macbook.config.homelab.coursework.cmsc216.cliPackage;
         codex = macbookCodex;
         tabby-plugins = macbookTabbyPlugins;
         tabby = darwinTabbyPrebuilt;
