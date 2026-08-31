@@ -5,6 +5,7 @@ target="${1:-codex}"
 server="${MACBOOK_BUILD_SERVER:-nixos-pc}"
 ops_repo="${DARWIN_OPS_ROOT:-/srv/ops}"
 nix_bin="${NIX_BIN:-nix}"
+ssh_bin="${MACBOOK_SSH_BIN:-/usr/bin/ssh}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -13,8 +14,10 @@ need() {
   fi
 }
 
-need ssh
+need "$ssh_bin"
 need rsync
+
+export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$ssh_bin}"
 
 case "$target" in
   codex|tabby-plugins|tabby|zen|tabby-source|zen-source|macbook-system)
@@ -33,7 +36,7 @@ case "$target" in
   codex|tabby-plugins|zen-source)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
-      ssh "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
+      "$ssh_bin" "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
 set -euo pipefail
 repo="$1"
 installable="$2"
@@ -50,7 +53,7 @@ REMOTE
 
     stage_root="$(mktemp -d "${TMPDIR:-/tmp}/darwin-server-artifacts.XXXXXX")"
     echo "Staging $output from $server without importing or activating it" >&2
-    rsync -a "$server:$output" "$stage_root/"
+    rsync -a -e "$ssh_bin" "$server:$output" "$stage_root/"
     printf '%s/%s\n' "$stage_root" "$(basename "$output")"
     exit 0
     ;;
@@ -59,7 +62,7 @@ esac
 need "$nix_bin"
 
 revision_data="$({
-  ssh "$server" bash -s -- "$ops_repo" <<'REMOTE'
+  "$ssh_bin" "$server" bash -s -- "$ops_repo" <<'REMOTE'
 set -euo pipefail
 repo="$1"
 cd "$repo"
