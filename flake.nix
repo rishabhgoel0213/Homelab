@@ -148,6 +148,11 @@
                   exit !(nounset_disabled < setup_sourced && arguments_cleared < setup_sourced)
                 }
               ' ${./components/cmsc216/bin/cmsc216}
+              awk '
+                /IgnoreUnknown UseKeychain/ { ignore_unknown = NR }
+                /UseKeychain yes/ { use_keychain = NR }
+                END { exit !(ignore_unknown < use_keychain) }
+              ' ${./components/cmsc216/darwin.nix}
               jq -e . ${cmsc216CheckPackages.settings} >/dev/null
               jq -e . ${cmsc216CheckPackages.sftpConfig} >/dev/null
               jq -e . ${cmsc216CheckPackages.workspace} >/dev/null

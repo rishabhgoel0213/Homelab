@@ -30,6 +30,7 @@ let
       IdentityFile ${cfg.identityFile}
       IdentitiesOnly yes
       AddKeysToAgent yes
+      IgnoreUnknown UseKeychain
       UseKeychain yes
       PreferredAuthentications publickey,keyboard-interactive,password
       StrictHostKeyChecking yes
