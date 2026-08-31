@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -34,6 +35,29 @@ PROJECT_DIRECTORIES = (
 SLUG_RE = re.compile(r"[^a-z0-9]+")
 HARNESS_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
 IGNORED_PROJECT_NAMES = {"templates"}
+SYNC_FOLDER_PREFIX = "project-"
+SYNC_IGNORE_BEGIN = "// projectctl: begin managed ignores"
+SYNC_IGNORE_END = "// projectctl: end managed ignores"
+SYNC_IGNORE_PATTERNS = (
+    "(?d).DS_Store",
+    "(?d)**/.DS_Store",
+    "(?d).direnv",
+    "(?d)**/.direnv",
+    "(?d).devenv",
+    "(?d)**/.devenv",
+    "(?d)result",
+    "(?d)result-*",
+    "(?d)**/result",
+    "(?d)**/result-*",
+    "(?d)__pycache__",
+    "(?d)**/__pycache__",
+    "(?d).ipynb_checkpoints",
+    "(?d)**/.ipynb_checkpoints",
+    "(?d).cmsc216-sftp-backups",
+    "(?d)**/.cmsc216-sftp-backups",
+    "(?d).git",
+    "(?d)**/.git",
+)
 
 
 class ProjectError(ValueError):
@@ -63,6 +87,7 @@ class Project:
             "managed": self.managed,
             "created_at": self.created_at,
             "environment": "nix" if project_flake(self) is not None else "host",
+            "sync_targets": sync_targets(self),
         }
 
 
@@ -268,18 +293,29 @@ def flake_text(title: str) -> str:
   outputs =
     {{ nixpkgs, ... }}:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${{system}};
-      python = pkgs.python3.withPackages (ps: [ ps.ipykernel ]);
+      systems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {{
-      devShells.${{system}}.default = pkgs.mkShell {{
-        packages = [
-          python
-          pkgs.git
-          pkgs.just
-        ];
-      }};
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${{system}};
+          python = pkgs.python3.withPackages (ps: [ ps.ipykernel ]);
+        in
+        {{
+          default = pkgs.mkShell {{
+            packages = [
+              python
+              pkgs.git
+              pkgs.just
+            ];
+          }};
+        }}
+      );
     }};
 }}
 """
@@ -365,6 +401,255 @@ def replace_manifest_scalar(project: Project, field: str, value: str) -> Project
     return load_project(project.root)
 
 
+def sync_table(project: Project) -> dict[str, Any]:
+    value = project.manifest.get("sync", {})
+    if not isinstance(value, dict):
+        raise ProjectError(f"{project.root / MANIFEST_NAME}: sync must be a table")
+    return value
+
+
+def sync_targets(project: Project) -> list[str]:
+    configured = sync_table(project).get("targets", [])
+    if not isinstance(configured, list) or not all(
+        isinstance(target, str) and target for target in configured
+    ):
+        raise ProjectError(
+            f"{project.root / MANIFEST_NAME}: sync.targets must be a string array"
+        )
+    if len(configured) != len(set(configured)):
+        raise ProjectError(
+            f"{project.root / MANIFEST_NAME}: sync.targets must not contain duplicates"
+        )
+    return sorted(configured)
+
+
+def sync_peers() -> dict[str, dict[str, str]]:
+    raw = os.environ.get("PROJECTCTL_SYNC_PEERS_JSON", "{}")
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise ProjectError("PROJECTCTL_SYNC_PEERS_JSON is invalid") from error
+    if not isinstance(decoded, dict):
+        raise ProjectError("PROJECTCTL_SYNC_PEERS_JSON must be an object")
+    peers: dict[str, dict[str, str]] = {}
+    for name, value in decoded.items():
+        if not isinstance(name, str) or not isinstance(value, dict):
+            raise ProjectError("sync peer entries must be named objects")
+        device_id = value.get("device_id")
+        if not isinstance(device_id, str) or not device_id:
+            raise ProjectError(f"sync peer {name!r} is missing device_id")
+        peer = {"device_id": device_id}
+        for field in ("projects_root", "ssh_host", "remote_projectctl"):
+            configured = value.get(field)
+            if configured is not None:
+                if not isinstance(configured, str) or not configured:
+                    raise ProjectError(f"sync peer {name!r} has invalid {field}")
+                peer[field] = configured
+        peers[name] = peer
+    return peers
+
+
+def validate_sync_target(target: str) -> dict[str, str]:
+    peer = sync_peers().get(target)
+    if peer is None:
+        available = ", ".join(sorted(sync_peers())) or "none"
+        raise ProjectError(
+            f"unknown sync target {target!r}; configured targets: {available}"
+        )
+    return peer
+
+
+def replace_sync_targets(project: Project, targets: list[str]) -> Project:
+    if not project.managed:
+        raise ProjectError(f"initialize project metadata first: {project.root}")
+    manifest_path = project.root / MANIFEST_NAME
+    content = manifest_path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    kept: list[str] = []
+    inside_sync = False
+    found_sync = False
+    for line in lines:
+        section = re.match(r"^\s*\[([^]]+)]\s*(?:#.*)?$", line)
+        if section is not None:
+            name = section.group(1).strip()
+            if name.startswith("sync."):
+                raise ProjectError(
+                    f"{manifest_path}: nested sync tables are not supported"
+                )
+            inside_sync = name == "sync"
+            found_sync = found_sync or inside_sync
+            if inside_sync:
+                continue
+        if not inside_sync:
+            kept.append(line)
+    while kept and not kept[-1].strip():
+        kept.pop()
+    if targets:
+        if kept:
+            kept.append("")
+        kept.extend(
+            [
+                "[sync]",
+                f"targets = {json.dumps(sorted(targets), ensure_ascii=False)}",
+            ]
+        )
+    updated = "\n".join(kept) + "\n"
+    if found_sync or updated != content:
+        atomic_write(manifest_path, updated)
+    return load_project(project.root)
+
+
+def atomic_write(path: Path, content: str) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        if path.exists():
+            temporary.chmod(path.stat().st_mode & 0o777)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def sync_folder_id(project_id: str) -> str:
+    return f"{SYNC_FOLDER_PREFIX}{project_id}"
+
+
+def syncthing_command() -> list[str]:
+    raw = os.environ.get("PROJECTCTL_SYNCTHING_COMMAND_JSON", '["syncthing", "cli"]')
+    try:
+        command = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise ProjectError("PROJECTCTL_SYNCTHING_COMMAND_JSON is invalid") from error
+    if (
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(item, str) and item for item in command)
+    ):
+        raise ProjectError("PROJECTCTL_SYNCTHING_COMMAND_JSON must be a command array")
+    return command
+
+
+def syncthing_run(*arguments: str) -> str:
+    command = [*syncthing_command(), *arguments]
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+    except FileNotFoundError as error:
+        raise ProjectError(f"Syncthing CLI is unavailable: {command[0]}") from error
+    except subprocess.CalledProcessError as error:
+        detail = (
+            error.stderr.strip() or error.stdout.strip() or f"exit {error.returncode}"
+        )
+        raise ProjectError(f"Syncthing CLI failed: {detail}") from error
+    return result.stdout
+
+
+def syncthing_json(*arguments: str) -> Any:
+    output = syncthing_run(*arguments)
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as error:
+        raise ProjectError("Syncthing CLI returned invalid JSON") from error
+
+
+def syncthing_folder_ids() -> list[str]:
+    return [
+        line.strip()
+        for line in syncthing_run("config", "folders", "list").splitlines()
+        if line.strip()
+    ]
+
+
+def syncthing_local_device_id() -> str:
+    status = syncthing_json("show", "system")
+    device_id = status.get("myID") if isinstance(status, dict) else None
+    if not isinstance(device_id, str) or not device_id:
+        raise ProjectError("Syncthing status did not contain this device's ID")
+    return device_id
+
+
+def syncthing_folder(folder_id: str) -> dict[str, Any]:
+    value = syncthing_json("config", "folders", folder_id, "dump-json")
+    if not isinstance(value, dict):
+        raise ProjectError(f"Syncthing folder {folder_id} was not an object")
+    return value
+
+
+def desired_syncthing_folder(
+    *, project_id: str, name: str, path: Path, peer_device_ids: list[str]
+) -> dict[str, Any]:
+    template = syncthing_json("config", "defaults", "folder", "dump-json")
+    if not isinstance(template, dict):
+        raise ProjectError("Syncthing default folder was not an object")
+    local_device_id = syncthing_local_device_id()
+    template.update(
+        {
+            "id": sync_folder_id(project_id),
+            "label": name,
+            "path": str(path),
+            "type": "sendreceive",
+            "devices": [
+                {
+                    "deviceID": device_id,
+                    "introducedBy": "",
+                    "encryptionPassword": "",
+                }
+                for device_id in sorted({local_device_id, *peer_device_ids})
+            ],
+            "versioning": {
+                "type": "staggered",
+                "params": {"cleanInterval": "3600", "maxAge": "31536000"},
+                "cleanupIntervalS": 3600,
+                "fsPath": "",
+                "fsType": "basic",
+            },
+        }
+    )
+    return template
+
+
+def configure_syncthing_folder(folder: dict[str, Any]) -> bool:
+    folder_id = str(folder["id"])
+    existing_ids = set(syncthing_folder_ids())
+    if folder_id in existing_ids and syncthing_folder(folder_id) == folder:
+        return False
+    syncthing_run(
+        "config", "folders", "add-json", json.dumps(folder, separators=(",", ":"))
+    )
+    return True
+
+
+def delete_syncthing_folder(folder_id: str) -> bool:
+    if folder_id not in set(syncthing_folder_ids()):
+        return False
+    syncthing_run("config", "folders", folder_id, "delete")
+    return True
+
+
+def write_sync_ignores(root: Path) -> None:
+    path = root / ".stignore"
+    block = "\n".join((SYNC_IGNORE_BEGIN, *SYNC_IGNORE_PATTERNS, SYNC_IGNORE_END))
+    if not path.exists():
+        atomic_write(path, block + "\n")
+        return
+    content = path.read_text(encoding="utf-8")
+    begin = content.find(SYNC_IGNORE_BEGIN)
+    end = content.find(SYNC_IGNORE_END)
+    if (begin == -1) != (end == -1) or (begin != -1 and end < begin):
+        raise ProjectError(f"{path}: malformed projectctl managed ignore block")
+    if begin == -1:
+        separator = "" if not content or content.endswith("\n\n") else "\n"
+        updated = content + separator + block + "\n"
+    else:
+        end += len(SYNC_IGNORE_END)
+        updated = content[:begin] + block + content[end:]
+    if updated != content:
+        atomic_write(path, updated)
+
+
 def command_create(args: argparse.Namespace) -> int:
     root = projects_root()
     root.mkdir(parents=True, exist_ok=True)
@@ -445,6 +730,12 @@ def command_capabilities(args: argparse.Namespace) -> int:
             "session",
             "shell",
             "show",
+            "sync.apply-plan",
+            "sync.deploy",
+            "sync.disable",
+            "sync.enable",
+            "sync.reconcile",
+            "sync.status",
             "unarchive",
         ],
     }
@@ -492,6 +783,311 @@ def command_show(args: argparse.Namespace) -> int:
             "jupyter_url",
         ):
             print(f"{key}: {payload[key]}")
+    return 0
+
+
+def command_sync_enable(args: argparse.Namespace) -> int:
+    validate_sync_target(args.target)
+    project = resolve_project(args.project)
+    targets = sync_targets(project)
+    if args.target not in targets:
+        targets.append(args.target)
+    updated = replace_sync_targets(project, targets)
+    payload = {
+        "project": updated.payload(),
+        "changed": sync_targets(project) != sync_targets(updated),
+        "applied": False,
+        "next": f"projectctl sync deploy {args.target}",
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            f"{updated.name}: desired sync target {args.target}; "
+            f"apply with {payload['next']}"
+        )
+    return 0
+
+
+def command_sync_disable(args: argparse.Namespace) -> int:
+    validate_sync_target(args.target)
+    project = resolve_project(args.project)
+    targets = sync_targets(project)
+    updated = replace_sync_targets(
+        project, [target for target in targets if target != args.target]
+    )
+    payload = {
+        "project": updated.payload(),
+        "changed": sync_targets(project) != sync_targets(updated),
+        "applied": False,
+        "files_preserved": True,
+        "next": f"projectctl sync deploy {args.target}",
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            f"{updated.name}: removed desired sync target {args.target}; "
+            f"files will be preserved when applying with {payload['next']}"
+        )
+    return 0
+
+
+def desired_server_folders() -> dict[str, dict[str, Any]]:
+    peers = sync_peers()
+    desired: dict[str, dict[str, Any]] = {}
+    for project in discover_projects(include_archived=True):
+        targets = sync_targets(project)
+        if not targets:
+            continue
+        if not project.managed:
+            raise ProjectError(f"initialize project metadata first: {project.root}")
+        unknown = sorted(set(targets) - set(peers))
+        if unknown:
+            raise ProjectError(
+                f"{project.root / MANIFEST_NAME}: unknown sync targets: "
+                + ", ".join(unknown)
+            )
+        desired[sync_folder_id(project.id)] = desired_syncthing_folder(
+            project_id=project.id,
+            name=project.name,
+            path=project.root,
+            peer_device_ids=[peers[target]["device_id"] for target in targets],
+        )
+    return desired
+
+
+def reconcile_folders(desired: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+    existing = set(syncthing_folder_ids())
+    created_or_updated: list[str] = []
+    removed: list[str] = []
+    unchanged: list[str] = []
+    for folder_id, folder in sorted(desired.items()):
+        root = Path(str(folder["path"]))
+        root.mkdir(parents=True, exist_ok=True)
+        write_sync_ignores(root)
+        if configure_syncthing_folder(folder):
+            created_or_updated.append(folder_id)
+        else:
+            unchanged.append(folder_id)
+    for folder_id in sorted(existing - set(desired)):
+        if folder_id.startswith(SYNC_FOLDER_PREFIX) and delete_syncthing_folder(
+            folder_id
+        ):
+            removed.append(folder_id)
+    return {
+        "created_or_updated": created_or_updated,
+        "removed": removed,
+        "unchanged": unchanged,
+    }
+
+
+def command_sync_reconcile(args: argparse.Namespace) -> int:
+    if os.environ.get("PROJECTCTL_SYNC_ROLE", "server") != "server":
+        raise ProjectError("sync reconcile is authoritative on the server only")
+    result = reconcile_folders(desired_server_folders())
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(
+            "Syncthing reconciled: "
+            f"{len(result['created_or_updated'])} changed, "
+            f"{len(result['unchanged'])} unchanged, "
+            f"{len(result['removed'])} removed (files preserved)."
+        )
+    return 0
+
+
+def sync_plan(target: str) -> dict[str, Any]:
+    peer = validate_sync_target(target)
+    projects = []
+    for project in discover_projects(include_archived=True):
+        if target in sync_targets(project):
+            if not project.managed:
+                raise ProjectError(f"initialize project metadata first: {project.root}")
+            projects.append(
+                {
+                    "id": project.id,
+                    "name": project.name,
+                    "title": project.title,
+                }
+            )
+    return {
+        "api_version": PROJECTCTL_API_VERSION,
+        "target": target,
+        "target_projects_root": peer.get("projects_root"),
+        "source_device_id": syncthing_local_device_id(),
+        "projects": projects,
+    }
+
+
+def validate_plan(plan: Any) -> tuple[str, list[dict[str, str]]]:
+    if not isinstance(plan, dict) or plan.get("api_version") != PROJECTCTL_API_VERSION:
+        raise ProjectError("sync plan has an unsupported API version")
+    source_device_id = plan.get("source_device_id")
+    projects = plan.get("projects")
+    if not isinstance(source_device_id, str) or not source_device_id:
+        raise ProjectError("sync plan is missing source_device_id")
+    if not isinstance(projects, list):
+        raise ProjectError("sync plan projects must be an array")
+    validated: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+    for item in projects:
+        if not isinstance(item, dict):
+            raise ProjectError("sync plan project entries must be objects")
+        project_id = item.get("id")
+        name = item.get("name")
+        title = item.get("title")
+        if not all(
+            isinstance(value, str) and value for value in (project_id, name, title)
+        ):
+            raise ProjectError("sync plan project entries require id, name, and title")
+        try:
+            uuid.UUID(project_id)
+        except ValueError as error:
+            raise ProjectError("sync plan project id must be a UUID") from error
+        if slugify(name) != name:
+            raise ProjectError("sync plan project name must be a lowercase slug")
+        if project_id in seen_ids or name in seen_names:
+            raise ProjectError("sync plan contains duplicate projects")
+        seen_ids.add(project_id)
+        seen_names.add(name)
+        validated.append({"id": project_id, "name": name, "title": title})
+    return source_device_id, validated
+
+
+def prepare_target_directory(project: dict[str, str]) -> Path:
+    target = (projects_root() / project["name"]).resolve()
+    try:
+        target.relative_to(projects_root())
+    except ValueError:
+        raise ProjectError("sync plan escaped the projects root") from None
+    if target.is_symlink():
+        raise ProjectError(f"refusing to sync into symlink: {target}")
+    if target.exists():
+        entries = [
+            entry
+            for entry in target.iterdir()
+            if entry.name not in {".stfolder", ".stignore", ".stversions"}
+        ]
+        if entries:
+            manifest = target / MANIFEST_NAME
+            if not manifest.is_file() or load_project(target).id != project["id"]:
+                raise ProjectError(
+                    f"target is non-empty and is not the same managed project: {target}"
+                )
+    else:
+        target.mkdir(parents=True, mode=0o755)
+    write_sync_ignores(target)
+    return target
+
+
+def command_sync_apply_plan(args: argparse.Namespace) -> int:
+    if os.environ.get("PROJECTCTL_SYNC_ROLE") != "target":
+        raise ProjectError(
+            "sync apply-plan is available on configured target devices only"
+        )
+    try:
+        plan = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        raise ProjectError("sync plan was not valid JSON") from error
+    source_device_id, projects = validate_plan(plan)
+    desired: dict[str, dict[str, Any]] = {}
+    for project in projects:
+        target = prepare_target_directory(project)
+        desired[sync_folder_id(project["id"])] = desired_syncthing_folder(
+            project_id=project["id"],
+            name=project["name"],
+            path=target,
+            peer_device_ids=[source_device_id],
+        )
+    result = reconcile_folders(desired)
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(
+            "Target Syncthing reconciled: "
+            f"{len(result['created_or_updated'])} changed, "
+            f"{len(result['unchanged'])} unchanged, "
+            f"{len(result['removed'])} removed (files preserved)."
+        )
+    return 0
+
+
+def command_sync_deploy(args: argparse.Namespace) -> int:
+    if os.environ.get("PROJECTCTL_SYNC_ROLE", "server") != "server":
+        raise ProjectError("sync deploy is authoritative on the server only")
+    peer = validate_sync_target(args.target)
+    ssh_host = peer.get("ssh_host")
+    remote_projectctl = peer.get("remote_projectctl")
+    if ssh_host is None or remote_projectctl is None:
+        raise ProjectError(f"sync target {args.target!r} is not deployable")
+    plan = sync_plan(args.target)
+    command = [
+        os.environ.get("PROJECTCTL_SSH_BIN", "ssh"),
+        ssh_host,
+        remote_projectctl,
+        "sync",
+        "apply-plan",
+        "--json",
+    ]
+    try:
+        remote = subprocess.run(
+            command,
+            input=json.dumps(plan),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise ProjectError(f"SSH is unavailable: {command[0]}") from error
+    except subprocess.CalledProcessError as error:
+        detail = (
+            error.stderr.strip() or error.stdout.strip() or f"exit {error.returncode}"
+        )
+        raise ProjectError(f"target reconciliation failed: {detail}") from error
+    try:
+        target_result = json.loads(remote.stdout)
+    except json.JSONDecodeError as error:
+        raise ProjectError("target reconciliation returned invalid JSON") from error
+    local = reconcile_folders(desired_server_folders())
+    payload = {
+        "target": args.target,
+        "projects": plan["projects"],
+        "target_result": target_result,
+        "server_result": local,
+        "files_preserved_on_removal": True,
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            f"Deployed {len(plan['projects'])} project sync relationship(s) "
+            f"to {args.target}; removals preserved files."
+        )
+    return 0
+
+
+def command_sync_status(args: argparse.Namespace) -> int:
+    project = resolve_project(args.project)
+    folder_id = sync_folder_id(project.id)
+    configured = folder_id in set(syncthing_folder_ids())
+    payload = {
+        "project": project.payload(),
+        "folder_id": folder_id,
+        "desired_targets": sync_targets(project),
+        "local_configured": configured,
+        "local_folder": syncthing_folder(folder_id) if configured else None,
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        targets = ", ".join(payload["desired_targets"]) or "none"
+        print(f"project: {project.name}")
+        print(f"folder_id: {folder_id}")
+        print(f"desired_targets: {targets}")
+        print(f"local_configured: {'yes' if configured else 'no'}")
     return 0
 
 
@@ -874,9 +1470,7 @@ def parser() -> argparse.ArgumentParser:
     execute.add_argument("arguments", nargs=argparse.REMAINDER)
     execute.set_defaults(func=command_exec)
 
-    restored_stdout = commands.add_parser(
-        "_exec-with-stdout", help=argparse.SUPPRESS
-    )
+    restored_stdout = commands.add_parser("_exec-with-stdout", help=argparse.SUPPRESS)
     restored_stdout.add_argument("stdout_fd", type=int)
     restored_stdout.add_argument("arguments", nargs=argparse.REMAINDER)
     restored_stdout.set_defaults(func=command_exec_with_stdout)
@@ -898,6 +1492,49 @@ def parser() -> argparse.ArgumentParser:
     )
     env_lock.add_argument("project")
     env_lock.set_defaults(func=command_env_lock)
+
+    sync = commands.add_parser("sync", help="manage opt-in project synchronization")
+    sync_commands = sync.add_subparsers(dest="sync_command", required=True)
+
+    sync_enable = sync_commands.add_parser(
+        "enable", help="declare a project sync target without contacting it"
+    )
+    sync_enable.add_argument("project")
+    sync_enable.add_argument("--target", required=True)
+    sync_enable.add_argument("--json", action="store_true")
+    sync_enable.set_defaults(func=command_sync_enable)
+
+    sync_disable = sync_commands.add_parser(
+        "disable", help="remove a desired project sync target and preserve files"
+    )
+    sync_disable.add_argument("project")
+    sync_disable.add_argument("--target", required=True)
+    sync_disable.add_argument("--json", action="store_true")
+    sync_disable.set_defaults(func=command_sync_disable)
+
+    sync_status = sync_commands.add_parser(
+        "status", help="show desired and local Syncthing state for a project"
+    )
+    sync_status.add_argument("project")
+    sync_status.add_argument("--json", action="store_true")
+    sync_status.set_defaults(func=command_sync_status)
+
+    sync_reconcile = sync_commands.add_parser(
+        "reconcile", help="apply all project sync declarations on this server"
+    )
+    sync_reconcile.add_argument("--json", action="store_true")
+    sync_reconcile.set_defaults(func=command_sync_reconcile)
+
+    sync_deploy = sync_commands.add_parser(
+        "deploy", help="reconcile a target device and then the server"
+    )
+    sync_deploy.add_argument("target")
+    sync_deploy.add_argument("--json", action="store_true")
+    sync_deploy.set_defaults(func=command_sync_deploy)
+
+    sync_apply_plan = sync_commands.add_parser("apply-plan", help=argparse.SUPPRESS)
+    sync_apply_plan.add_argument("--json", action="store_true")
+    sync_apply_plan.set_defaults(func=command_sync_apply_plan)
 
     jupyter = commands.add_parser(
         "jupyter", help="print the JupyterLab URL for a project"

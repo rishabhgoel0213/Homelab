@@ -14,7 +14,8 @@ project adds `project.toml`, which carries:
 - conventional paths for source material, notebooks, notes, code, figures, and
   generated artifacts;
 - the project-owned Nix flake path;
-- the Jupyter kernel command.
+- the Jupyter kernel command;
+- optional Syncthing targets under `[sync]`.
 
 The filesystem remains the source of truth. The manifest is portable metadata,
 not a database, and native Codex or Pi conversation state remains in each
@@ -64,6 +65,47 @@ Use `--clean-stdout` for commands whose stdout is a machine protocol. Nix and
 development-shell startup output is sent to stderr, then the original stdout is
 restored immediately before the command starts. The command's own stdout and
 stderr remain distinct.
+
+New project flakes expose the same development shell on `x86_64-linux` and
+`aarch64-darwin`. Existing projects remain valid, but must add a Darwin output
+before their Nix environment can be entered on the Mac.
+
+## Project Sync
+
+Project synchronization is opt-in and declarative. The project manifest records
+desired targets while each project gets an independent Syncthing folder. Server
+and Mac paths remain conventional and do not need to match:
+
+```text
+/home/rishabh/Projects/<name>
+/Users/rishabhgoel/Projects/<name>
+```
+
+Declare or remove desired state without contacting the target:
+
+```bash
+projectctl sync enable linear-algebra --target macbook
+projectctl sync disable linear-algebra --target macbook
+projectctl sync status linear-algebra
+```
+
+Apply every declaration for the Mac as one explicit deployment:
+
+```bash
+projectctl sync deploy macbook
+```
+
+Deployment first reconciles the Mac, then the server. It refuses to merge into
+an unrelated non-empty destination. Removing a relationship deletes only the
+Syncthing folder configuration; files remain on both devices. A server-only
+recovery reconciliation is available as `projectctl sync reconcile`.
+
+Folder IDs are derived from the stable project UUID, so renaming a display title
+does not create another share. Reconciliation owns only folder IDs beginning
+with `project-`; manually managed Documents, Photos, and device folders are not
+modified. Every managed project folder is bidirectional, uses staggered
+versioning, and receives local `.stignore` defaults for Git metadata, Nix build
+outputs, editor caches, notebook caches, and CMSC 216 transfer backups.
 
 ## JupyterLab
 

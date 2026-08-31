@@ -1,10 +1,12 @@
 # Syncthing Runbook
 
-Syncthing provides a private, Google Drive-like synced folder between this
-server and personal devices. The current shared folder is:
+Syncthing provides private folders between this server and personal devices.
+Long-lived personal shares such as Documents remain manually managed in
+Syncthing. Durable projects use `projectctl` and are independently opt-in:
 
 ```text
 /home/rishabh/Documents
+/home/rishabh/Projects/<project>
 ```
 
 The service listens for sync traffic on the Tailscale interface and keeps the
@@ -61,3 +63,20 @@ tcp://100.73.159.103:22000
 
 After pairing, Finder accesses the Mac's local synced folder. Changes sync in
 both directions whenever both devices are online.
+
+## Project Folders
+
+Do not place a dedicated project share inside the existing Documents share;
+nested Syncthing folders are intentionally avoided. Use the project control
+plane instead:
+
+```bash
+projectctl sync enable <project> --target macbook
+projectctl sync deploy macbook
+projectctl sync status <project>
+```
+
+The Mac receives project folders under `/Users/rishabhgoel/Projects`. The
+manifest change is harmless until the explicit deploy command crosses the Mac
+boundary. `projectctl sync disable ...` followed by deploy unshares a project
+without deleting either local copy.

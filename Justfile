@@ -73,6 +73,18 @@ project-session project harness="codex":
 project-jupyter project:
     projectctl jupyter "{{project}}"
 
+project-sync-enable project target="macbook":
+    projectctl sync enable "{{project}}" --target "{{target}}"
+
+project-sync-disable project target="macbook":
+    projectctl sync disable "{{project}}" --target "{{target}}"
+
+project-sync-status project:
+    projectctl sync status "{{project}}"
+
+project-sync-deploy target="macbook":
+    projectctl sync deploy "{{target}}"
+
 backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 

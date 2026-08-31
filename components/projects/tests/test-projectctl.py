@@ -23,6 +23,40 @@ class ProjectCtlTests(unittest.TestCase):
         self.projects = self.root / "Projects"
         self.projects.mkdir()
         self.kernels = self.root / "kernels"
+        self.syncthing_state = self.root / "syncthing.json"
+        self.syncthing_state.write_text('{"folders": {}}\n', encoding="utf-8")
+        self.syncthing_cli = self.root / "fake-syncthing.py"
+        self.syncthing_cli.write_text(
+            f"#!{sys.executable}\n"
+            "import json, sys\n"
+            "from pathlib import Path\n"
+            "state_path = Path(sys.argv[1])\n"
+            "args = sys.argv[2:]\n"
+            "state = json.loads(state_path.read_text())\n"
+            "folders = state['folders']\n"
+            "default = {\n"
+            "  'id': '', 'label': '', 'path': '', 'type': 'sendreceive',\n"
+            "  'devices': [], 'fsWatcherEnabled': True, 'rescanIntervalS': 3600,\n"
+            "  'versioning': {'type': '', 'params': {}, 'cleanupIntervalS': 3600, 'fsPath': '', 'fsType': 'basic'}\n"
+            "}\n"
+            "if args == ['show', 'system']:\n"
+            "    print(json.dumps({'myID': 'LOCAL-DEVICE'}))\n"
+            "elif args == ['config', 'folders', 'list']:\n"
+            "    print('\\n'.join(sorted(folders)))\n"
+            "elif args == ['config', 'defaults', 'folder', 'dump-json']:\n"
+            "    print(json.dumps(default))\n"
+            "elif len(args) == 4 and args[:2] == ['config', 'folders'] and args[3] == 'dump-json':\n"
+            "    print(json.dumps(folders[args[2]]))\n"
+            "elif len(args) == 4 and args[:3] == ['config', 'folders', 'add-json']:\n"
+            "    folder = json.loads(args[3]); folders[folder['id']] = folder\n"
+            "    state_path.write_text(json.dumps(state))\n"
+            "elif len(args) == 4 and args[:2] == ['config', 'folders'] and args[3] == 'delete':\n"
+            "    folders.pop(args[2], None); state_path.write_text(json.dumps(state))\n"
+            "else:\n"
+            "    print('unsupported fake Syncthing arguments: ' + repr(args), file=sys.stderr); sys.exit(2)\n",
+            encoding="utf-8",
+        )
+        self.syncthing_cli.chmod(0o755)
         self.environment = os.environ.copy()
         self.environment.update(
             {
@@ -31,6 +65,20 @@ class ProjectCtlTests(unittest.TestCase):
                 "PROJECTCTL_JUPYTER_ROOT": "/",
                 "PROJECTCTL_JUPYTER_KERNEL_DIR": str(self.kernels),
                 "PROJECTCTL_SELF": "/run/current-system/sw/bin/projectctl",
+                "PROJECTCTL_SYNC_ROLE": "server",
+                "PROJECTCTL_SYNC_PEERS_JSON": json.dumps(
+                    {
+                        "macbook": {
+                            "device_id": "MAC-DEVICE",
+                            "projects_root": "/Users/test/Projects",
+                            "ssh_host": "test@macbook",
+                            "remote_projectctl": "/run/current-system/sw/bin/projectctl",
+                        }
+                    }
+                ),
+                "PROJECTCTL_SYNCTHING_COMMAND_JSON": json.dumps(
+                    [sys.executable, str(self.syncthing_cli), str(self.syncthing_state)]
+                ),
             }
         )
 
@@ -38,7 +86,7 @@ class ProjectCtlTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def run_projectctl(
-        self, *arguments: str, check: bool = True
+        self, *arguments: str, check: bool = True, input_text: str | None = None
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(SCRIPT), *arguments],
@@ -46,6 +94,7 @@ class ProjectCtlTests(unittest.TestCase):
             capture_output=True,
             text=True,
             env=self.environment,
+            input=input_text,
         )
 
     def create_project(self, name: str = "Linear Algebra") -> Path:
@@ -73,6 +122,7 @@ class ProjectCtlTests(unittest.TestCase):
         self.assertEqual(1, len(listing["projects"]))
         self.assertTrue(listing["projects"][0]["managed"])
         self.assertEqual("nix", listing["projects"][0]["environment"])
+        self.assertIn("aarch64-darwin", (project / "flake.nix").read_text())
 
     def test_existing_directories_are_usable_and_can_be_initialized_without_overwrite(
         self,
@@ -108,6 +158,7 @@ class ProjectCtlTests(unittest.TestCase):
         capabilities = json.loads(self.run_projectctl("capabilities", "--json").stdout)
         self.assertEqual(1, capabilities["api_version"])
         self.assertIn("unarchive", capabilities["operations"])
+        self.assertIn("sync.deploy", capabilities["operations"])
 
         archived = json.loads(
             self.run_projectctl("archive", "lifecycle", "--json").stdout
@@ -238,6 +289,71 @@ class ProjectCtlTests(unittest.TestCase):
         result = self.run_projectctl("show", str(outside), check=False)
         self.assertEqual(2, result.returncode)
         self.assertIn("must be under", result.stderr)
+
+    def test_project_sync_is_declarative_and_reconcile_preserves_files(self) -> None:
+        project = self.create_project("Sync Me")
+        enabled = json.loads(
+            self.run_projectctl(
+                "sync", "enable", "sync-me", "--target", "macbook", "--json"
+            ).stdout
+        )
+        self.assertEqual(["macbook"], enabled["project"]["sync_targets"])
+        self.assertEqual({}, json.loads(self.syncthing_state.read_text())["folders"])
+
+        reconciled = json.loads(
+            self.run_projectctl("sync", "reconcile", "--json").stdout
+        )
+        folder_id = f"project-{enabled['project']['id']}"
+        self.assertEqual([folder_id], reconciled["created_or_updated"])
+        folder = json.loads(self.syncthing_state.read_text())["folders"][folder_id]
+        self.assertEqual(str(project), folder["path"])
+        self.assertEqual("staggered", folder["versioning"]["type"])
+        self.assertEqual(
+            ["LOCAL-DEVICE", "MAC-DEVICE"],
+            [device["deviceID"] for device in folder["devices"]],
+        )
+        self.assertIn("(?d).git", (project / ".stignore").read_text())
+
+        sentinel = project / "keep-me.txt"
+        sentinel.write_text("preserved\n", encoding="utf-8")
+        disabled = json.loads(
+            self.run_projectctl(
+                "sync", "disable", "sync-me", "--target", "macbook", "--json"
+            ).stdout
+        )
+        self.assertTrue(disabled["files_preserved"])
+        self.run_projectctl("sync", "reconcile", "--json")
+        self.assertNotIn(
+            folder_id, json.loads(self.syncthing_state.read_text())["folders"]
+        )
+        self.assertEqual("preserved\n", sentinel.read_text(encoding="utf-8"))
+
+    def test_target_plan_rejects_unrelated_nonempty_destination(self) -> None:
+        destination = self.projects / "collision"
+        destination.mkdir()
+        (destination / "unrelated.txt").write_text("do not merge\n", encoding="utf-8")
+        self.environment["PROJECTCTL_SYNC_ROLE"] = "target"
+        plan = {
+            "api_version": 1,
+            "source_device_id": "SERVER-DEVICE",
+            "projects": [
+                {
+                    "id": "1321b75a-0d91-4f3a-a620-1146aa8f274b",
+                    "name": "collision",
+                    "title": "Collision",
+                }
+            ],
+        }
+        result = self.run_projectctl(
+            "sync",
+            "apply-plan",
+            "--json",
+            check=False,
+            input_text=json.dumps(plan),
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("non-empty", result.stderr)
+        self.assertEqual("do not merge\n", (destination / "unrelated.txt").read_text())
 
 
 if __name__ == "__main__":

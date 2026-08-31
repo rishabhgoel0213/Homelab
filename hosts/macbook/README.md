@@ -230,6 +230,21 @@ Set `MACBOOK_SSH_HOST` or `MACBOOK_NIX_STORE` if the MagicDNS name differs. The
 activation remains deliberately interactive and requires the explicit
 `MACBOOK_DEPLOY_CONFIRM=deploy` guard plus Mac sudo authentication.
 
+The workstation profile also installs `projectctl` with the Mac project root at
+`/Users/rishabhgoel/Projects`. Project synchronization remains disabled until a
+server manifest explicitly names the Mac and the separate sync deployment is
+run:
+
+```sh
+projectctl sync enable <project> --target macbook
+projectctl sync deploy macbook
+```
+
+The first command only edits project desired state. The second connects to the
+Mac, refuses an unrelated non-empty destination, configures the independent
+Syncthing folder on both devices, and preserves files when relationships are
+later removed.
+
 ## State-preserving application cutover
 
 Do not delete Zen or Tabby profiles. First launch the Nix app from
