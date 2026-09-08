@@ -37,6 +37,7 @@ let
       pkgs.clang-tools
       pkgs.coreutils
       pkgs.gnugrep
+      pkgs.python3
       pkgs.rsync
     ];
     text = ''
@@ -46,6 +47,7 @@ let
       export CMSC216_DATA_ROOT=${lib.escapeShellArg dataRoot}
       export CMSC216_CODIUM_BIN=${lib.escapeShellArg "${managedVscodium}/bin/codium"}
       export CMSC216_AUTH_PERSIST=${lib.escapeShellArg authPersist}
+      export CMSC216_DOWNLOAD_SCRIPT=${./bin/download-lab.py}
 
       ${builtins.readFile ./bin/cmsc216}
     '';
@@ -135,6 +137,10 @@ let
               {
                 label = "CMSC 216: Doctor";
                 args = [ "doctor" ];
+              }
+              {
+                label = "CMSC 216: Download Next Lab";
+                args = [ "next-lab" ];
               }
               {
                 label = "CMSC 216: Authenticate with Duo";

@@ -52,6 +52,7 @@ never request remote deletion.
 
 ```bash
 cmsc216 doctor
+cmsc216 next-lab
 cmsc216 auth
 cmsc216 auth-status
 cmsc216 sync
@@ -61,6 +62,14 @@ cmsc216 shell
 cmsc216 auth-clear
 cmsc216 exam-check
 ```
+
+`cmsc216 next-lab` reads the public course schedule and follows lab-page links
+to find the lowest-numbered lab not already present in the local course root.
+Existing `lab01-code` folders and `lab1-code.zip` archives both count as present.
+It validates and saves the ZIP without overwriting files or extracting it.
+If all posted labs are present, it reports that there is nothing new; broken
+links or missing archives produce an error without leaving a partial ZIP.
+No Zaratan login is required. The editor also offers **Download Next Lab**.
 
 `cmsc216 test` uploads local files and runs `make test` in the corresponding
 Zaratan directory. Use `cmsc216 run COMMAND...` for assignment-specific test
