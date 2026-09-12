@@ -10,12 +10,14 @@ import fcntl
 import hashlib
 import hmac
 import html
+import http.client
 import json
 import mimetypes
 import os
 import re
 import secrets
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -59,6 +61,7 @@ PAIRING_TTL_SECONDS = 10 * 60
 OAUTH_STATE_TTL_SECONDS = 20 * 60
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 HTTP_TIMEOUT_SECONDS = 45
+SOCKET_MARK = int(os.environ.get("CANVAS_BRIDGE_SOCKET_MARK", "0"), 0)
 
 DOWNLOADABLE_TYPES = {
     "application/pdf",
@@ -468,6 +471,55 @@ class HTTPResult:
     url: str
 
 
+def marked_create_connection(
+    address: tuple[str, int],
+    timeout: float | object = socket._GLOBAL_DEFAULT_TIMEOUT,
+    source_address: tuple[str, int] | None = None,
+) -> socket.socket:
+    """Create a connection after applying the configured Linux routing mark."""
+    host, port = address
+    exceptions: list[OSError] = []
+    for family, socktype, protocol, _, socket_address in socket.getaddrinfo(
+        host, port, 0, socket.SOCK_STREAM
+    ):
+        connection = None
+        try:
+            connection = socket.socket(family, socktype, protocol)
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                connection.settimeout(timeout)
+            if source_address:
+                connection.bind(source_address)
+            if SOCKET_MARK:
+                connection.setsockopt(socket.SOL_SOCKET, socket.SO_MARK, SOCKET_MARK)
+            connection.connect(socket_address)
+            exceptions.clear()
+            return connection
+        except OSError as error:
+            exceptions.clear()
+            exceptions.append(error)
+            if connection is not None:
+                connection.close()
+    if exceptions:
+        raise exceptions[0]
+    raise OSError("getaddrinfo returns an empty list")
+
+
+class MarkedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._create_connection = marked_create_connection
+
+
+class MarkedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, request: urllib.request.Request) -> Any:
+        return self.do_open(MarkedHTTPSConnection, request, context=self._context)
+
+
+def safe_request_url(value: str) -> str:
+    parsed = urllib.parse.urlsplit(value)
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+
+
 class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Never forward an OAuth bearer token across host boundaries."""
 
@@ -514,14 +566,16 @@ class SafeHTTPClient:
             data = urllib.parse.urlencode(form).encode()
             request_headers["Content-Type"] = "application/x-www-form-urlencoded"
         request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
-        opener = urllib.request.build_opener(SafeRedirectHandler())
+        opener = urllib.request.build_opener(SafeRedirectHandler(), MarkedHTTPSHandler())
         try:
             with opener.open(request, timeout=timeout) as response:
                 return HTTPResult(response.read(), response.headers, response.status, response.url)
         except urllib.error.HTTPError as error:
             safe_body = error.read(4096).decode("utf-8", errors="replace")
             safe_body = re.sub(r'("(?:access|refresh)_token"\s*:\s*")[^"]+', r'\1[redacted]', safe_body)
-            raise RuntimeError(f"Remote service returned HTTP {error.code}: {safe_body[:500]}") from None
+            raise RuntimeError(
+                f"Remote service returned HTTP {error.code} for {safe_request_url(url)}: {safe_body[:500]}"
+            ) from None
         except urllib.error.URLError as error:
             raise RuntimeError(f"Could not reach the remote service: {error.reason}") from None
 
@@ -818,19 +872,21 @@ class SyncEngine:
                     "/api/v1/courses?enrollment_state=active&state[]=available"
                     "&include[]=term&include[]=syllabus_body&per_page=100"
                 )
-                self.db.execute("UPDATE courses SET active = 0")
             for course in courses:
                 course_id = str(course["id"])
                 timestamp = now_iso()
+                active = 1 if course_ids else 0
                 self.db.execute(
                     """
                     INSERT INTO courses(
                         id, name, course_code, term_name, start_at, end_at, active, json, synced_at
-                    ) VALUES(?, ?, ?, ?, ?, ?, 1, ?, ?)
+                    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         name = excluded.name, course_code = excluded.course_code,
                         term_name = excluded.term_name, start_at = excluded.start_at,
-                        end_at = excluded.end_at, active = 1, json = excluded.json,
+                        end_at = excluded.end_at,
+                        active = CASE WHEN excluded.active = 1 THEN 1 ELSE courses.active END,
+                        json = excluded.json,
                         synced_at = excluded.synced_at
                     """,
                     (
@@ -840,6 +896,7 @@ class SyncEngine:
                         str((course.get("term") or {}).get("name") or ""),
                         course.get("start_at"),
                         course.get("end_at"),
+                        active,
                         compact_json(sanitize_metadata(course)),
                         timestamp,
                     ),
@@ -864,6 +921,16 @@ class SyncEngine:
                     summary[key] += count
                 summary["courses"] += 1
                 self.db.commit()
+
+            if not course_ids:
+                active_course_ids = [str(course["id"]) for course in courses]
+                self.db.execute("UPDATE courses SET active = 0")
+                if active_course_ids:
+                    placeholders = ",".join("?" for _ in active_course_ids)
+                    self.db.execute(
+                        f"UPDATE courses SET active = 1 WHERE id IN ({placeholders})",
+                        active_course_ids,
+                    )
 
             completed = now_iso()
             self.db.execute(

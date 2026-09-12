@@ -45,6 +45,9 @@ in
         CANVAS_BRIDGE_PUBLIC_URL = "https://canvas.${homelab.internalDomain}";
         CANVAS_BRIDGE_CANVAS_URL = "https://umd.instructure.com";
         CANVAS_BRIDGE_SYNC_INTERVAL = toString cfg.syncInterval;
+        # Tailscale's 0x80000 packet mark selects the normal uplink instead of
+        # the configured Mullvad exit node. UMD rejects that shared VPN egress.
+        CANVAS_BRIDGE_SOCKET_MARK = "0x80000";
         PYTHONDONTWRITEBYTECODE = "1";
       };
 
@@ -56,6 +59,11 @@ in
         Restart = "on-failure";
         RestartSec = "5s";
         UMask = "0077";
+
+        # Linux permits SO_MARK with CAP_NET_RAW. Keep the routing exception
+        # scoped to sockets created by this service.
+        AmbientCapabilities = [ "CAP_NET_RAW" ];
+        CapabilityBoundingSet = [ "CAP_NET_RAW" ];
 
         NoNewPrivileges = true;
         PrivateDevices = true;

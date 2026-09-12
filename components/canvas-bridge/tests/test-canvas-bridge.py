@@ -353,6 +353,73 @@ class CanvasBridgeTests(unittest.TestCase):
         self.assertIsNotNone(redirected)
         self.assertIsNone(redirected.get_header("Authorization"))
 
+    def test_routing_mark_is_applied_before_connect(self):
+        connection = mock.Mock()
+        address = (self.bridge.socket.AF_INET, self.bridge.socket.SOCK_STREAM, 6, "", ("192.0.2.1", 443))
+        with mock.patch.object(self.bridge.socket, "getaddrinfo", return_value=[address]):
+            with mock.patch.object(self.bridge.socket, "socket", return_value=connection):
+                with mock.patch.object(self.bridge, "SOCKET_MARK", 0x80000):
+                    result = self.bridge.marked_create_connection(("example.test", 443), timeout=10)
+        self.assertIs(connection, result)
+        self.assertEqual(
+            [
+                mock.call.settimeout(10),
+                mock.call.setsockopt(
+                    self.bridge.socket.SOL_SOCKET,
+                    self.bridge.socket.SO_MARK,
+                    0x80000,
+                ),
+                mock.call.connect(("192.0.2.1", 443)),
+            ],
+            connection.method_calls,
+        )
+
+    def test_http_error_identifies_endpoint_without_query_values(self):
+        client = self.bridge.SafeHTTPClient()
+        error = self.bridge.urllib.error.HTTPError(
+            "https://umd.instructure.com/api/v1/files/1?verifier=secret",
+            406,
+            "Not Acceptable",
+            {},
+            None,
+        )
+        error.read = mock.Mock(return_value=b"blocked")
+        opener = mock.Mock()
+        opener.open.side_effect = error
+        with mock.patch.object(self.bridge.urllib.request, "build_opener", return_value=opener):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"HTTP 406 for https://umd\.instructure\.com/api/v1/files/1: blocked",
+            ) as raised:
+                client.request("https://umd.instructure.com/api/v1/files/1?verifier=secret")
+        self.assertNotIn("secret", str(raised.exception))
+
+    def test_failed_full_sync_preserves_previous_active_course_set(self):
+        with self.bridge.db_session() as db:
+            db.executemany(
+                """
+                INSERT INTO courses(id, name, active, json, synced_at)
+                VALUES(?, ?, ?, '{}', '2026-01-01T00:00:00+00:00')
+                """,
+                [("old-active", "Old active", 1), ("old-inactive", "Old inactive", 0)],
+            )
+            db.commit()
+            engine = self.bridge.SyncEngine(db)
+            incoming = {
+                "id": "new-course",
+                "name": "New course",
+                "course_code": "NEW100",
+                "term": {"name": "Fall 2026"},
+            }
+            with mock.patch.object(engine.canvas, "paginated", return_value=[incoming]):
+                with mock.patch.object(engine, "_sync_course", side_effect=RuntimeError("failed")):
+                    with self.assertRaisesRegex(RuntimeError, "failed"):
+                        engine.run()
+            states = dict(db.execute("SELECT id, active FROM courses"))
+        self.assertEqual(1, states["old-active"])
+        self.assertEqual(0, states["old-inactive"])
+        self.assertEqual(0, states["new-course"])
+
     def test_attachment_ids_are_found_without_persisting_signed_urls(self):
         description = (
             '<a href="https://umd.instructure.com/courses/1401732/files/87911279'

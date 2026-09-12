@@ -44,6 +44,10 @@ The service attempts a read-only sync every 15 minutes. A sync fetches:
 - home-page and module-linked files up to 50 MiB when their type is suitable for text
   extraction.
 
+On the managed server, the bridge marks its outbound sockets so Canvas traffic
+uses the normal uplink instead of the host-wide Mullvad exit node. This requires
+only `CAP_NET_RAW`; the rest of the service hardening remains in place.
+
 Normalized Canvas HTML retains safe link destinations so Codex can inspect
 linked resources. Sensitive URL query parameters are removed before links are
 stored, and external links are exposed without being fetched automatically.
