@@ -33,7 +33,8 @@ Commands:
   auth            Authenticate with Duo and cache the live SSH connection
   auth-status     Show whether a reusable Zaratan connection is active
   auth-clear      Close the cached Zaratan connection
-  next-lab         Download the next missing published lab ZIP
+  next-lab        Download the next missing published lab ZIP
+  next-project    Download the next missing published project ZIP
   sync             Upload the course workspace without deleting remote files
   shell            Open a login shell in Zaratan's ~/216-sync
   run COMMAND...   Sync, then run COMMAND in the matching Zaratan directory
@@ -334,6 +335,10 @@ case "$command" in
   next-lab)
     [[ "$#" -eq 0 ]] || die "usage: cmsc216 next-lab"
     python3 "$CMSC216_DOWNLOAD_SCRIPT" "$CMSC216_LOCAL_ROOT"
+    ;;
+  next-project)
+    [[ "$#" -eq 0 ]] || die "usage: cmsc216 next-project"
+    python3 "$CMSC216_DOWNLOAD_SCRIPT" "$CMSC216_LOCAL_ROOT" project
     ;;
   help|-h|--help)
     usage

@@ -90,5 +90,62 @@ class Downloads(unittest.TestCase):
         self.assertEqual(len(list(self.root.iterdir())), 1)
 
 
+class ProjectDownloads(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, "w") as archive:
+            archive.writestr("p1-code/QUESTIONS.txt", "starter")
+        self.zip = data.getvalue()
+        self.pages = {
+            "schedule.html": b'<a href="p2.html">P2</a><a href="p1.html">Project 1</a>',
+            "p1.html": b'<a href="p1-code.zip">Code</a>',
+            "p2.html": b'<a href="p2-code.zip">Code</a>',
+            "p1-code.zip": self.zip,
+            "p2-code.zip": self.zip,
+        }
+        self.mock = patch.object(module.urllib.request, "urlopen", side_effect=self.fetch)
+        self.mock.start()
+        self.addCleanup(self.mock.stop)
+
+    def fetch(self, url, timeout):
+        self.assertEqual(timeout, 30)
+        return io.BytesIO(self.pages[url.removeprefix(module.BASE)])
+
+    def test_empty_workspace_starts_at_one(self):
+        module.download(self.root, "project")
+        self.assertEqual((self.root / "p1-code.zip").read_bytes(), self.zip)
+
+    def test_existing_folder_and_repeat(self):
+        (self.root / "p1-code").mkdir()
+        module.download(self.root, "project")
+        self.assertEqual((self.root / "p2-code.zip").read_bytes(), self.zip)
+        module.download(self.root, "project")
+        self.assertEqual(len(list(self.root.iterdir())), 2)
+
+    def test_numeric_order_and_direct_archive(self):
+        self.pages["schedule.html"] = b'<a href="p10.html">10</a><a href="p2-code.zip">2</a>'
+        module.download(self.root, "project")
+        self.assertTrue((self.root / "p2-code.zip").exists())
+
+    def test_missing_archive(self):
+        self.pages["p1.html"] = b"Not released yet"
+        with self.assertRaisesRegex(ValueError, "Project 1 has no published code ZIP"):
+            module.download(self.root, "project")
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_invalid_zip_leaves_no_partial_file(self):
+        self.pages["p1-code.zip"] = b"<html>Error</html>"
+        with self.assertRaises(zipfile.BadZipFile):
+            module.download(self.root, "project")
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_unsupported_kind(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported coursework kind"):
+            module.download(self.root, "quiz")
+
+
 if __name__ == "__main__":
     unittest.main()

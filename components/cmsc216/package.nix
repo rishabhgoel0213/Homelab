@@ -143,6 +143,10 @@ let
                 args = [ "next-lab" ];
               }
               {
+                label = "CMSC 216: Download Next Project";
+                args = [ "next-project" ];
+              }
+              {
                 label = "CMSC 216: Authenticate with Duo";
                 args = [ "auth" ];
               }

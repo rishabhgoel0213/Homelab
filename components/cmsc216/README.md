@@ -53,6 +53,7 @@ never request remote deletion.
 ```bash
 cmsc216 doctor
 cmsc216 next-lab
+cmsc216 next-project
 cmsc216 auth
 cmsc216 auth-status
 cmsc216 sync
@@ -70,6 +71,11 @@ It validates and saves the ZIP without overwriting files or extracting it.
 If all posted labs are present, it reports that there is nothing new; broken
 links or missing archives produce an error without leaving a partial ZIP.
 No Zaratan login is required. The editor also offers **Download Next Lab**.
+
+`cmsc216 next-project` applies the same discovery and safety rules to projects.
+It follows published `pN.html` links from the course schedule, downloads the
+linked `pN-code.zip`, and treats matching project folders or ZIPs as already
+present. The editor also offers **Download Next Project**.
 
 `cmsc216 test` uploads local files and runs `make test` in the corresponding
 Zaratan directory. Use `cmsc216 run COMMAND...` for assignment-specific test
