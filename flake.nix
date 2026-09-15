@@ -124,9 +124,21 @@
         remoteRoot = "/home/r1shabhg/216-sync";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
       };
+      zenDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
     in
     {
       checks.${system} = {
+        zen-devtools-mcp =
+          pkgs.runCommand "zen-devtools-mcp-check"
+            {
+              nativeBuildInputs = [ zenDevtoolsMcp ];
+            }
+            ''
+              test "$(firefox-devtools-mcp --version)" = "0.10.2"
+              firefox-devtools-mcp --help | grep -Fq -- "--toolPreset"
+              touch "$out"
+            '';
+
         zen-managed-sidebar =
           pkgs.runCommand "zen-managed-sidebar-check"
             {

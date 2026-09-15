@@ -1,0 +1,8 @@
+{
+  "name": "homelab-firefox-devtools-mcp",
+  "version": "0.10.2",
+  "private": true,
+  "dependencies": {
+    "@mozilla/firefox-devtools-mcp-moz": "0.10.2"
+  }
+}

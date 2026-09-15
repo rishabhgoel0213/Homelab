@@ -115,6 +115,29 @@ Zen/Firefox preference. Per-collection `merge` mode preserves undeclared state;
 `authoritative` removes undeclared topology. Undeclared pins are demoted to
 normal tabs by default instead of being closed. Spaces Sync is disabled in the
 managed build by default so remote state cannot fight the Nix declaration.
+
+## Zen visual verification
+
+The MacBook installs Mozilla Firefox DevTools MCP `0.10.2` and a
+`zen-devtools-mcp` launcher. Server Codex reaches it through the
+`zen-devtools` stdio MCP over the existing Tailscale SSH connection. Nothing is
+bound to a LAN or tailnet TCP port; Firefox's Marionette and WebDriver BiDi
+listeners remain loopback-only on the Mac.
+
+Each MCP session launches the exact Nix-managed Zen executable with a dedicated
+profile at `~/Library/Application Support/Homelab/ZenDevTools/profile`. It does
+not attach to the normal Zen profile. The browser runs visibly at a `1440x900`
+logical viewport, matching the MacBook's Retina display scale, and exposes page
+snapshots, screenshots, input, console/network logs, preferences, and
+privileged browser-chrome inspection. Closing the MCP session closes the test
+browser.
+
+The automation profile intentionally contains no personal logins. Only visit
+controlled test pages or explicitly requested sites: privileged browser-chrome
+access is equivalent to code running in Firefox's parent process. A new Codex
+session is required after changing the MCP configuration because Codex loads
+its tool catalog during startup.
+
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.

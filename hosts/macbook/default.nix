@@ -12,6 +12,7 @@
     tabby.packageSource = "prebuilt";
     zen = {
       packageSource = "source";
+      devtoolsMcp.enable = true;
       managedSidebar = {
         enable = true;
         preferences = {

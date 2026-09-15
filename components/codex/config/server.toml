@@ -17,6 +17,13 @@ trust_level = "trusted"
 [projects."/home/rishabh/Projects"]
 trust_level = "trusted"
 
+[mcp_servers.zen-devtools]
+command = "/run/current-system/sw/bin/zen-devtools-mcp-remote"
+startup_timeout_sec = 60
+tool_timeout_sec = 120
+required = false
+default_tools_approval_mode = "auto"
+
 [marketplaces.homelab-local]
 last_updated = "2026-08-02T21:13:22Z"
 source_type = "local"

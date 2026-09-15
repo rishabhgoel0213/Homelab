@@ -15,6 +15,22 @@ let
     export HOME=${lib.escapeShellArg cfg.paths.userHome}
     exec ${codexBin} "$@"
   '';
+  zenDevtoolsMcpRemote = pkgs.writeShellApplication {
+    name = "zen-devtools-mcp-remote";
+    runtimeInputs = [ pkgs.openssh ];
+    text = ''
+      exec ssh \
+        -T \
+        -o BatchMode=yes \
+        -o ClearAllForwardings=yes \
+        -o ConnectTimeout=10 \
+        -o ServerAliveInterval=15 \
+        -o ServerAliveCountMax=3 \
+        -o LogLevel=ERROR \
+        rishabhgoel@macbook.tail2f4d27.ts.net \
+        /run/current-system/sw/bin/zen-devtools-mcp
+    '';
+  };
   prepareCodexHome = pkgs.writeShellScript "prepare-codex-home" ''
     set -euo pipefail
 
@@ -56,7 +72,10 @@ let
   '';
 in
 {
-  environment.systemPackages = [ codexWrapper ];
+  environment.systemPackages = [
+    codexWrapper
+    zenDevtoolsMcpRemote
+  ];
 
   environment.sessionVariables = {
     CODEX_HOME = codexHome;
