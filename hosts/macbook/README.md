@@ -124,13 +124,15 @@ The MacBook installs Mozilla Firefox DevTools MCP `0.10.2` and a
 bound to a LAN or tailnet TCP port; Firefox's Marionette and WebDriver BiDi
 listeners remain loopback-only on the Mac.
 
-Each MCP session launches the exact Nix-managed Zen executable with a dedicated
-profile at `~/Library/Application Support/Homelab/ZenDevTools/profile`. It does
-not attach to the normal Zen profile. The browser runs visibly at a `1440x900`
-logical viewport, matching the MacBook's Retina display scale, and exposes page
-snapshots, screenshots, input, console/network logs, preferences, and
-privileged browser-chrome inspection. Closing the MCP session closes the test
-browser.
+Each MCP session launches the exact Nix-managed Zen executable with a fresh,
+throwaway profile under
+`~/Library/Application Support/Homelab/ZenDevTools/sessions`. It does not attach
+to the normal Zen profile, and session cleanup targets only that unique profile.
+The browser runs visibly at a `1440x900` logical viewport, matching the
+MacBook's Retina display scale, and exposes page snapshots, screenshots, input,
+console/network logs, preferences, and privileged browser-chrome inspection.
+Closing the MCP session closes the test browser and removes its profile; logs
+remain under `~/Library/Application Support/Homelab/ZenDevTools/logs`.
 
 The automation profile intentionally contains no personal logins. Only visit
 controlled test pages or explicitly requested sites: privileged browser-chrome

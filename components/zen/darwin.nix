@@ -20,12 +20,34 @@ let
     text = ''
       umask 077
       state_dir="''${ZEN_DEVTOOLS_STATE_DIR:-$HOME/Library/Application Support/Homelab/ZenDevTools}"
-      profile_dir="$state_dir/profile"
-      mkdir -p "$profile_dir" "$state_dir/logs"
+      mkdir -p "$state_dir/sessions" "$state_dir/logs"
+      session_dir="$(mktemp -d "$state_dir/sessions/session.XXXXXX")"
+      webdriver_profile="$session_dir/firefox_devtools_mcp_profile"
 
-      exec firefox-devtools-mcp \
+      # Invoked indirectly by the traps below.
+      # shellcheck disable=SC2329
+      cleanup() {
+        trap - EXIT INT TERM HUP
+
+        # firefox-devtools-mcp can exit before its launched browser does. Match
+        # only the unique, throwaway profile for this session so the user's
+        # regular Zen process and other test sessions are never touched.
+        /usr/bin/pkill -TERM -f "$webdriver_profile" 2>/dev/null || true
+        for _ in {1..20}; do
+          if ! /usr/bin/pgrep -f "$webdriver_profile" >/dev/null 2>&1; then
+            break
+          fi
+          sleep 0.1
+        done
+        /usr/bin/pkill -KILL -f "$webdriver_profile" 2>/dev/null || true
+        rm -rf -- "$session_dir"
+      }
+      trap cleanup EXIT INT TERM HUP
+
+      status=0
+      firefox-devtools-mcp \
         --firefoxPath ${lib.escapeShellArg "${selectedPackage}/Applications/Zen.app/Contents/MacOS/zen"} \
-        --profilePath "$profile_dir" \
+        --profilePath "$session_dir" \
         --viewport ${lib.escapeShellArg cfg.devtoolsMcp.viewport} \
         --startUrl about:blank \
         --toolPreset mozilla \
@@ -33,7 +55,9 @@ let
         --pref remote.prefs.recommended=false \
         --firefoxArg=--no-remote \
         --outputFile "$state_dir/logs/firefox.log" \
-        --logFile "$state_dir/logs/mcp.log"
+        --logFile "$state_dir/logs/mcp.log" \
+        "$@" || status=$?
+      exit "$status"
     '';
   };
 in
