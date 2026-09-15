@@ -10,7 +10,20 @@
 
   homelab.apps = {
     tabby.packageSource = "prebuilt";
-    zen.packageSource = "source";
+    zen = {
+      packageSource = "source";
+      managedSidebar = {
+        enable = true;
+        preferences = {
+          "zen.workspaces.continue-where-left-off" = true;
+          "zen.workspaces.separate-essentials" = true;
+        };
+        spaces.General = {
+          icon = "🏠";
+          position = 0;
+        };
+      };
+    };
   };
 
   homelab.coursework.cmsc216 = {

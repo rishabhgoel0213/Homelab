@@ -127,6 +127,24 @@
     in
     {
       checks.${system} = {
+        zen-managed-sidebar =
+          pkgs.runCommand "zen-managed-sidebar-check"
+            {
+              nativeBuildInputs = [ pkgs.nodejs_24 ];
+            }
+            ''
+              node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs
+              node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebar.sys.mjs
+              node --check ${inputs.zen-browser}/src/zen/space-routing/ZenSpaceRoutingManager.sys.mjs
+              ZEN_MANAGED_SIDEBAR_COMPILER=${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs \
+                ZEN_MANAGED_SIDEBAR_MANIFEST=${
+                  pkgs.writeText "macbook-managed-sidebar.json"
+                    self.darwinConfigurations.macbook.config.environment.etc."zen/managed-sidebar.json".text
+                } \
+                node ${./components/zen/tests/managed-sidebar.mjs}
+              touch "$out"
+            '';
+
         cmsc216 =
           pkgs.runCommand "cmsc216-check"
             {

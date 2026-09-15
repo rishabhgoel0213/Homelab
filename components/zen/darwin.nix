@@ -11,6 +11,8 @@ let
     if cfg.packageSource == "source" then macbookPackages.zenSource else macbookPackages.zen;
 in
 {
+  imports = [ ./managed-sidebar.nix ];
+
   options.homelab.apps.zen.packageSource = lib.mkOption {
     type = lib.types.enum [
       "prebuilt"

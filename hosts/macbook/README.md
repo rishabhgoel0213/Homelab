@@ -15,12 +15,106 @@ replacement path has been tested from another terminal.
   source input lives in `/home/rishabh/Projects/tabby`. Commit source changes
   and run `just darwin-lock-sources` to update either lock. Zen's `prebuilt`
   package source remains available as a rollback option.
-- Zen profile data and Tabby configuration remain mutable in their normal
-  macOS application-support locations. They are not copied into the Nix store.
+- Zen's Space/sidebar topology is reconciled from
+  `homelab.apps.zen.managedSidebar` whenever the server-built browser starts.
+  Normal tabs, history, cookies, logins, and other browsing state remain
+  mutable in the normal macOS profile. Tabby configuration also remains
+  mutable. None of this runtime state is copied into the Nix store.
 - Zen's Bitwarden extension is force-installed by enterprise policy in both
   package variants. Add future browser extensions to the corresponding policy
   in `components/zen/darwin.nix`. The policy uses Mozilla's supported macOS
   system preference domain and does not modify the signed application bundle.
+
+## Declarative Zen sidebar
+
+Only the source-built Zen package reads `/etc/zen/managed-sidebar.json`. The
+stock Zen currently used as a fallback ignores it. On startup, the managed
+build uses Zen's own Spaces Sync record model and live applier, so it does not
+patch the compressed session file behind a running browser.
+
+The MacBook currently declares one authoritative `General` Space. Expand the
+configuration in `hosts/macbook/default.nix`; stable IDs are derived from Nix
+attribute names unless explicitly provided:
+
+```nix
+homelab.apps.zen = {
+  packageSource = "source";
+  managedSidebar = {
+    enable = true;
+    pinRemoval = "demote"; # or "remove"
+
+    modes = {
+      containers = "merge";
+      spaces = "authoritative";
+      pins = "authoritative";
+      folders = "authoritative";
+      splits = "authoritative";
+      routes = "authoritative";
+    };
+
+    containers.Work = {
+      builtin = 1;
+      icon = "briefcase";
+      color = "blue";
+    };
+
+    spaces = {
+      General = {
+        icon = "🏠";
+        position = 0;
+      };
+      Work = {
+        icon = "💼";
+        container = "Work";
+        position = 10;
+      };
+    };
+
+    folders.Projects = {
+      space = "Work";
+      position = 10;
+    };
+    folders.News = {
+      parent = "Projects";
+      position = 20;
+      live = {
+        type = "rss";
+        state = {
+          url = "https://example.com/feed.xml";
+          maxItems = 10;
+        };
+      };
+    };
+
+    pins.GitHub = {
+      url = "https://github.com";
+      folder = "Projects";
+      position = 30;
+    };
+    pins.Mail = {
+      url = "https://mail.google.com";
+      essential = true;
+      container = "Work";
+      position = 0;
+    };
+
+    routes.GitHub = {
+      reference = "github.com";
+      space = "Work";
+      position = 0;
+    };
+    defaultExternalSpace = "General";
+  };
+};
+```
+
+Folders may nest to Zen's supported depth. Pins can be top-level, folder-owned,
+Essential, or referenced by a declarative split view. Live folders accept the
+native `rss` and `github` provider state. `preferences` can lock any additional
+Zen/Firefox preference. Per-collection `merge` mode preserves undeclared state;
+`authoritative` removes undeclared topology. Undeclared pins are demoted to
+normal tabs by default instead of being closed. Spaces Sync is disabled in the
+managed build by default so remote state cannot fight the Nix declaration.
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.
