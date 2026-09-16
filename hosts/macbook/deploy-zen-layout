@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+ssh_host="${MACBOOK_SSH_HOST:-rishabhgoel@macbook.tail2f4d27.ts.net}"
+for command in nix ssh scp mktemp sha256sum; do
+  command -v "$command" >/dev/null || { echo "Missing command: $command" >&2; exit 1; }
+done
+cd "$repo"
+
+local_dir="$(mktemp -d -t zen-layout.XXXXXXXX)"
+remote_dir=""
+cleanup() {
+  rm -f "$local_dir/managed-sidebar.json"
+  rmdir "$local_dir"
+  if [[ -n "$remote_dir" ]]; then
+    # remote_dir is constrained to a mktemp-generated /tmp path below.
+    # shellcheck disable=SC2029
+    ssh -o BatchMode=yes "$ssh_host" "/bin/rm -f '$remote_dir/managed-sidebar.json'; /bin/rmdir '$remote_dir'" || true
+  fi
+}
+trap cleanup EXIT
+
+echo "Validating the current Zen declaration (including tracked local edits)..." >&2
+nix build --impure --no-link .#checks.x86_64-linux.zen-managed-sidebar
+nix eval --impure --raw \
+  '.#darwinConfigurations.macbook.config.environment.etc."zen/managed-sidebar.json".text' \
+  > "$local_dir/managed-sidebar.json"
+digest="$(sha256sum "$local_dir/managed-sidebar.json")"
+digest="${digest%% *}"
+
+remote_dir="$(ssh -o BatchMode=yes "$ssh_host" '/usr/bin/mktemp -d /tmp/zen-layout.XXXXXXXX')"
+if [[ ! "$remote_dir" =~ ^/tmp/zen-layout\.[a-zA-Z0-9]{8}$ ]]; then
+  echo "Unexpected remote temporary directory; refusing deployment." >&2
+  remote_dir=""
+  exit 1
+fi
+scp -q -o BatchMode=yes "$local_dir/managed-sidebar.json" "$ssh_host:$remote_dir/managed-sidebar.json"
+
+echo "Installing only Zen's layout. Enter the Mac password if sudo asks." >&2
+# The only substituted values are the constrained temporary path and hex digest.
+# Do not add this general-purpose shell command to passwordless sudoers.
+# shellcheck disable=SC2029
+ssh -t "$ssh_host" "sudo /bin/sh -c '
+  set -eu
+  source=$remote_dir/managed-sidebar.json
+  actual=\$(/usr/bin/shasum -a 256 \"\$source\")
+  test \"\${actual%% *}\" = $digest
+  test -d /etc/zen
+  stage=\$(/usr/bin/mktemp -d /etc/zen/.layout.XXXXXXXX)
+  trap '\''/bin/rm -f \"\$stage/manifest\"; /bin/rmdir \"\$stage\"'\'' EXIT
+  /usr/bin/install -o root -g wheel -m 0644 \"\$source\" \"\$stage/manifest\"
+  actual=\$(/usr/bin/shasum -a 256 \"\$stage/manifest\")
+  test \"\${actual%% *}\" = $digest
+  /bin/mv -f \"\$stage/manifest\" /etc/zen/managed-sidebar.json
+'"
+
+# Read back independently; do not claim success from the upload alone.
+actual="$(ssh -o BatchMode=yes "$ssh_host" '/usr/bin/shasum -a 256 /etc/zen/managed-sidebar.json')"
+if [[ "${actual%% *}" != "$digest" ]]; then
+  echo "Layout readback checksum mismatch." >&2
+  exit 1
+fi
+echo "Zen layout installed and checksum verified. Quit and reopen managed Zen to apply it."

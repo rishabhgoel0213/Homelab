@@ -42,20 +42,12 @@ in
     folders =
       lib.listToAttrs (
         lib.imap0 (index: category: {
-          name = "projects-${category}";
+          # New IDs retire the old RSS folders rather than retaining provider state.
+          name = "project-category-${category}";
           value = {
             name = labels.${category};
             space = "Workbench";
             position = index * 10;
-            live = {
-              type = "rss";
-              state = {
-                url = "https://projects.${internal}/feeds/${category}.xml";
-                interval = 300000;
-                maxItems = 1000;
-                timeRange = 0;
-              };
-            };
           };
         }) (builtins.filter (name: builtins.hasAttr name categories) categoryNames)
       )
@@ -76,20 +68,32 @@ in
           position = 10;
         };
       };
-    pins = {
-      jupyterlab = pin "workbench-tools" 0 "JupyterLab" "https://lab.${internal}/lab";
-      t3code = pin "workbench-tools" 10 "T3 Code" "https://t3code.${internal}";
-      kicad = pin "workbench-tools" 20 "KiCad" "https://cad.${internal}";
-      canvas = pin "workbench-tools" 30 "Canvas Mirror" "https://canvas.${internal}";
-      blog-admin = pin "workbench-tools" 40 "Blog Admin" "https://blog.${internal}/admin";
-      blog-preview = pin "workbench-tools" 50 "Blog Preview" "https://blog.${internal}";
-      public-blog = pin "workbench-tools" 60 "Public Blog" "https://blog.${domain}";
-      chat = pin "homelab-apps" 0 "Chat" "https://chat.${internal}";
-      jellyfin = pin "homelab-apps" 10 "Jellyfin" "https://media.${internal}";
-      vaultwarden = pin "homelab-apps" 20 "Vaultwarden" "https://vault.${internal}";
-      syncthing = pin "homelab-admin" 0 "Syncthing" "https://sync.${internal}";
-      backrest = pin "homelab-admin" 10 "Backups" "https://backups.${internal}";
-      singlemail = pin "homelab-admin" 20 "Singlemail" "https://maildrop.${internal}";
-    };
+    pins =
+      lib.listToAttrs (
+        lib.concatMap (
+          category:
+          lib.imap0 (index: project: {
+            name = "project-${project}";
+            value = pin "project-category-${category}" (
+              index * 10
+            ) project "https://lab.${internal}/lab/tree/home/rishabh/Projects/${project}";
+          }) categories.${category}
+        ) categoryNames
+      )
+      // {
+        jupyterlab = pin "workbench-tools" 0 "JupyterLab" "https://lab.${internal}/lab";
+        t3code = pin "workbench-tools" 10 "T3 Code" "https://t3code.${internal}";
+        kicad = pin "workbench-tools" 20 "KiCad" "https://cad.${internal}";
+        canvas = pin "workbench-tools" 30 "Canvas Mirror" "https://canvas.${internal}";
+        blog-admin = pin "workbench-tools" 40 "Blog Admin" "https://blog.${internal}/admin";
+        blog-preview = pin "workbench-tools" 50 "Blog Preview" "https://blog.${internal}";
+        public-blog = pin "workbench-tools" 60 "Public Blog" "https://blog.${domain}";
+        chat = pin "homelab-apps" 0 "Chat" "https://chat.${internal}";
+        jellyfin = pin "homelab-apps" 10 "Jellyfin" "https://media.${internal}";
+        vaultwarden = pin "homelab-apps" 20 "Vaultwarden" "https://vault.${internal}";
+        syncthing = pin "homelab-admin" 0 "Syncthing" "https://sync.${internal}";
+        backrest = pin "homelab-admin" 10 "Backups" "https://backups.${internal}";
+        singlemail = pin "homelab-admin" 20 "Singlemail" "https://maildrop.${internal}";
+      };
   };
 }

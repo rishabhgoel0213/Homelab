@@ -36,6 +36,10 @@ darwin-build target="macbook-system":
 darwin-deploy:
     hosts/macbook/deploy "{{darwin_host}}"
 
+# Validate and replace only Zen's layout; prompts for the Mac sudo password.
+zen-deploy:
+    bash hosts/macbook/deploy-zen-layout
+
 # Builds, signs, and copies Mac application payloads without activation.
 darwin-copy-apps:
     hosts/macbook/copy-apps

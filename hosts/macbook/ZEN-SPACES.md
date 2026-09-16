@@ -1,65 +1,45 @@
-# First-pass Spaces
+# Zen Spaces and layout-only deployment
 
-`zen-spaces.nix` declares Workbench and Homelab; `default.nix` retains General.
-Workbench has Research, Coursework, Development, Writing, Uncategorized, and
-Tools & Pages. Homelab has Everyday Apps and Administration.
-Folder/pin keys are stable identities: change display names without renaming keys.
+General, Workbench, and Homelab now use ordinary folders, with no providers or
+background refresh. Edit `zen-spaces.nix` for Spaces, folders, and tool/app pins.
+Edit `components/projects/categories.json` for project membership; each listed
+directory becomes a normal pinned JupyterLab link, ordered as listed. Project
+pin IDs stay stable when changing categories. Project metadata is no longer read
+automatically: add/remove/move projects explicitly, including new or archived
+projects. `project.toml` labels have no effect on this layout. The former live
+folders intentionally have new keys to retire their provider state.
 
-## Project categories
-
-The private `project-catalog` service reads the live projectctl inventory on each
-request. Initial assignments live in `components/projects/categories.json`.
-An existing project's `project.toml` can override its initial assignment:
-
-```toml
-[organization]
-category = "research"
-labels = ["physics", "lhcb"]
-```
-
-Supported categories are research, coursework, development, writing, and
-uncategorized. Labels are optional descriptive metadata, not folder selectors.
-Unknown or missing categories fall back to Uncategorized (unless an initial
-assignment exists). Archived projects are omitted. No project files are modified
-by the service. Invalid manifests return a failed request rather than an empty
-feed, so Zen retains its last successful list.
-
-Each entry opens that project's JupyterLab directory; there are no per-project
-notebook folders. Feeds refresh every five minutes while Zen is running and online.
-Manifest changes need no deployment. Changes to the initial assignment map require
-a server deployment; changes to the declared folder layout require a Mac deployment.
-
-## Deploy and test
-
-From `/srv/ops`, commit the reviewed changes (the Mac workflow uses committed
-source), then deploy the server feed before the Mac declaration:
+## One-command deployment from the server
 
 ```sh
-just check
-just switch
-MACBOOK_DEPLOY_CONFIRM=deploy just darwin-deploy
+just --justfile /srv/ops/Justfile zen-deploy
 ```
 
-The server activation also applies any other pending host configuration changes;
-review those before switching. No Zen source rebuild is needed for these changes.
+This validates with the Zen compiler, evaluates the current tracked working tree,
+uploads over SSH, atomically replaces only `/etc/zen/managed-sidebar.json`, and
+verifies its SHA-256 by reading it back. New files must be Git-added for Nix to see
+them. Committing reviewed edits is recommended but not required for this command.
 
-On the Mac, connect to Tailscale, verify
-`https://projects.internal.therealrishabh.com/feeds/research.xml` loads, then
-restart the managed Zen browser. Check all three Spaces, the five project folders,
-and static tools/app links. Change one project's category and refresh the folder
-(or wait five minutes) to test movement. Restore the category after testing.
+The Mac must be reachable over Tailscale, with existing SSH key access and managed
+Zen installed. Run from an interactive terminal. SSH is key-based; sudo may ask
+for the **Mac login password**. No new passwordless sudo rules are granted. Do not
+whitelist arbitrary shell, install, move, or Nix activation commands: that would
+grant much more than layout deployment.
 
-## Native RSS limitations
+There is no Zen rebuild, full Darwin activation, server switch, or automatic
+browser restart. After success, save your work, **quit and reopen managed Zen**.
+Check that project folders are ordinary folders and links open JupyterLab.
+Old live-folder tabs may remain as ordinary tabs because `pinRemoval = "demote"`
+preserves browsing state; close duplicates manually after checking them.
 
-This first pass uses Zen's existing RSS provider, not a custom catalog provider.
-When a project disappears from a category, Zen can **close its live-folder tab**.
-Open notebook work in a separate ordinary tab before changing categories or
-archiving projects. Existing entry title/URL changes may not update until the
-entry is recreated; manually dismissed entries may stay dismissed. Stable feed
-GUIDs prevent routine refreshes from duplicating entries, but moving between
-folders is not an in-place tab move. Automatic preservation of active project
-tabs is a follow-up browser feature, not part of this declaration.
+This replaces the Nix-generated manifest symlink, not its immutable store target.
+A later full Darwin deployment restores the manifest from that deployment's
+committed declaration; commit changes to keep both paths consistent. To roll back,
+restore the desired declaration and rerun `zen-deploy`. A checksum check does not
+verify browser startup reconciliation.
 
-The catalog is private through the existing internal ingress, not a public feed.
-It exposes project titles and Jupyter links to authorized private-network clients.
-No undeclared sensor dashboard URL or personal credentials are included.
+## Retired server feeds
+
+The project-catalog service and route have been removed from the desired server
+configuration. If previously deployed, they remain running until your next
+reviewed `just switch`. That switch is not needed for the ordinary folders.

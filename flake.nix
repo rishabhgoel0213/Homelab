@@ -142,7 +142,11 @@
         zen-managed-sidebar =
           pkgs.runCommand "zen-managed-sidebar-check"
             {
-              nativeBuildInputs = [ pkgs.nodejs_24 ];
+              nativeBuildInputs = [
+                pkgs.nodejs_24
+                pkgs.shellcheck
+                pkgs.python3
+              ];
             }
             ''
               node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs
@@ -150,6 +154,10 @@
               node --check ${inputs.zen-browser}/src/zen/space-routing/ZenSpaceRoutingManager.sys.mjs
               node --check ${inputs.zen-browser}/src/zen/sync/ZenSpacesSyncApplier.sys.mjs
               node --check ${./components/zen/tests/chrome-smoke.js}
+              shellcheck ${./hosts/macbook/deploy-zen-layout}
+              bash -n ${./hosts/macbook/deploy-zen-layout}
+              LAYOUT_DEPLOY_SCRIPT=${./hosts/macbook/deploy-zen-layout} \
+                python3 ${./components/zen/tests/test-layout-deploy.py}
               ZEN_SPACES_SYNC_APPLIER=${inputs.zen-browser}/src/zen/sync/ZenSpacesSyncApplier.sys.mjs \
                 node --experimental-vm-modules ${./components/zen/tests/space-deletion.mjs}
               ZEN_MANAGED_SIDEBAR_COMPILER=${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs \
@@ -272,10 +280,6 @@
               python3 -m py_compile ${./components/projects/bin/projectctl.py} ${./components/projects/tests/test-projectctl.py}
               PROJECTCTL_SCRIPT=${./components/projects/bin/projectctl.py} \
                 python3 ${./components/projects/tests/test-projectctl.py}
-              ruff check ${./components/projects/bin/catalog.py} ${./components/projects/tests/test-catalog.py}
-              PROJECTCTL_SOURCE=${./components/projects/bin/projectctl.py} \
-                CATALOG_SCRIPT=${./components/projects/bin/catalog.py} \
-                python3 ${./components/projects/tests/test-catalog.py}
               touch "$out"
             '';
 
