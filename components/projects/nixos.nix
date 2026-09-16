@@ -62,6 +62,7 @@ let
   '';
 in
 {
+  imports = [ ./catalog.nix ];
   environment.systemPackages = [
     projectctl
     projectAlias

@@ -272,6 +272,10 @@
               python3 -m py_compile ${./components/projects/bin/projectctl.py} ${./components/projects/tests/test-projectctl.py}
               PROJECTCTL_SCRIPT=${./components/projects/bin/projectctl.py} \
                 python3 ${./components/projects/tests/test-projectctl.py}
+              ruff check ${./components/projects/bin/catalog.py} ${./components/projects/tests/test-catalog.py}
+              PROJECTCTL_SOURCE=${./components/projects/bin/projectctl.py} \
+                CATALOG_SCRIPT=${./components/projects/bin/catalog.py} \
+                python3 ${./components/projects/tests/test-catalog.py}
               touch "$out"
             '';
 

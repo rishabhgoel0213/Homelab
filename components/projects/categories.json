@@ -1,0 +1,7 @@
+{
+  "research": ["lhcb-b-momentum", "gbdt-multidimensional-reweighter", "jacobian-2d-research", "thermodynamic-computing-lab", "missing-moore-autoresearch", "summer-research"],
+  "coursework": ["fall-2026"],
+  "development": ["zen-browser", "tabby", "t3code", "tork", "sensor-server-extended", "imessage-bridge", "mautrix-meta"],
+  "writing": ["blog", "public-site"],
+  "uncategorized": []
+}

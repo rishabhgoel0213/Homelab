@@ -2,6 +2,7 @@
 
 {
   imports = [
+    ./zen-spaces.nix
     ../../platform/darwin/base.nix
     ../../profiles/darwin/coursework.nix
     ../../profiles/darwin/workstation.nix
