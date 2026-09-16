@@ -66,6 +66,13 @@ in
     npm run surfer -- ci --brand release --display-version ${version}
     npm run import -- --verbose
 
+    # Surfer's import does not install Zen's Fluent resources. Missing one
+    # resource prevents browser localization bundles from resolving, including
+    # Firefox's own menu labels and address-bar strings.
+    python3 scripts/copy_language_pack.py en-US
+    test -s engine/browser/locales/en-US/browser/zen-vertical-tabs.ftl
+    test -s engine/browser/locales/en-US/browser/zen-workspaces.ftl
+
     printf '%s\n' ${lib.escapeShellArg version} \
       > engine/browser/config/version.txt
     printf '%s\n' ${lib.escapeShellArg version} \

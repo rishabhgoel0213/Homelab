@@ -146,6 +146,21 @@ assert.equal(compiled.defaultExternalRoute, "{space-general}");
 const byId = new Map(compiled.records.map(record => [record.id, record.cleartext]));
 assert.equal(byId.get("builtin-1").kind, "container");
 assert.deepEqual(byId.get("{space-general}").data.children, []);
+assert.deepEqual(byId.get("{space-general}").data.theme, {
+  type: "gradient",
+  gradientColors: [],
+  opacity: 0.5,
+  texture: 0,
+});
+assert.deepEqual(byId.get("{space-work}").data.theme, manifest.spaces.Work.theme);
+const omittedTheme = structuredClone(manifest);
+delete omittedTheme.spaces.General.theme;
+assert.deepEqual(
+  compileManagedSidebar(omittedTheme).records.find(
+    record => record.id === "{space-general}"
+  ).cleartext.data.theme,
+  byId.get("{space-general}").data.theme
+);
 assert.deepEqual(byId.get("{space-work}").data.children, ["{folder-projects}"]);
 assert.deepEqual(byId.get("{folder-projects}").data.children, [
   "{folder-feed}",

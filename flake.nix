@@ -148,6 +148,7 @@
               node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs
               node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebar.sys.mjs
               node --check ${inputs.zen-browser}/src/zen/space-routing/ZenSpaceRoutingManager.sys.mjs
+              node --check ${./components/zen/tests/chrome-smoke.js}
               ZEN_MANAGED_SIDEBAR_COMPILER=${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs \
                 ZEN_MANAGED_SIDEBAR_MANIFEST=${
                   pkgs.writeText "macbook-managed-sidebar.json"

@@ -134,6 +134,12 @@ console/network logs, preferences, and privileged browser-chrome inspection.
 Closing the MCP session closes the test browser and removes its profile; logs
 remain under `~/Library/Application Support/Homelab/ZenDevTools/logs`.
 
+For a repeatable toolbar regression check, pass the contents of
+`components/zen/tests/chrome-smoke.js` as the function to
+`evaluate_privileged_script`, using a context from `list_privileged_contexts`.
+It checks Space themes, Downloads/Create New menus, their localized labels,
+and New Tab opening the address bar. Run it only in the automation profile.
+
 The automation profile intentionally contains no personal logins. Only visit
 controlled test pages or explicitly requested sites: privileged browser-chrome
 access is equivalent to code running in Firefox's parent process. A new Codex
