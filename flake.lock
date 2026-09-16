@@ -160,11 +160,11 @@
     "zen-browser": {
       "flake": false,
       "locked": {
-        "lastModified": 1789520896,
-        "narHash": "sha256-qnqun3luzgC9Zrti4BVVutZfsG3nn0eMAECnxVQSZn0=",
+        "lastModified": 1789522913,
+        "narHash": "sha256-CEYmD8bitGGUI2104KDTnp+UFNSQGaQnugt/Cyr50gY=",
         "ref": "dev",
-        "rev": "0368c7a26ff7b5452268198d3b88ac9018b3666d",
-        "revCount": 6949,
+        "rev": "8298c28aceab73cb8cb7c0cbd5c6444e5546a1c1",
+        "revCount": 6950,
         "type": "git",
         "url": "file:///home/rishabh/Projects/zen-browser"
       },
