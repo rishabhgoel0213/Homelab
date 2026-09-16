@@ -53,6 +53,7 @@ let
         --toolPreset mozilla \
         --env MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 \
         --pref remote.prefs.recommended=false \
+        --pref zen.welcome-screen.seen=true \
         --firefoxArg=--no-remote \
         --outputFile "$state_dir/logs/firefox.log" \
         --logFile "$state_dir/logs/mcp.log" \
