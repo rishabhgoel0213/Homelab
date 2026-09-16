@@ -127,6 +127,12 @@ in
           "*.${cfg.internalDomain}"
         ];
         dnsProvider = "cloudflare";
+        # ACME must see public DNS, not the Tailnet's split internal zone.
+        dnsResolver = "1.1.1.1:53";
+        # This host's DNS path refuses non-recursive queries (including lego's
+        # authoritative and recursive propagation probes). Wait for publication
+        # instead; the CA still independently validates every DNS-01 challenge.
+        extraLegoFlags = [ "--dns.propagation-wait=60s" ];
         environmentFile = config.sops.secrets."cloudflare-dns.env".path;
         group = config.services.caddy.group;
         reloadServices = [ "caddy.service" ];
