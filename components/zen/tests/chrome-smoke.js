@@ -2,7 +2,14 @@ async () => {
   // Evaluate with zen-devtools.evaluate_privileged_script in the disposable
   // automation profile. This exercises the actual browser controls.
   const checks = [];
-  const pause = () => new Promise(resolve => setTimeout(resolve, 250));
+  const waitFor = async predicate => {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      if (predicate()) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  };
   const expect = (condition, name) => {
     if (!condition) {
       throw new Error(`Zen chrome regression: ${name}`);
@@ -17,6 +24,12 @@ async () => {
     }
   };
 
+  await gZenWorkspaces.promiseInitialized;
+  await waitFor(() => gBrowserInit.delayedStartupFinished);
+  window.focus();
+  if (gURLBar.hasAttribute("zen-newtab")) {
+    gZenUIManager.handleUrlbarClose();
+  }
   const spaces = gZenWorkspaces.getWorkspaces();
   expect(
     spaces.length > 0 && spaces.every(space =>
@@ -34,8 +47,8 @@ async () => {
       const button = document.getElementById(buttonId);
       expect(Boolean(button.getAttribute("label")), `${buttonId} has a label`);
       button.click();
-      await pause();
       const popup = document.getElementById(popupId);
+      await waitFor(() => popup.state === "open");
       expect(popup.state === "open", `${popupId} opens`);
       const items = [...popup.querySelectorAll("menuitem[data-l10n-id]")];
       expect(
@@ -47,10 +60,13 @@ async () => {
     const newTab = document.getElementById("tabs-newtab-button");
     expect(Boolean(newTab.getAttribute("label")), "New Tab has a label");
     newTab.click();
-    await pause();
+    await waitFor(() => document.getElementById("urlbar").hasAttribute("open"));
     expect(document.getElementById("urlbar").hasAttribute("open"), "New Tab opens the address bar");
   } finally {
     closePopups();
+    if (gURLBar.hasAttribute("zen-newtab")) {
+      gZenUIManager.handleUrlbarClose();
+    }
     gURLBar.view.close();
     gURLBar.blur();
   }
