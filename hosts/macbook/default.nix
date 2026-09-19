@@ -36,6 +36,7 @@ in
         general = {
           displayName = "VSCodium";
           bundleIdentifier = "com.therealrishabh.vscodium";
+          icon = ../../components/vscodium/icons/VSCodium-Remote.icns;
           bundles = [
             "core"
             "c"
@@ -49,13 +50,16 @@ in
           remotePath = "/home/rishabh/Projects";
           localPathPrefix = "/Users/rishabhgoel/Projects";
           settings."remote.SSH.remotePlatform".nixos-pc = "linux";
+          appVersion = "2026.2";
         };
 
         local = {
           displayName = "VSCodium Local";
           bundleIdentifier = "com.therealrishabh.vscodium.local";
+          icon = ../../components/vscodium/icons/VSCodium-Local.icns;
           dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch";
           mutableExtensions = true;
+          appVersion = "2026.2";
         };
       };
     };

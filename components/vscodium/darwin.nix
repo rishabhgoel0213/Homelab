@@ -30,6 +30,12 @@ let
           description = "Unique macOS bundle identifier for this preset.";
         };
 
+        icon = lib.mkOption {
+          type = lib.types.nullOr lib.types.path;
+          default = null;
+          description = "Optional ICNS icon used by the generated macOS application bundle.";
+        };
+
         dataRoot = lib.mkOption {
           type = lib.types.str;
           default = "${userHome}/Library/Application Support/Homelab VSCodium/${name}";
@@ -115,6 +121,7 @@ let
         bundleIdentifier
         dataRoot
         displayName
+        icon
         mutableExtensions
         localPathPrefix
         remoteHost

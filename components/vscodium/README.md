@@ -7,6 +7,11 @@ directory. The remote application receives the complete Nix-managed extension
 set, the local application retains Scratch's private writable extension area,
 and the course application keeps its smaller course-specific set.
 
+The three application variants use their corresponding checked-in ICNS assets
+from `icons/`: Remote for `VSCodium`, Local for `VSCodium Local`, and CMSC216 for
+`CMSC 216`. Updating an icon should also increment that preset's `appVersion` so
+macOS refreshes Launch Services and Dock icon caches.
+
 Preset settings are installed as user-writable regular files rather than links
 to the immutable Nix store. This lets VSCodium persist its own harmless settings
 rewrites without permission errors; the declared settings baseline is restored

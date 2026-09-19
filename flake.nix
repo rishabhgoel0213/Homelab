@@ -137,6 +137,7 @@
         displayName = "CMSC 216";
         bundleIdentifier = "com.therealrishabh.cmsc216";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
+        icon = ./components/vscodium/icons/VSCodium-CMSC216.icns;
         extensions = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
         settings = cmsc216CheckPackages.settings;
         workspace = cmsc216CheckPackages.workspace;
@@ -147,6 +148,7 @@
         displayName = "VSCodium";
         bundleIdentifier = "com.therealrishabh.vscodium";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general";
+        icon = ./components/vscodium/icons/VSCodium-Remote.icns;
         extensions = [
           vscodiumProjectsExtension
           unfreePkgs.vscode-extensions.ms-vscode-remote.remote-ssh
@@ -161,6 +163,14 @@
         remoteHost = "nixos-pc";
         remotePath = "/home/rishabh/Projects";
         localPathPrefix = "/Users/rishabhgoel/Projects";
+      };
+      vscodiumLocalCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
+        presetName = "local";
+        displayName = "VSCodium Local";
+        bundleIdentifier = "com.therealrishabh.vscodium.local";
+        dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch";
+        icon = ./components/vscodium/icons/VSCodium-Local.icns;
+        mutableExtensions = true;
       };
       vscodiumDispatcherCheckPackage = pkgs.callPackage ./components/vscodium/dispatcher.nix {
         presets.general = {
@@ -223,6 +233,7 @@
                 pkgs.jq
                 pkgs.nodejs_24
                 pkgs.shellcheck
+                pkgs.file
               ];
             }
             ''
@@ -247,6 +258,19 @@
               grep -Fq -- 'ssh-remote+nixos-pc' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '/home/rishabh/Projects' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq 'vscode.env.remoteName' ${./components/vscodium/projects-extension/extension.js}
+              for icon in \
+                ${./components/vscodium/icons/VSCodium-Remote.icns} \
+                ${./components/vscodium/icons/VSCodium-Local.icns} \
+                ${./components/vscodium/icons/VSCodium-CMSC216.icns}; do
+                file "$icon" | grep -Fq 'Mac OS X icon'
+              done
+              cmp ${./components/vscodium/icons/VSCodium-Remote.icns} \
+                ${vscodiumGeneralCheckPackages.iconFile}
+              cmp ${./components/vscodium/icons/VSCodium-Local.icns} \
+                ${vscodiumLocalCheckPackages.iconFile}
+              cmp ${./components/vscodium/icons/VSCodium-CMSC216.icns} \
+                ${cmsc216EditorCheckPackages.iconFile}
+              grep -Fq 'cp ''${iconFile}' ${./components/vscodium/package.nix}
               bash -n ${vscodiumRemoteActivationScript}
               shellcheck ${vscodiumRemoteActivationScript}
               grep -Fq 'install_settings "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}

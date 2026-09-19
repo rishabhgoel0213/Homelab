@@ -5,6 +5,7 @@
   displayName,
   bundleIdentifier,
   dataRoot,
+  icon ? null,
   extensions ? [ ],
   settings ? { },
   workspace ? null,
@@ -16,6 +17,12 @@
 }:
 
 let
+  iconFile =
+    if icon == null then
+      "${pkgs.vscodium}/Applications/VSCodium.app/Contents/Resources/VSCodium.icns"
+    else
+      icon;
+
   extensionJsonFile = pkgs.writeTextFile {
     name = "vscodium-${presetName}-extensions-json";
     destination = "/share/vscode/extensions/extensions.json";
@@ -117,7 +124,7 @@ let
       <key>CFBundleShortVersionString</key>
       <string>${lib.escapeXML appVersion}</string>
       <key>CFBundleVersion</key>
-      <string>1</string>
+      <string>${lib.escapeXML appVersion}</string>
       <key>LSMinimumSystemVersion</key>
       <string>14.0</string>
       <key>NSHighResolutionCapable</key>
@@ -137,9 +144,7 @@ let
     cp ${infoPlist} "$app/Contents/Info.plist"
     cp ${launcher} "$app/Contents/MacOS/${executableName}"
     chmod 0755 "$app/Contents/MacOS/${executableName}"
-    ln -s \
-      ${pkgs.vscodium}/Applications/VSCodium.app/Contents/Resources/VSCodium.icns \
-      "$app/Contents/Resources/VSCodium.icns"
+    cp ${iconFile} "$app/Contents/Resources/VSCodium.icns"
   '';
 in
 {
@@ -148,6 +153,7 @@ in
     cli
     codium
     extensionDir
+    iconFile
     managedExtensionDir
     settingsFile
     ;
