@@ -221,6 +221,8 @@
               shellcheck ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '--extensions-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
               grep -Fq -- '--user-data-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
+              grep -Fq 'install_settings "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
+              ! grep -Fq 'manage_link "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'general'
               if ${vscodiumDispatcherCheckPackage}/bin/vscodium-env open missing; then
                 echo 'unknown VSCodium preset unexpectedly succeeded' >&2

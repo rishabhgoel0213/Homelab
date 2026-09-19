@@ -133,7 +133,7 @@ let
         ${lib.optionalString preset.mutableExtensions ''
           install -d -m 0700 -o ${user} -g staff "$data_root/extensions"
         ''}
-        manage_link "$data_root/User/settings.json" ${packages.settingsFile}
+        install_settings "$data_root/User/settings.json" ${packages.settingsFile}
         ${workspaceLink}
       ''
     ) enabledPresets
@@ -240,6 +240,35 @@ in
         fi
         ln -sfn "$source" "$target"
         chown -h ${user}:staff "$target"
+      }
+
+      install_settings() {
+        target="$1"
+        source="$2"
+
+        # Older deployments linked settings.json directly into the immutable
+        # Nix store. Replace only that known managed link; never overwrite an
+        # unrelated symlink that happens to be at the same path.
+        if [[ -L "$target" ]]; then
+          current_source="$(readlink "$target")"
+          case "$current_source" in
+            /nix/store/*)
+              rm -f "$target"
+              ;;
+            *)
+              echo "Refusing to replace unmanaged VSCodium settings link at $target" >&2
+              exit 1
+              ;;
+          esac
+        elif [[ -e "$target" && ! -f "$target" ]]; then
+          echo "Refusing to replace unmanaged VSCodium settings path at $target" >&2
+          exit 1
+        fi
+
+        # VSCodium occasionally rewrites settings.json even when the effective
+        # settings are unchanged. Install the declared baseline as a writable
+        # regular file so those writes succeed. Each deployment restores it.
+        install -m 0600 -o ${user} -g staff "$source" "$target"
       }
 
       ${activation}

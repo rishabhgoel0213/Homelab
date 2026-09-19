@@ -6,6 +6,11 @@ settings, and extension directory. Managed presets receive an immutable Nix
 extension set; an explicitly mutable preset can instead use a private writable
 extension directory.
 
+Preset settings are installed as user-writable regular files rather than links
+to the immutable Nix store. This lets VSCodium persist its own harmless settings
+rewrites without permission errors; the declared settings baseline is restored
+whenever the Mac configuration is deployed.
+
 Extension bundles are composed in the Mac host configuration. The generated
 launcher commands are:
 
