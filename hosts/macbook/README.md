@@ -24,6 +24,10 @@ replacement path has been tested from another terminal.
   package variants. Add future browser extensions to the corresponding policy
   in `components/zen/darwin.nix`. The policy uses Mozilla's supported macOS
   system preference domain and does not modify the signed application bundle.
+- VSCodium uses one pinned engine with isolated `general`, `research`,
+  `scratch`, and `cmsc216` presets. Managed presets receive exact Nix-built
+  extension directories and separate user-data roots. Only `scratch` permits
+  mutable extension installation.
 
 ## Declarative Zen sidebar
 
@@ -369,6 +373,21 @@ The first command only edits project desired state. The second connects to the
 Mac, refuses an unrelated non-empty destination, configures the independent
 Syncthing folder on both devices, and preserves files when relationships are
 later removed.
+
+The same project catalog drives VSCodium:
+
+```sh
+vscodium-env list
+projectctl ide <project>
+projectctl ide fall-2026 \
+  --cwd cmsc216 \
+  --preset cmsc216
+```
+
+Managed projects may declare `[editor].preset` in `project.toml`; `general` is
+the default. The general and research editors also provide **Projects: Open
+Project**, backed directly by `projectctl list --json`. CMSC 216 continues to
+open its fixed generated workspace so all course tasks remain available.
 
 ## State-preserving application cutover
 

@@ -65,6 +65,7 @@ class ProjectCtlTests(unittest.TestCase):
                 "PROJECTCTL_JUPYTER_ROOT": "/",
                 "PROJECTCTL_JUPYTER_KERNEL_DIR": str(self.kernels),
                 "PROJECTCTL_SELF": "/run/current-system/sw/bin/projectctl",
+                "PROJECTCTL_IDE_BIN": str(self.root / "fake-vscodium-env"),
                 "PROJECTCTL_SYNC_ROLE": "server",
                 "PROJECTCTL_SYNC_PEERS_JSON": json.dumps(
                     {
@@ -122,6 +123,7 @@ class ProjectCtlTests(unittest.TestCase):
         self.assertEqual(1, len(listing["projects"]))
         self.assertTrue(listing["projects"][0]["managed"])
         self.assertEqual("nix", listing["projects"][0]["environment"])
+        self.assertEqual("general", listing["projects"][0]["editor_preset"])
         self.assertIn("aarch64-darwin", (project / "flake.nix").read_text())
 
     def test_existing_directories_are_usable_and_can_be_initialized_without_overwrite(
@@ -159,6 +161,7 @@ class ProjectCtlTests(unittest.TestCase):
         self.assertEqual(1, capabilities["api_version"])
         self.assertIn("unarchive", capabilities["operations"])
         self.assertIn("sync.deploy", capabilities["operations"])
+        self.assertIn("ide", capabilities["operations"])
 
         archived = json.loads(
             self.run_projectctl("archive", "lifecycle", "--json").stdout
@@ -232,6 +235,45 @@ class ProjectCtlTests(unittest.TestCase):
             str(harness),
         )
         self.assertEqual(str(nested), json.loads(nested_result.stdout)["cwd"])
+
+    def test_ide_uses_manifest_preset_override_and_validated_cwd(self) -> None:
+        project = self.create_project("IDE Test")
+        manifest = project / "project.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8").replace(
+                'preset = "general"', 'preset = "research"'
+            ),
+            encoding="utf-8",
+        )
+        ide = Path(self.environment["PROJECTCTL_IDE_BIN"])
+        ide.write_text(
+            f"#!{sys.executable}\n"
+            "import json, sys\n"
+            "print(json.dumps(sys.argv[1:]))\n",
+            encoding="utf-8",
+        )
+        ide.chmod(0o755)
+
+        nested = project / "src"
+        result = self.run_projectctl("ide", "ide-test", "--cwd", "src")
+        self.assertEqual(
+            ["open", "research", str(nested)], json.loads(result.stdout)
+        )
+
+        overridden = self.run_projectctl(
+            "ide", "ide-test", "--preset", "general"
+        )
+        self.assertEqual(
+            ["open", "general", str(project)], json.loads(overridden.stdout)
+        )
+
+        outside = self.root / "outside-ide"
+        outside.mkdir()
+        rejected = self.run_projectctl(
+            "ide", "ide-test", "--cwd", str(outside), check=False
+        )
+        self.assertEqual(2, rejected.returncode)
+        self.assertIn("must remain under project root", rejected.stderr)
 
     def test_clean_stdout_keeps_environment_output_off_command_stdout(self) -> None:
         self.create_project("Protocol Provider")

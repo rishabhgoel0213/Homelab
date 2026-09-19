@@ -13,6 +13,7 @@ let
       export PROJECTS_ROOT=${lib.escapeShellArg projectsRoot}
       export PROJECTCTL_NIX_BIN=${lib.escapeShellArg "${pkgs.nix}/bin/nix"}
       export PROJECTCTL_SELF=/run/current-system/sw/bin/projectctl
+      export PROJECTCTL_IDE_BIN=/run/current-system/sw/bin/vscodium-env
       export PROJECTCTL_SYNC_ROLE=target
       export PROJECTCTL_SYNC_PEERS_JSON='{}'
       export PROJECTCTL_SYNCTHING_COMMAND_JSON=${

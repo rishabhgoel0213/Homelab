@@ -1,0 +1,36 @@
+{
+  "name": "projects",
+  "displayName": "Homelab Projects",
+  "description": "Open projectctl projects in their configured VSCodium preset.",
+  "version": "1.0.0",
+  "publisher": "therealrishabh",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:homelabProjects.openProject"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "homelabProjects.openProject",
+        "title": "Projects: Open Project"
+      }
+    ],
+    "configuration": {
+      "title": "Homelab Projects",
+      "properties": {
+        "homelabProjects.projectctlPath": {
+          "type": "string",
+          "default": "/run/current-system/sw/bin/projectctl",
+          "description": "Absolute path to the managed projectctl executable."
+        }
+      }
+    }
+  }
+}

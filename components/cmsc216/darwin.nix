@@ -10,8 +10,9 @@ let
   user = "rishabhgoel";
   userHome = "/Users/${user}";
   remoteRoot = if cfg.remoteRoot == null then "/home/${cfg.directoryId}/216-sync" else cfg.remoteRoot;
-  packageSet = pkgs.callPackage ./package.nix {
+  coursePackage = pkgs.callPackage ./package.nix {
     inherit pkgs remoteRoot;
+    codiumBin = "${config.homelab.apps.vscodium.generated.cmsc216.codiumPackage}/bin/codium-cmsc216";
     inherit (cfg)
       authPersist
       dataRoot
@@ -103,13 +104,23 @@ in
     ];
 
     homelab.coursework.cmsc216 = {
-      package = packageSet.app;
-      cliPackage = packageSet.cli;
+      package = config.homelab.apps.vscodium.generated.cmsc216.package;
+      cliPackage = coursePackage.cli;
+    };
+
+    homelab.apps.vscodium.presets.cmsc216 = {
+      displayName = "CMSC 216";
+      bundleIdentifier = "com.therealrishabh.cmsc216";
+      inherit (cfg) dataRoot;
+      extensions = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
+      settings = coursePackage.settings;
+      workspace = coursePackage.workspace;
+      workspaceLinkName = "CMSC 216.code-workspace";
+      appVersion = "2026.1";
     };
 
     environment.systemPackages = [
-      packageSet.app
-      packageSet.cli
+      coursePackage.cli
     ];
 
     environment.etc = {
@@ -123,28 +134,11 @@ in
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
       course_root=${lib.escapeShellArg cfg.localRoot}
-      data_root=${lib.escapeShellArg cfg.dataRoot}
       ssh_root=${lib.escapeShellArg "${userHome}/.ssh"}
-      workspace_link="$data_root/CMSC 216.code-workspace"
       legacy_course_root=${lib.escapeShellArg "${userHome}/Coursework/CMSC216"}
 
       install -d -m 0755 -o ${user} -g staff "$course_root"
-      install -d -m 0700 -o ${user} -g staff "$data_root" "$data_root/User"
       install -d -m 0700 -o ${user} -g staff "$ssh_root" "$ssh_root/control"
-
-      manage_link() {
-        target="$1"
-        source="$2"
-        if [[ -e "$target" && ! -L "$target" ]]; then
-          echo "Refusing to replace unmanaged CMSC 216 file at $target" >&2
-          exit 1
-        fi
-        ln -sfn "$source" "$target"
-        chown -h ${user}:staff "$target"
-      }
-
-      manage_link "$data_root/User/settings.json" ${packageSet.settings}
-      manage_link "$workspace_link" ${packageSet.workspace}
 
       for legacy_link in \
         "$legacy_course_root/CMSC 216.code-workspace" \

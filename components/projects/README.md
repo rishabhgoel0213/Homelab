@@ -54,12 +54,20 @@ projectctl exec --clean-stdout linear-algebra -- some-jsonl-provider
 projectctl harnesses
 projectctl session linear-algebra codex
 projectctl session linear-algebra pi
+projectctl ide linear-algebra
+projectctl ide fall-2026 --cwd cmsc216 --preset cmsc216
 ```
 
 Commands run from the project root, or from a validated child directory supplied
 with `--cwd`. When `flake.nix` exists, they enter the project development shell
 first. The harness registry is configured in Nix, so future providers can be
 added without changing project manifests or the CLI.
+
+On the managed Mac, `projectctl ide` opens a project in its declared VSCodium
+preset. Managed project manifests may set `[editor].preset`; otherwise the
+`general` preset is used. `--cwd` accepts only a directory within the selected
+project, which keeps umbrella projects such as Fall 2026 intact while allowing
+a course subdirectory to open in a specialized preset.
 
 Use `--clean-stdout` for commands whose stdout is a machine protocol. Nix and
 development-shell startup output is sent to stderr, then the original stdout is

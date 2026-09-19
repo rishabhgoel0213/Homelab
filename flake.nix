@@ -117,12 +117,43 @@
         ps.aiohttp
         ps.pyyaml
       ]);
+      vscodiumProjectsExtension =
+        pkgs.callPackage ./components/vscodium/projects-extension/package.nix
+          { };
       cmsc216CheckPackages = pkgs.callPackage ./components/cmsc216/package.nix {
         inherit pkgs;
         directoryId = "r1shabhg";
         localRoot = "/Users/rishabhgoel/Projects/fall-2026/cmsc216";
         remoteRoot = "/home/r1shabhg/216-sync";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
+        codiumBin = "${cmsc216EditorCheckPackages.codium}/bin/codium-cmsc216";
+      };
+      cmsc216EditorCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
+        presetName = "cmsc216";
+        displayName = "CMSC 216";
+        bundleIdentifier = "com.therealrishabh.cmsc216";
+        dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
+        extensions = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
+        settings = cmsc216CheckPackages.settings;
+        workspace = cmsc216CheckPackages.workspace;
+        appVersion = "2026.1";
+      };
+      vscodiumGeneralCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
+        presetName = "general";
+        displayName = "VSCodium";
+        bundleIdentifier = "com.therealrishabh.vscodium";
+        dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general";
+        extensions = [ vscodiumProjectsExtension ];
+        settings = {
+          "telemetry.telemetryLevel" = "off";
+          "update.mode" = "none";
+        };
+      };
+      vscodiumDispatcherCheckPackage = pkgs.callPackage ./components/vscodium/dispatcher.nix {
+        presets.general = {
+          displayName = "VSCodium";
+          cli = vscodiumGeneralCheckPackages.cli;
+        };
       };
       zenDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
     in
@@ -169,6 +200,35 @@
               touch "$out"
             '';
 
+        vscodium =
+          pkgs.runCommand "vscodium-check"
+            {
+              nativeBuildInputs = [
+                pkgs.jq
+                pkgs.nodejs_24
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              node --check ${./components/vscodium/projects-extension/extension.js}
+              jq -e '.publisher == "therealrishabh" and .name == "projects"' \
+                ${./components/vscodium/projects-extension/package.json} >/dev/null
+              jq -e '."telemetry.telemetryLevel" == "off"' \
+                ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
+              jq -e 'map(.identifier.id) | index("therealrishabh.projects") != null' \
+                ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              shellcheck ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
+              shellcheck ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
+              grep -Fq -- '--extensions-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
+              grep -Fq -- '--user-data-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
+              ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'general'
+              if ${vscodiumDispatcherCheckPackage}/bin/vscodium-env open missing; then
+                echo 'unknown VSCodium preset unexpectedly succeeded' >&2
+                exit 1
+              fi
+              touch "$out"
+            '';
+
         cmsc216 =
           pkgs.runCommand "cmsc216-check"
             {
@@ -206,8 +266,10 @@
               grep -Fq 'sync_root="$CMSC216_LOCAL_ROOT"' ${./components/cmsc216/bin/cmsc216}
               ! grep -Fq 'GlobalProtect' ${./components/cmsc216/bin/cmsc216}
               ! grep -Fq 'sftp-neo' ${./components/cmsc216/bin/cmsc216}
-              jq -e . ${cmsc216CheckPackages.settings} >/dev/null
+              jq -e . ${cmsc216EditorCheckPackages.settingsFile} >/dev/null
               jq -e . ${cmsc216CheckPackages.workspace} >/dev/null
+              jq -e 'map(.identifier.id) == ["llvm-vs-code-extensions.vscode-clangd"]' \
+                ${cmsc216EditorCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
 
               jq -e '.extensions.recommendations == ["llvm-vs-code-extensions.vscode-clangd"]' \
                 ${cmsc216CheckPackages.workspace} >/dev/null
@@ -395,6 +457,12 @@
         tabby-plugins = macbookTabbyPlugins;
         tabby = darwinTabbyPrebuilt;
         tabby-source = darwinTabbySource;
+        vscodium-general =
+          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.general.package;
+        vscodium-research =
+          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.research.package;
+        vscodium-scratch =
+          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.scratch.package;
         zen = darwinZenPrebuilt;
         zen-source = darwinZenSource;
         macbook-system = self.darwinConfigurations.macbook.system;

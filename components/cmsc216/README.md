@@ -1,11 +1,17 @@
 # CMSC 216 Mac environment
 
-This component produces an isolated `CMSC 216.app` for the managed MacBook.
-The app launches a fixed VSCodium build with only clangd, opens the local
+This component declares the isolated `cmsc216` preset of the shared managed
+VSCodium component and produces `CMSC 216.app` for the managed MacBook. The app
+launches the pinned VSCodium build with only clangd, opens the local
 `~/Projects/fall-2026/cmsc216` folder as a managed workspace, and exposes
 Zaratan tasks backed by the `cmsc216` command. File transfer, remote commands,
 testing, formatting, and shells all use that command instead of an
 editor-specific SFTP extension.
+
+The generic editor engine, extension directory, user-data isolation, settings
+link, and app wrapper live under `components/vscodium`. Course-specific tasks,
+Zaratan authentication, synchronization, downloads, and exam checks remain in
+this component.
 
 ## Declarative boundary
 

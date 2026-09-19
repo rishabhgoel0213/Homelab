@@ -87,6 +87,7 @@ class Project:
             "managed": self.managed,
             "created_at": self.created_at,
             "environment": "nix" if project_flake(self) is not None else "host",
+            "editor_preset": editor_preset(self),
             "sync_targets": sync_targets(self),
         }
 
@@ -268,6 +269,9 @@ def manifest_text(
         'source_code = "src"',
         'figures = "figures"',
         'artifacts = "artifacts"',
+        "",
+        "[editor]",
+        'preset = "general"',
         "",
         "[environment]",
         'flake = "flake.nix"',
@@ -723,6 +727,7 @@ def command_capabilities(args: argparse.Namespace) -> int:
             "env.lock",
             "exec",
             "harnesses",
+            "ide",
             "init",
             "jupyter",
             "list",
@@ -780,6 +785,7 @@ def command_show(args: argparse.Namespace) -> int:
             "root",
             "managed",
             "environment",
+            "editor_preset",
             "jupyter_url",
         ):
             print(f"{key}: {payload[key]}")
@@ -1096,6 +1102,18 @@ def environment_table(project: Project) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def editor_preset(project: Project) -> str:
+    table = project.manifest.get("editor", {})
+    if not isinstance(table, dict):
+        raise ProjectError(f"{project.root / MANIFEST_NAME}: editor must be a table")
+    preset = table.get("preset", "general")
+    if not isinstance(preset, str) or HARNESS_RE.fullmatch(preset) is None:
+        raise ProjectError(
+            f"{project.root / MANIFEST_NAME}: editor.preset must be a plain preset name"
+        )
+    return preset
+
+
 def project_flake(project: Project) -> Path | None:
     table = environment_table(project)
     configured = table.get("flake", "flake.nix")
@@ -1239,6 +1257,26 @@ def command_session(args: argparse.Namespace) -> int:
     command = [item.replace("{project}", str(project.root)) for item in template]
     command.extend(strip_separator(args.arguments))
     return exec_command(project, command, direct=args.direct, cwd=args.cwd)
+
+
+def command_ide(args: argparse.Namespace) -> int:
+    project = resolve_project(args.project)
+    executable = os.environ.get("PROJECTCTL_IDE_BIN")
+    if not executable:
+        raise ProjectError("IDE launching is not configured on this host")
+    preset = args.preset or editor_preset(project)
+    if HARNESS_RE.fullmatch(preset) is None:
+        raise ProjectError("IDE preset must be a plain preset name")
+    requested_cwd = args.cwd
+    if (
+        requested_cwd is not None
+        and not Path(requested_cwd).expanduser().is_absolute()
+    ):
+        requested_cwd = str(project.root / requested_cwd)
+    target = validated_execution_root(project, requested_cwd)
+    command = [executable, "open", preset, str(target)]
+    os.execvpe(command[0], command, os.environ.copy())
+    return 0
 
 
 def command_exec(args: argparse.Namespace) -> int:
@@ -1455,6 +1493,12 @@ def parser() -> argparse.ArgumentParser:
     session.add_argument("harness", nargs="?", default="codex")
     session.add_argument("arguments", nargs=argparse.REMAINDER)
     session.set_defaults(func=command_session)
+
+    ide = commands.add_parser("ide", help="open a project in its VSCodium preset")
+    ide.add_argument("project")
+    ide.add_argument("--cwd", help="open a directory inside the project")
+    ide.add_argument("--preset", help="override the project's configured editor preset")
+    ide.set_defaults(func=command_ide)
 
     execute = commands.add_parser("exec", help="run a command in a project environment")
     execute.add_argument(
