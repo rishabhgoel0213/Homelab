@@ -66,6 +66,24 @@ let
           description = "Optional managed workspace link created in the preset data root.";
         };
 
+        remoteHost = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Optional SSH host opened automatically by this preset.";
+        };
+
+        remotePath = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Default path opened on the preset's SSH host.";
+        };
+
+        localPathPrefix = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = "Optional local project prefix mapped to remotePath by the launcher.";
+        };
+
         mutableExtensions = lib.mkOption {
           type = lib.types.bool;
           default = false;
@@ -98,6 +116,9 @@ let
         dataRoot
         displayName
         mutableExtensions
+        localPathPrefix
+        remoteHost
+        remotePath
         workspace
         ;
       extensions = resolvedExtensions preset;
@@ -210,6 +231,18 @@ in
         {
           assertion = lib.hasPrefix "${userHome}/" preset.dataRoot;
           message = "VSCodium preset ${name} dataRoot must be inside ${userHome}";
+        }
+        {
+          assertion = (preset.remoteHost == null) == (preset.remotePath == null);
+          message = "VSCodium preset ${name} must set remoteHost and remotePath together";
+        }
+        {
+          assertion = preset.remoteHost == null || preset.workspace == null;
+          message = "VSCodium preset ${name} cannot set both remoteHost and workspace";
+        }
+        {
+          assertion = preset.localPathPrefix == null || preset.remoteHost != null;
+          message = "VSCodium preset ${name} localPathPrefix requires remoteHost";
         }
       ]) cfg.presets
     );

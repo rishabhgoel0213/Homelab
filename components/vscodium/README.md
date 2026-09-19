@@ -1,10 +1,11 @@
 # Managed VSCodium presets
 
-This component provides one pinned VSCodium engine with multiple isolated,
-declarative presets. Each preset has its own macOS app bundle, user-data root,
-settings, and extension directory. Managed presets receive an immutable Nix
-extension set; an explicitly mutable preset can instead use a private writable
-extension directory.
+This component provides one pinned VSCodium engine with three isolated,
+declarative applications: remote `VSCodium`, `VSCodium Local`, and `CMSC 216`.
+Each preset has its own macOS app bundle, user-data root, settings, and extension
+directory. The remote application receives the complete Nix-managed extension
+set, the local application retains Scratch's private writable extension area,
+and the course application keeps its smaller course-specific set.
 
 Preset settings are installed as user-writable regular files rather than links
 to the immutable Nix store. This lets VSCodium persist its own harmless settings
@@ -25,12 +26,20 @@ preset. Managed projects can set a default in `project.toml`:
 
 ```toml
 [editor]
-preset = "research"
+preset = "local"
 ```
 
 The `therealrishabh.projects` extension exposes **Projects: Open Project** and
 uses the same `projectctl` JSON model. It does not maintain another project
-database.
+database. In the remote application it runs beside the remote extension host,
+lists the server's canonical projects, and opens the selected project through
+the current SSH authority.
+
+Launching `VSCodium.app` connects to `nixos-pc` and opens
+`/home/rishabh/Projects`. `VSCodium Local.app` opens a normal local window and
+retains the former Scratch preset's user-data root. The server-side copies of
+the managed workspace extensions are reconciled into
+`~/.vscode-server/extensions` by the NixOS activation.
 
 Preset isolation separates extension installations, settings, caches, and
 editor state. Project compilers and runtimes remain owned by each project's Nix

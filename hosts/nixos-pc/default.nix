@@ -40,6 +40,7 @@
     ../../components/jupyterlab/nixos.nix
     ../../components/t3code/nixos.nix
     ../../components/blog/nixos.nix
+    ../../components/vscodium/remote-server.nix
     ../../components/syncthing/nixos.nix
     ../../components/singlemail/nixos.nix
     ../../components/samba/nixos.nix

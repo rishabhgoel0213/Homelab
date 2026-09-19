@@ -54,6 +54,27 @@ async function openProject() {
     return;
   }
 
+  if (vscode.env.remoteName) {
+    const remoteFolder = (vscode.workspace.workspaceFolders || []).find(
+      (folder) => folder.uri.scheme === "vscode-remote",
+    );
+    if (!remoteFolder) {
+      vscode.window.showErrorMessage(
+        "Could not determine the active remote project authority.",
+      );
+      return;
+    }
+    const projectUri = vscode.Uri.from({
+      scheme: "vscode-remote",
+      authority: remoteFolder.uri.authority,
+      path: selected.project.root,
+    });
+    await vscode.commands.executeCommand("vscode.openFolder", projectUri, {
+      forceNewWindow: true,
+    });
+    return;
+  }
+
   const command = projectctlPath();
   const child = childProcess.spawn(command, ["ide", selected.project.name], {
     detached: true,

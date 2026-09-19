@@ -24,10 +24,12 @@ replacement path has been tested from another terminal.
   package variants. Add future browser extensions to the corresponding policy
   in `components/zen/darwin.nix`. The policy uses Mozilla's supported macOS
   system preference domain and does not modify the signed application bundle.
-- VSCodium uses one pinned engine with isolated `general`, `research`,
-  `scratch`, and `cmsc216` presets. Managed presets receive exact Nix-built
-  extension directories and separate user-data roots. Only `scratch` permits
-  mutable extension installation.
+- VSCodium uses one pinned engine with isolated `general`, `local`, and
+  `cmsc216` presets. `VSCodium` opens the server's canonical Projects tree over
+  SSH, `VSCodium Local` handles ordinary Mac work, and `CMSC 216` retains its
+  course-specific workspace. The remote preset receives the complete Nix-built
+  extension set, while the local preset retains Scratch's private writable
+  extension area and user-data root.
 
 ## Declarative Zen sidebar
 
@@ -385,9 +387,11 @@ projectctl ide fall-2026 \
 ```
 
 Managed projects may declare `[editor].preset` in `project.toml`; `general` is
-the default. The general and research editors also provide **Projects: Open
-Project**, backed directly by `projectctl list --json`. CMSC 216 continues to
-open its fixed generated workspace so all course tasks remain available.
+the default and opens the matching server path over SSH. Set `local` for a
+project that should open from the Mac's project tree. The remote application
+provides **Projects: Open Project**, backed directly by the server's
+`projectctl list --json`. CMSC 216 continues to open its fixed generated
+workspace so all course tasks remain available.
 
 ## State-preserving application cutover
 

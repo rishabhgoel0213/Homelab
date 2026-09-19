@@ -2,6 +2,9 @@
 
 let
   projectsExtension = pkgs.callPackage ../../components/vscodium/projects-extension/package.nix { };
+  extensionSets = import ../../components/vscodium/extensions.nix {
+    inherit pkgs projectsExtension;
+  };
 in
 {
   imports = [
@@ -18,30 +21,15 @@ in
       enable = true;
 
       extensionBundles = {
-        core = [
-          projectsExtension
-          pkgs.vscode-extensions.editorconfig.editorconfig
-          pkgs.vscode-extensions.jnoortheen.nix-ide
-          pkgs.vscode-extensions.mkhl.direnv
-          pkgs.vscode-extensions.redhat.vscode-yaml
-          pkgs.vscode-extensions.tamasfe.even-better-toml
-        ];
-        c = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
-        notebooks = [
-          pkgs.vscode-extensions.ms-toolsai.jupyter
-          pkgs.vscode-extensions.ms-toolsai.jupyter-renderers
-        ];
-        python = [
-          pkgs.vscode-extensions.ms-python.black-formatter
-          pkgs.vscode-extensions.ms-python.debugpy
-          pkgs.vscode-extensions.ms-python.python
-          pkgs.vscode-extensions.ms-python.vscode-python-envs
-        ];
-        rust = [ pkgs.vscode-extensions.rust-lang.rust-analyzer ];
-        web = [
-          pkgs.vscode-extensions.dbaeumer.vscode-eslint
-          pkgs.vscode-extensions.esbenp.prettier-vscode
-        ];
+        inherit (extensionSets)
+          c
+          core
+          notebooks
+          python
+          rust
+          web
+          ;
+        remote = extensionSets.remoteClient;
       };
 
       presets = {
@@ -55,22 +43,18 @@ in
             "python"
             "rust"
             "web"
+            "remote"
           ];
+          remoteHost = "nixos-pc";
+          remotePath = "/home/rishabh/Projects";
+          localPathPrefix = "/Users/rishabhgoel/Projects";
+          settings."remote.SSH.remotePlatform".nixos-pc = "linux";
         };
 
-        research = {
-          displayName = "Research IDE";
-          bundleIdentifier = "com.therealrishabh.vscodium.research";
-          bundles = [
-            "core"
-            "notebooks"
-            "python"
-          ];
-        };
-
-        scratch = {
-          displayName = "VSCodium Scratch";
-          bundleIdentifier = "com.therealrishabh.vscodium.scratch";
+        local = {
+          displayName = "VSCodium Local";
+          bundleIdentifier = "com.therealrishabh.vscodium.local";
+          dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch";
           mutableExtensions = true;
         };
       };

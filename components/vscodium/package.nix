@@ -8,6 +8,9 @@
   extensions ? [ ],
   settings ? { },
   workspace ? null,
+  remoteHost ? null,
+  remotePath ? null,
+  localPathPrefix ? null,
   mutableExtensions ? false,
   appVersion ? "1.0",
 }:
@@ -46,9 +49,36 @@ let
     set -eu
     ${
       if workspace == null then
-        ''
-          exec ${codium}/bin/codium-${presetName} --new-window "$@"
-        ''
+        if remoteHost == null then
+          ''
+            exec ${codium}/bin/codium-${presetName} --new-window "$@"
+          ''
+        else
+          ''
+            remote_root=${lib.escapeShellArg remotePath}
+            local_prefix=${lib.escapeShellArg (if localPathPrefix == null then "" else localPathPrefix)}
+            remote_paths=()
+
+            if [[ "$#" -eq 0 ]]; then
+              remote_paths+=("$remote_root")
+            else
+              for requested_path in "$@"; do
+                if [[ -n "$local_prefix" && "$requested_path" == "$local_prefix" ]]; then
+                  remote_paths+=("$remote_root")
+                elif [[ -n "$local_prefix" && "$requested_path" == "$local_prefix/"* ]]; then
+                  relative_path="''${requested_path#"$local_prefix"/}"
+                  remote_paths+=("$remote_root/$relative_path")
+                else
+                  remote_paths+=("$requested_path")
+                fi
+              done
+            fi
+
+            exec ${codium}/bin/codium-${presetName} \
+              --new-window \
+              --remote ${lib.escapeShellArg "ssh-remote+${remoteHost}"} \
+              "''${remote_paths[@]}"
+          ''
       else
         ''
           exec ${codium}/bin/codium-${presetName} \

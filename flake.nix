@@ -48,6 +48,10 @@
       system = "x86_64-linux";
       darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
+      unfreePkgs = import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+      };
       unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${system};
       unsupportedLinuxPkgs = import nixpkgs {
         inherit system;
@@ -143,11 +147,20 @@
         displayName = "VSCodium";
         bundleIdentifier = "com.therealrishabh.vscodium";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general";
-        extensions = [ vscodiumProjectsExtension ];
+        extensions = [
+          vscodiumProjectsExtension
+          unfreePkgs.vscode-extensions.ms-vscode-remote.remote-ssh
+          unfreePkgs.vscode-extensions.ms-vscode-remote.remote-ssh-edit
+          unfreePkgs.vscode-extensions.ms-vscode.remote-explorer
+        ];
         settings = {
+          "remote.SSH.remotePlatform".nixos-pc = "linux";
           "telemetry.telemetryLevel" = "off";
           "update.mode" = "none";
         };
+        remoteHost = "nixos-pc";
+        remotePath = "/home/rishabh/Projects";
+        localPathPrefix = "/Users/rishabhgoel/Projects";
       };
       vscodiumDispatcherCheckPackage = pkgs.callPackage ./components/vscodium/dispatcher.nix {
         presets.general = {
@@ -155,6 +168,9 @@
           cli = vscodiumGeneralCheckPackages.cli;
         };
       };
+      vscodiumRemoteActivationScript = pkgs.writeShellScript "vscodium-remote-activation-check" (
+        self.nixosConfigurations.nixos-pc.config.system.activationScripts.vscodiumRemoteExtensions.text
+      );
       zenDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
     in
     {
@@ -213,14 +229,26 @@
               node --check ${./components/vscodium/projects-extension/extension.js}
               jq -e '.publisher == "therealrishabh" and .name == "projects"' \
                 ${./components/vscodium/projects-extension/package.json} >/dev/null
+              jq -e '.extensionKind == ["workspace"]' \
+                ${./components/vscodium/projects-extension/package.json} >/dev/null
               jq -e '."telemetry.telemetryLevel" == "off"' \
                 ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
+              jq -e '."remote.SSH.remotePlatform"["nixos-pc"] == "linux"' \
+                ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
               jq -e 'map(.identifier.id) | index("therealrishabh.projects") != null' \
+                ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              jq -e 'map(.identifier.id) | index("ms-vscode-remote.remote-ssh") != null' \
                 ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
               shellcheck ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
               shellcheck ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '--extensions-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
               grep -Fq -- '--user-data-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
+              grep -Fq -- '--remote' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
+              grep -Fq -- 'ssh-remote+nixos-pc' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
+              grep -Fq -- '/home/rishabh/Projects' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
+              grep -Fq 'vscode.env.remoteName' ${./components/vscodium/projects-extension/extension.js}
+              bash -n ${vscodiumRemoteActivationScript}
+              shellcheck ${vscodiumRemoteActivationScript}
               grep -Fq 'install_settings "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ! grep -Fq 'manage_link "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'general'
@@ -461,10 +489,8 @@
         tabby-source = darwinTabbySource;
         vscodium-general =
           self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.general.package;
-        vscodium-research =
-          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.research.package;
-        vscodium-scratch =
-          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.scratch.package;
+        vscodium-local =
+          self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.local.package;
         zen = darwinZenPrebuilt;
         zen-source = darwinZenSource;
         macbook-system = self.darwinConfigurations.macbook.system;
