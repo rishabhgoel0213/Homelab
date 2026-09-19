@@ -109,7 +109,7 @@ in
     };
 
     homelab.apps.vscodium.presets.cmsc216 = {
-      displayName = "CMSC 216";
+      displayName = "VSCodium 216";
       bundleIdentifier = "com.therealrishabh.cmsc216";
       icon = ../vscodium/icons/VSCodium-CMSC216.icns;
       inherit (cfg) dataRoot;
@@ -117,7 +117,7 @@ in
       settings = coursePackage.settings;
       workspace = coursePackage.workspace;
       workspaceLinkName = "CMSC 216.code-workspace";
-      appVersion = "2026.2";
+      appVersion = "2026.3";
     };
 
     environment.systemPackages = [

@@ -1,7 +1,7 @@
 # CMSC 216 Mac environment
 
 This component declares the isolated `cmsc216` preset of the shared managed
-VSCodium component and produces `CMSC 216.app` for the managed MacBook. The app
+VSCodium component and produces `VSCodium 216.app` for the managed MacBook. The app
 launches the pinned VSCodium build with only clangd, opens the local
 `~/Projects/fall-2026/cmsc216` folder as a managed workspace, and exposes
 Zaratan tasks backed by the `cmsc216` command. File transfer, remote commands,
@@ -37,7 +37,7 @@ Before deploying, confirm that
 `homelab.coursework.cmsc216.directoryId` in `hosts/macbook/default.nix` is the
 user's actual UMD Directory ID.
 
-After deployment, launch `CMSC 216.app` and run `CMSC 216: Authenticate with
+After deployment, launch `VSCodium 216.app` and run `CMSC 216: Authenticate with
 Duo` from **Terminal: Run Task**. Then run this one-time setup command in the
 integrated terminal:
 

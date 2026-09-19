@@ -34,7 +34,7 @@ in
 
       presets = {
         general = {
-          displayName = "VSCodium";
+          displayName = "VSCodium Remote";
           bundleIdentifier = "com.therealrishabh.vscodium";
           icon = ../../components/vscodium/icons/VSCodium-Remote.icns;
           bundles = [
@@ -49,8 +49,11 @@ in
           remoteHost = "nixos-pc";
           remotePath = "/home/rishabh/Projects";
           localPathPrefix = "/Users/rishabhgoel/Projects";
-          settings."remote.SSH.remotePlatform".nixos-pc = "linux";
-          appVersion = "2026.2";
+          settings = {
+            "remote.SSH.remotePlatform".nixos-pc = "linux";
+            "remote.SSH.serverInstallPath".nixos-pc = "/home/rishabh/.vscodium-server";
+          };
+          appVersion = "2026.3";
         };
 
         local = {

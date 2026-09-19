@@ -22,7 +22,7 @@ in
   system.activationScripts.vscodiumRemoteExtensions = {
     deps = [ "users" ];
     text = ''
-      server_root=${lib.escapeShellArg "${home}/.vscode-server"}
+      server_root=${lib.escapeShellArg "${home}/.vscodium-server"}
       extensions_root="$server_root/extensions"
       managed_manifest="$extensions_root/.homelab-managed-extensions"
 

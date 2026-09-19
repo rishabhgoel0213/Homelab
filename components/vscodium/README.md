@@ -1,16 +1,17 @@
 # Managed VSCodium presets
 
 This component provides one pinned VSCodium engine with three isolated,
-declarative applications: remote `VSCodium`, `VSCodium Local`, and `CMSC 216`.
+declarative applications: `VSCodium Remote`, `VSCodium Local`, and
+`VSCodium 216`.
 Each preset has its own macOS app bundle, user-data root, settings, and extension
 directory. The remote application receives the complete Nix-managed extension
 set, the local application retains Scratch's private writable extension area,
 and the course application keeps its smaller course-specific set.
 
 The three application variants use their corresponding checked-in ICNS assets
-from `icons/`: Remote for `VSCodium`, Local for `VSCodium Local`, and CMSC216 for
-`CMSC 216`. Updating an icon should also increment that preset's `appVersion` so
-macOS refreshes Launch Services and Dock icon caches.
+from `icons/`: Remote for `VSCodium Remote`, Local for `VSCodium Local`, and
+CMSC216 for `VSCodium 216`. Updating an icon should also increment that preset's
+`appVersion` so macOS refreshes Launch Services and Dock icon caches.
 
 Preset settings are installed as user-writable regular files rather than links
 to the immutable Nix store. This lets VSCodium persist its own harmless settings
@@ -40,11 +41,12 @@ database. In the remote application it runs beside the remote extension host,
 lists the server's canonical projects, and opens the selected project through
 the current SSH authority.
 
-Launching `VSCodium.app` connects to `nixos-pc` and opens
+Launching `VSCodium Remote.app` connects to `nixos-pc` and opens
 `/home/rishabh/Projects`. `VSCodium Local.app` opens a normal local window and
 retains the former Scratch preset's user-data root. The server-side copies of
 the managed workspace extensions are reconciled into
-`~/.vscode-server/extensions` by the NixOS activation.
+`~/.vscodium-server/extensions` by the NixOS activation. The client connection
+is provided by the pinned `jeanp413.open-remote-ssh` extension from Open VSX.
 
 Preset isolation separates extension installations, settings, caches, and
 editor state. Project compilers and runtimes remain owned by each project's Nix

@@ -4,6 +4,7 @@
 }:
 
 let
+  openRemoteSsh = pkgs.callPackage ./open-remote-ssh/package.nix { };
   core = [
     projectsExtension
     pkgs.vscode-extensions.editorconfig.editorconfig
@@ -41,9 +42,5 @@ in
 
   full = core ++ c ++ notebooks ++ python ++ rust ++ web;
 
-  remoteClient = [
-    pkgs.vscode-extensions.ms-vscode-remote.remote-ssh
-    pkgs.vscode-extensions.ms-vscode-remote.remote-ssh-edit
-    pkgs.vscode-extensions.ms-vscode.remote-explorer
-  ];
+  remoteClient = [ openRemoteSsh ];
 }

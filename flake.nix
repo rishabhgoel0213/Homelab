@@ -48,10 +48,6 @@
       system = "x86_64-linux";
       darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
-      unfreePkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
       unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${system};
       unsupportedLinuxPkgs = import nixpkgs {
         inherit system;
@@ -124,6 +120,7 @@
       vscodiumProjectsExtension =
         pkgs.callPackage ./components/vscodium/projects-extension/package.nix
           { };
+      vscodiumOpenRemoteSsh = pkgs.callPackage ./components/vscodium/open-remote-ssh/package.nix { };
       cmsc216CheckPackages = pkgs.callPackage ./components/cmsc216/package.nix {
         inherit pkgs;
         directoryId = "r1shabhg";
@@ -134,35 +131,35 @@
       };
       cmsc216EditorCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
         presetName = "cmsc216";
-        displayName = "CMSC 216";
+        displayName = "VSCodium 216";
         bundleIdentifier = "com.therealrishabh.cmsc216";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/CMSC216/VSCodium";
         icon = ./components/vscodium/icons/VSCodium-CMSC216.icns;
         extensions = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
         settings = cmsc216CheckPackages.settings;
         workspace = cmsc216CheckPackages.workspace;
-        appVersion = "2026.1";
+        appVersion = "2026.3";
       };
       vscodiumGeneralCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
         presetName = "general";
-        displayName = "VSCodium";
+        displayName = "VSCodium Remote";
         bundleIdentifier = "com.therealrishabh.vscodium";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general";
         icon = ./components/vscodium/icons/VSCodium-Remote.icns;
         extensions = [
           vscodiumProjectsExtension
-          unfreePkgs.vscode-extensions.ms-vscode-remote.remote-ssh
-          unfreePkgs.vscode-extensions.ms-vscode-remote.remote-ssh-edit
-          unfreePkgs.vscode-extensions.ms-vscode.remote-explorer
+          vscodiumOpenRemoteSsh
         ];
         settings = {
           "remote.SSH.remotePlatform".nixos-pc = "linux";
+          "remote.SSH.serverInstallPath".nixos-pc = "/home/rishabh/.vscodium-server";
           "telemetry.telemetryLevel" = "off";
           "update.mode" = "none";
         };
         remoteHost = "nixos-pc";
         remotePath = "/home/rishabh/Projects";
         localPathPrefix = "/Users/rishabhgoel/Projects";
+        appVersion = "2026.3";
       };
       vscodiumLocalCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
         presetName = "local";
@@ -171,10 +168,11 @@
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch";
         icon = ./components/vscodium/icons/VSCodium-Local.icns;
         mutableExtensions = true;
+        appVersion = "2026.2";
       };
       vscodiumDispatcherCheckPackage = pkgs.callPackage ./components/vscodium/dispatcher.nix {
         presets.general = {
-          displayName = "VSCodium";
+          displayName = "VSCodium Remote";
           cli = vscodiumGeneralCheckPackages.cli;
         };
       };
@@ -246,10 +244,16 @@
                 ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
               jq -e '."remote.SSH.remotePlatform"["nixos-pc"] == "linux"' \
                 ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
+              jq -e '."remote.SSH.serverInstallPath"["nixos-pc"] == "/home/rishabh/.vscodium-server"' \
+                ${vscodiumGeneralCheckPackages.settingsFile} >/dev/null
               jq -e 'map(.identifier.id) | index("therealrishabh.projects") != null' \
                 ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
-              jq -e 'map(.identifier.id) | index("ms-vscode-remote.remote-ssh") != null' \
+              jq -e 'map(.identifier.id) | index("jeanp413.open-remote-ssh") != null' \
                 ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              jq -e 'map(.identifier.id) | index("ms-vscode-remote.remote-ssh") == null' \
+                ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              jq -e '.version == "0.3.1" and (.activationEvents | index("onResolveRemoteAuthority:ssh-remote") != null)' \
+                ${vscodiumOpenRemoteSsh}/share/vscode/extensions/jeanp413.open-remote-ssh/package.json >/dev/null
               shellcheck ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
               shellcheck ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '--extensions-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
@@ -276,6 +280,7 @@
               grep -Fq 'install_settings "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ! grep -Fq 'manage_link "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'general'
+              ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'VSCodium Remote'
               if ${vscodiumDispatcherCheckPackage}/bin/vscodium-env open missing; then
                 echo 'unknown VSCodium preset unexpectedly succeeded' >&2
                 exit 1
