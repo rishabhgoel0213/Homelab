@@ -121,6 +121,18 @@
         pkgs.callPackage ./components/vscodium/projects-extension/package.nix
           { };
       vscodiumOpenRemoteSsh = pkgs.callPackage ./components/vscodium/open-remote-ssh/package.nix { };
+      vscodiumGeneralJupyterTempDir = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general/extension-data/ms-toolsai.jupyter/temp";
+      vscodiumLocalJupyterTempDir = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch/extension-data/ms-toolsai.jupyter/temp";
+      vscodiumGeneralExtensionSets = import ./components/vscodium/extensions.nix {
+        inherit pkgs;
+        projectsExtension = vscodiumProjectsExtension;
+        jupyterTempDir = vscodiumGeneralJupyterTempDir;
+      };
+      vscodiumLocalExtensionSets = import ./components/vscodium/extensions.nix {
+        inherit pkgs;
+        projectsExtension = vscodiumProjectsExtension;
+        jupyterTempDir = vscodiumLocalJupyterTempDir;
+      };
       cmsc216CheckPackages = pkgs.callPackage ./components/cmsc216/package.nix {
         inherit pkgs;
         directoryId = "r1shabhg";
@@ -146,10 +158,7 @@
         bundleIdentifier = "com.therealrishabh.vscodium";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/general";
         icon = ./components/vscodium/icons/VSCodium-Remote.icns;
-        extensions = [
-          vscodiumProjectsExtension
-          vscodiumOpenRemoteSsh
-        ];
+        extensions = vscodiumGeneralExtensionSets.full ++ vscodiumGeneralExtensionSets.remoteClient;
         settings = {
           "remote.SSH.remotePlatform".nixos-pc = "linux";
           "remote.SSH.serverInstallPath".nixos-pc = "/home/rishabh/.vscodium-server";
@@ -159,7 +168,7 @@
         remoteHost = "nixos-pc";
         remotePath = "/home/rishabh/Projects";
         localPathPrefix = "/Users/rishabhgoel/Projects";
-        appVersion = "2026.3";
+        appVersion = "2026.4";
       };
       vscodiumLocalCheckPackages = pkgs.callPackage ./components/vscodium/package.nix {
         presetName = "local";
@@ -167,8 +176,9 @@
         bundleIdentifier = "com.therealrishabh.vscodium.local";
         dataRoot = "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch";
         icon = ./components/vscodium/icons/VSCodium-Local.icns;
+        extensions = vscodiumLocalExtensionSets.full;
         mutableExtensions = true;
-        appVersion = "2026.2";
+        appVersion = "2026.3";
       };
       vscodiumDispatcherCheckPackage = pkgs.callPackage ./components/vscodium/dispatcher.nix {
         presets.general = {
@@ -252,8 +262,16 @@
                 ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
               jq -e 'map(.identifier.id) | index("ms-vscode-remote.remote-ssh") == null' \
                 ${vscodiumGeneralCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              jq -e 'map(.identifier.id) | index("ms-toolsai.jupyter") != null' \
+                ${vscodiumLocalCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
+              jq -e 'map(.identifier.id) | index("therealrishabh.projects") != null' \
+                ${vscodiumLocalCheckPackages.managedExtensionDir}/share/vscode/extensions/extensions.json >/dev/null
               jq -e '.version == "0.3.1" and (.activationEvents | index("onResolveRemoteAuthority:ssh-remote") != null)' \
                 ${vscodiumOpenRemoteSsh}/share/vscode/extensions/jeanp413.open-remote-ssh/package.json >/dev/null
+              test "$(readlink ${vscodiumGeneralExtensionSets.jupyter}/share/vscode/extensions/ms-toolsai.jupyter/temp)" = \
+                ${pkgs.lib.escapeShellArg vscodiumGeneralJupyterTempDir}
+              test "$(readlink ${vscodiumLocalExtensionSets.jupyter}/share/vscode/extensions/ms-toolsai.jupyter/temp)" = \
+                ${pkgs.lib.escapeShellArg vscodiumLocalJupyterTempDir}
               shellcheck ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
               shellcheck ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '--extensions-dir' ${vscodiumGeneralCheckPackages.codium}/bin/codium-general
@@ -261,6 +279,9 @@
               grep -Fq -- '--remote' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- 'ssh-remote+nixos-pc' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
               grep -Fq -- '/home/rishabh/Projects' ${vscodiumGeneralCheckPackages.cli}/bin/vscodium-open-general
+              grep -Fq -- '--extensions-dir' ${vscodiumLocalCheckPackages.codium}/bin/codium-local
+              grep -Fq -- ${pkgs.lib.escapeShellArg "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch/extensions"} \
+                ${vscodiumLocalCheckPackages.codium}/bin/codium-local
               grep -Fq 'vscode.env.remoteName' ${./components/vscodium/projects-extension/extension.js}
               for icon in \
                 ${./components/vscodium/icons/VSCodium-Remote.icns} \
@@ -277,7 +298,10 @@
               grep -Fq 'cp ''${iconFile}' ${./components/vscodium/package.nix}
               bash -n ${vscodiumRemoteActivationScript}
               shellcheck ${vscodiumRemoteActivationScript}
+              grep -Fq '/home/rishabh/.vscodium-server/data/extension-data/ms-toolsai.jupyter/temp' \
+                ${vscodiumRemoteActivationScript}
               grep -Fq 'install_settings "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
+              grep -Fq 'install_mutable_extensions' ${./components/vscodium/darwin.nix}
               ! grep -Fq 'manage_link "$data_root/User/settings.json"' ${./components/vscodium/darwin.nix}
               ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'general'
               ${vscodiumDispatcherCheckPackage}/bin/vscodium-env list | grep -Fq 'VSCodium Remote'

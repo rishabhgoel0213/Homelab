@@ -158,8 +158,12 @@ let
       ''
         data_root=${lib.escapeShellArg preset.dataRoot}
         install -d -m 0700 -o ${user} -g staff "$data_root" "$data_root/User"
+        install -d -m 0700 -o ${user} -g staff \
+          "$data_root/extension-data/ms-toolsai.jupyter/temp"
         ${lib.optionalString preset.mutableExtensions ''
-          install -d -m 0700 -o ${user} -g staff "$data_root/extensions"
+          install_mutable_extensions \
+            "$data_root/extensions" \
+            ${packages.managedExtensionDir}/share/vscode/extensions
         ''}
         install_settings "$data_root/User/settings.json" ${packages.settingsFile}
         ${workspaceLink}
@@ -309,6 +313,67 @@ in
         # settings are unchanged. Install the declared baseline as a writable
         # regular file so those writes succeed. Each deployment restores it.
         install -m 0600 -o ${user} -g staff "$source" "$target"
+      }
+
+      install_mutable_extensions() {
+        extensions_root="$1"
+        managed_source="$2"
+        managed_manifest="$extensions_root/.homelab-managed-extensions"
+        extension_cache="$extensions_root/extensions.json"
+
+        install -d -m 0700 -o ${user} -g staff "$extensions_root"
+
+        if [[ -f "$managed_manifest" ]]; then
+          while IFS= read -r extension_name; do
+            case "$extension_name" in
+              ""|*[!A-Za-z0-9._-]*)
+                echo "Refusing invalid managed VSCodium extension name: $extension_name" >&2
+                exit 1
+                ;;
+            esac
+            extension_target="$extensions_root/$extension_name"
+            if [[ -L "$extension_target" ]]; then
+              extension_source="$(readlink "$extension_target")"
+              case "$extension_source" in
+                /nix/store/*) rm -f "$extension_target" ;;
+              esac
+            fi
+          done < "$managed_manifest"
+        fi
+
+        manifest_tmp="$(mktemp "$extensions_root/.homelab-managed-extensions.XXXXXX")"
+        for extension_source in "$managed_source"/*; do
+          [[ -d "$extension_source" ]] || continue
+          extension_name="''${extension_source##*/}"
+          extension_target="$extensions_root/$extension_name"
+          if [[ -e "$extension_target" && ! -L "$extension_target" ]]; then
+            echo "Refusing to replace unmanaged VSCodium extension at $extension_target" >&2
+            rm -f "$manifest_tmp"
+            exit 1
+          fi
+          ln -sfn "$extension_source" "$extension_target"
+          chown -h ${user}:staff "$extension_target"
+          printf '%s\n' "$extension_name" >> "$manifest_tmp"
+        done
+
+        chown ${user}:staff "$manifest_tmp"
+        chmod 0600 "$manifest_tmp"
+        mv -f "$manifest_tmp" "$managed_manifest"
+
+        cache_tmp="$(mktemp "$extensions_root/extensions.json.XXXXXX")"
+        if [[ -f "$extension_cache" ]] && ${pkgs.jq}/bin/jq -e 'type == "array"' "$extension_cache" >/dev/null; then
+          ${pkgs.jq}/bin/jq -s '
+            .[0] as $managed
+            | .[1] as $existing
+            | ($managed | map(.identifier.id)) as $managed_ids
+            | $managed + ($existing | map(select(.identifier.id as $id | ($managed_ids | index($id)) == null)))
+          ' "$managed_source/extensions.json" "$extension_cache" > "$cache_tmp"
+        else
+          cp "$managed_source/extensions.json" "$cache_tmp"
+        fi
+        chown ${user}:staff "$cache_tmp"
+        chmod 0600 "$cache_tmp"
+        mv -f "$cache_tmp" "$extension_cache"
       }
 
       ${activation}

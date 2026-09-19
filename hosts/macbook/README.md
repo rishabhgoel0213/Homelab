@@ -27,9 +27,10 @@ replacement path has been tested from another terminal.
 - VSCodium uses one pinned engine with isolated `general`, `local`, and
   `cmsc216` presets. `VSCodium Remote` opens the server's canonical Projects tree
   over SSH, `VSCodium Local` handles ordinary Mac work, and `VSCodium 216`
-  retains its course-specific workspace. The remote preset receives the
-  complete Nix-built extension set, while the local preset retains Scratch's
-  private writable extension area and user-data root.
+  retains its course-specific workspace. The remote and local presets receive
+  the complete Nix-built development extension set; Local keeps its additional
+  extensions, extension data, and editor state in Scratch's private writable
+  user-data root.
 
 ## Declarative Zen sidebar
 

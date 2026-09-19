@@ -5,8 +5,9 @@ declarative applications: `VSCodium Remote`, `VSCodium Local`, and
 `VSCodium 216`.
 Each preset has its own macOS app bundle, user-data root, settings, and extension
 directory. The remote application receives the complete Nix-managed extension
-set, the local application retains Scratch's private writable extension area,
-and the course application keeps its smaller course-specific set.
+set, the local application receives the same development baseline inside
+Scratch's private writable extension area, and the course application keeps its
+smaller course-specific set.
 
 The three application variants use their corresponding checked-in ICNS assets
 from `icons/`: Remote for `VSCodium Remote`, Local for `VSCodium Local`, and
@@ -47,6 +48,8 @@ retains the former Scratch preset's user-data root. The server-side copies of
 the managed workspace extensions are reconciled into
 `~/.vscodium-server/extensions` by the NixOS activation. The client connection
 is provided by the pinned `jeanp413.open-remote-ssh` extension from Open VSX.
+The Jupyter extension's writable temporary directory is scoped to each preset
+instead of linking the extension into the system-wide `/tmp` tree.
 
 Preset isolation separates extension installations, settings, caches, and
 editor state. Project compilers and runtimes remain owned by each project's Nix

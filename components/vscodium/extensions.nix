@@ -1,10 +1,17 @@
 {
   pkgs,
   projectsExtension,
+  jupyterTempDir ? "/tmp",
 }:
 
 let
   openRemoteSsh = pkgs.callPackage ./open-remote-ssh/package.nix { };
+  jupyter = pkgs.vscode-extensions.ms-toolsai.jupyter.overrideAttrs (oldAttrs: {
+    postPatch = (oldAttrs.postPatch or "") + ''
+      rm -f temp
+      ln -s ${pkgs.lib.escapeShellArg jupyterTempDir} temp
+    '';
+  });
   core = [
     projectsExtension
     pkgs.vscode-extensions.editorconfig.editorconfig
@@ -15,7 +22,7 @@ let
   ];
   c = [ pkgs.vscode-extensions.llvm-vs-code-extensions.vscode-clangd ];
   notebooks = [
-    pkgs.vscode-extensions.ms-toolsai.jupyter
+    jupyter
     pkgs.vscode-extensions.ms-toolsai.jupyter-renderers
   ];
   python = [
@@ -39,6 +46,8 @@ in
     rust
     web
     ;
+
+  inherit jupyter;
 
   full = core ++ c ++ notebooks ++ python ++ rust ++ web;
 

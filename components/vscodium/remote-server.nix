@@ -4,9 +4,11 @@ let
   user = "rishabh";
   group = "users";
   home = "/home/${user}";
+  serverRoot = "${home}/.vscodium-server";
+  jupyterTempDir = "${serverRoot}/data/extension-data/ms-toolsai.jupyter/temp";
   projectsExtension = pkgs.callPackage ./projects-extension/package.nix { };
   extensionSets = import ./extensions.nix {
-    inherit pkgs projectsExtension;
+    inherit jupyterTempDir pkgs projectsExtension;
   };
   extensionJsonFile = pkgs.writeTextFile {
     name = "vscodium-remote-extensions-json";
@@ -22,7 +24,7 @@ in
   system.activationScripts.vscodiumRemoteExtensions = {
     deps = [ "users" ];
     text = ''
-      server_root=${lib.escapeShellArg "${home}/.vscodium-server"}
+      server_root=${lib.escapeShellArg serverRoot}
       extensions_root="$server_root/extensions"
       managed_manifest="$extensions_root/.homelab-managed-extensions"
 
@@ -33,6 +35,9 @@ in
         fi
         install -d -m 0700 -o ${user} -g ${group} "$managed_directory"
       done
+
+      install -d -m 0700 -o ${user} -g ${group} \
+        ${lib.escapeShellArg jupyterTempDir}
 
       if [[ -f "$managed_manifest" ]]; then
         while IFS= read -r extension_name; do
