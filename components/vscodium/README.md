@@ -36,11 +36,16 @@ preset. Managed projects can set a default in `project.toml`:
 preset = "local"
 ```
 
-The `therealrishabh.projects` extension exposes **Projects: Open Project** and
-uses the same `projectctl` JSON model. It does not maintain another project
-database. In the remote application it runs beside the remote extension host,
-lists the server's canonical projects, and opens the selected project through
-the current SSH authority.
+The `therealrishabh.projects` extension exposes the public `projectctl`
+interface through **Projects:** commands in the Command Palette. It supports
+creating and initializing projects; opening, inspecting, renaming, archiving,
+and reactivating them; running project commands, Nix shells, environment
+checks, and agent sessions; opening JupyterLab; and managing synchronization
+declarations and deployment. Destructive or externally applied synchronization
+actions require confirmation. The extension uses the versioned `projectctl`
+JSON model and does not maintain another project database. In the remote
+application it runs beside the remote extension host and operates on the
+server's canonical project tree through the current SSH authority.
 
 Launching `VSCodium Remote.app` connects to `nixos-pc` and opens
 `/home/rishabh/Projects`. `VSCodium Local.app` opens a normal local window and

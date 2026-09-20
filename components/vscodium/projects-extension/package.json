@@ -1,8 +1,8 @@
 {
   "name": "projects",
   "displayName": "Homelab Projects",
-  "description": "Open projectctl projects in their configured VSCodium preset.",
-  "version": "1.0.1",
+  "description": "Manage durable projectctl projects from VSCodium.",
+  "version": "1.1.0",
   "publisher": "therealrishabh",
   "license": "MIT",
   "engines": {
@@ -12,7 +12,26 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:homelabProjects.openProject"
+    "onCommand:homelabProjects.openProject",
+    "onCommand:homelabProjects.createProject",
+    "onCommand:homelabProjects.initializeProject",
+    "onCommand:homelabProjects.showProject",
+    "onCommand:homelabProjects.renameProject",
+    "onCommand:homelabProjects.archiveProject",
+    "onCommand:homelabProjects.unarchiveProject",
+    "onCommand:homelabProjects.runCommand",
+    "onCommand:homelabProjects.openShell",
+    "onCommand:homelabProjects.startSession",
+    "onCommand:homelabProjects.checkEnvironment",
+    "onCommand:homelabProjects.lockEnvironment",
+    "onCommand:homelabProjects.openJupyter",
+    "onCommand:homelabProjects.showSyncStatus",
+    "onCommand:homelabProjects.enableSync",
+    "onCommand:homelabProjects.disableSync",
+    "onCommand:homelabProjects.deploySync",
+    "onCommand:homelabProjects.reconcileSync",
+    "onCommand:homelabProjects.showHarnesses",
+    "onCommand:homelabProjects.showCapabilities"
   ],
   "extensionKind": [
     "workspace"
@@ -23,6 +42,82 @@
       {
         "command": "homelabProjects.openProject",
         "title": "Projects: Open Project"
+      },
+      {
+        "command": "homelabProjects.createProject",
+        "title": "Projects: Create Project"
+      },
+      {
+        "command": "homelabProjects.initializeProject",
+        "title": "Projects: Initialize Existing Project"
+      },
+      {
+        "command": "homelabProjects.showProject",
+        "title": "Projects: Show Project Details"
+      },
+      {
+        "command": "homelabProjects.renameProject",
+        "title": "Projects: Rename Project"
+      },
+      {
+        "command": "homelabProjects.archiveProject",
+        "title": "Projects: Archive Project"
+      },
+      {
+        "command": "homelabProjects.unarchiveProject",
+        "title": "Projects: Reactivate Project"
+      },
+      {
+        "command": "homelabProjects.runCommand",
+        "title": "Projects: Run Command in Environment"
+      },
+      {
+        "command": "homelabProjects.openShell",
+        "title": "Projects: Open Environment Shell"
+      },
+      {
+        "command": "homelabProjects.startSession",
+        "title": "Projects: Start Agent Session"
+      },
+      {
+        "command": "homelabProjects.checkEnvironment",
+        "title": "Projects: Check Nix Environment"
+      },
+      {
+        "command": "homelabProjects.lockEnvironment",
+        "title": "Projects: Update Nix Environment Lock"
+      },
+      {
+        "command": "homelabProjects.openJupyter",
+        "title": "Projects: Open in JupyterLab"
+      },
+      {
+        "command": "homelabProjects.showSyncStatus",
+        "title": "Projects: Show Sync Status"
+      },
+      {
+        "command": "homelabProjects.enableSync",
+        "title": "Projects: Enable Sync Target"
+      },
+      {
+        "command": "homelabProjects.disableSync",
+        "title": "Projects: Disable Sync Target"
+      },
+      {
+        "command": "homelabProjects.deploySync",
+        "title": "Projects: Deploy Sync Configuration"
+      },
+      {
+        "command": "homelabProjects.reconcileSync",
+        "title": "Projects: Reconcile Server Sync"
+      },
+      {
+        "command": "homelabProjects.showHarnesses",
+        "title": "Projects: Show Agent Harnesses"
+      },
+      {
+        "command": "homelabProjects.showCapabilities",
+        "title": "Projects: Show projectctl Capabilities"
       }
     ],
     "configuration": {
@@ -32,6 +127,11 @@
           "type": "string",
           "default": "/run/current-system/sw/bin/projectctl",
           "description": "Absolute path to the managed projectctl executable."
+        },
+        "homelabProjects.defaultSyncTarget": {
+          "type": "string",
+          "default": "macbook",
+          "description": "Default projectctl synchronization target offered by project commands."
         }
       }
     }
