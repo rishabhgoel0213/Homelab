@@ -246,8 +246,12 @@
             }
             ''
               node --check ${./components/vscodium/projects-extension/extension.js}
+              PROJECTS_EXTENSION_PATH=${./components/vscodium/projects-extension/extension.js} \
+                node ${./components/vscodium/projects-extension/test.js}
               jq -e '.publisher == "therealrishabh" and .name == "projects"' \
                 ${./components/vscodium/projects-extension/package.json} >/dev/null
+              jq -e '.version == "1.0.1"' \
+                ${vscodiumProjectsExtension}/share/vscode/extensions/therealrishabh.projects/package.json >/dev/null
               jq -e '.extensionKind == ["workspace"]' \
                 ${./components/vscodium/projects-extension/package.json} >/dev/null
               jq -e '."telemetry.telemetryLevel" == "off"' \
@@ -282,7 +286,8 @@
               grep -Fq -- '--extensions-dir' ${vscodiumLocalCheckPackages.codium}/bin/codium-local
               grep -Fq -- ${pkgs.lib.escapeShellArg "/Users/rishabhgoel/Library/Application Support/Homelab VSCodium/scratch/extensions"} \
                 ${vscodiumLocalCheckPackages.codium}/bin/codium-local
-              grep -Fq 'vscode.env.remoteName' ${./components/vscodium/projects-extension/extension.js}
+              grep -Fq 'vscode.Uri.file(selected.project.root)' \
+                ${./components/vscodium/projects-extension/extension.js}
               for icon in \
                 ${./components/vscodium/icons/VSCodium-Remote.icns} \
                 ${./components/vscodium/icons/VSCodium-Local.icns} \

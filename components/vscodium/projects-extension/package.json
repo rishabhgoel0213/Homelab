@@ -2,7 +2,7 @@
   "name": "projects",
   "displayName": "Homelab Projects",
   "description": "Open projectctl projects in their configured VSCodium preset.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "therealrishabh",
   "license": "MIT",
   "engines": {
