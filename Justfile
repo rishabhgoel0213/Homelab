@@ -269,5 +269,15 @@ local-model-use model:
 local-model-doctor model="":
     local-model-doctor "{{model}}"
 
+qwen-image-fetch:
+    sudo systemctl start qwen-image-2.1-download.service
+
+qwen-image-use:
+    sudo systemctl start qwen-image-2.1.service
+    curl --fail --silent --show-error --retry 120 --retry-delay 1 --retry-all-errors http://127.0.0.1:8188/system_stats >/dev/null
+
+qwen-image-stop:
+    sudo systemctl stop qwen-image-2.1.service
+
 github-profile-sync:
     tools/sync-github-profile

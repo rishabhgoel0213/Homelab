@@ -406,6 +406,22 @@
               touch "$out"
             '';
 
+        qwen-image-2-1 =
+          pkgs.runCommand "qwen-image-2.1-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              shellcheck ${./components/local-models/qwen-image-2.1/download-model.sh}
+              python3 -m py_compile ${./components/local-models/qwen-image-2.1/qwen_image_edit.py}
+              QWEN_IMAGE_EDIT_SCRIPT=${./components/local-models/qwen-image-2.1/qwen_image_edit.py} \
+                python3 ${./components/local-models/qwen-image-2.1/tests/test_qwen_image_edit.py}
+              touch "$out"
+            '';
+
         mach1-additive =
           pkgs.runCommand "mach1-additive-check"
             {

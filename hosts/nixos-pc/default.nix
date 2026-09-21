@@ -37,6 +37,7 @@
     ../../components/local-models/bonsai/nixos.nix
     ../../components/local-models/mach1/nixos.nix
     ../../components/local-models/nemotron-lightning/nixos.nix
+    ../../components/local-models/qwen-image-2.1/nixos.nix
     ../../components/jupyterlab/nixos.nix
     ../../components/t3code/nixos.nix
     ../../components/blog/nixos.nix
@@ -86,6 +87,7 @@
     bonsaiTernary.enable = true;
     mach1Additive.enable = true;
     nemotronLightning.enable = true;
+    qwenImage21.enable = true;
     jupyterlab.enable = true;
     blogSite.enable = true;
     t3code = {
