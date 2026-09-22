@@ -1,8 +1,7 @@
 # MacBook nix-darwin migration
 
-No Mac generation was built or activated while this configuration was added.
-Do not run the deployment command from an active Tabby session until the Tabby
-replacement path has been tested from another terminal.
+The MacBook profile is active. Run future deployments from a terminal other
+than Tabby so replacing Tabby cannot interrupt the deployment session.
 
 ## Managed boundary
 
@@ -58,6 +57,30 @@ configuration because its tool catalog is loaded at startup.
   deployment scripts may use its existing network path only as transport.
 
 ## Encrypted recovery set
+
+The 2026-09-22 Zen cutover has a separate, quiescent recovery archive at
+`/var/lib/homelab-migration-backups/macbook/20260922T213913Z-zen-cutover/daily-zen-full.tar.gz.age`.
+It contains the former `/Applications/Zen.app`, the complete pre-cutover Zen
+profile registry and profiles (including the daily-driver profile), the
+daily-driver cache, and Zen's shared preferences. The browser was closed while
+the archive was streamed from the Mac. It was test-decrypted and fully listed
+without writing plaintext to disk; its SHA-256 is
+`cb717ef50140609b6dd790eed72daff4a818bd0c78828c0c49b025041fe45588`.
+The previous Dock plist is separately encrypted in the same directory as
+`dock-before-cleanup.tar.gz.age` (SHA-256
+`ea665726c20638d30a816c44c5b92d0c0f5c2540b9ba8c577624e5b1ac9fcae8`).
+To recover, first close Zen, then decrypt on the server using the converted
+server SSH age identity described below and inspect the archive before
+restoring only the required Mac paths. Do not restore the entire shared Zen
+profile registry over an active Nix profile without reconciling it.
+
+The pre-cutover daily profile `f6ljpewx.Default (release)` was copied to the
+Nix-managed profile `cyy01bkj.Default (release)-1` after both apps were closed.
+The copy was byte-compared, its main SQLite databases passed integrity checks,
+and the Nix Zen 1.22.2b app launched against it. The user visually confirmed
+Spaces, tabs, and sign-ins. The old app, daily profile/cache, and pre-migration
+blank Nix profile were subsequently removed from the Mac; the Dock tile now
+points to `/Applications/Nix Apps/Zen.app`.
 
 The server-only recovery set is:
 
