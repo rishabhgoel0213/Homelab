@@ -34,8 +34,12 @@ stdenvNoCC.mkDerivation {
       >/dev/null
     mounted=1
 
+    # Copying the .app directory itself can add com.apple.macl to the output
+    # bundle on macOS, which prevents Nix from normalizing its permissions.
+    # Create the bundle directory first and copy only its contents.
+    mkdir "$out/Applications/Zen.app"
     /usr/bin/ditto --noextattr --noqtn \
-      "$TMPDIR/mount/Zen.app" "$out/Applications/Zen.app"
+      "$TMPDIR/mount/Zen.app/Contents" "$out/Applications/Zen.app/Contents"
     /usr/bin/hdiutil detach "$TMPDIR/mount" >/dev/null
     mounted=0
 
