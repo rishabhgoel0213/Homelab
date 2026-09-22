@@ -21,11 +21,6 @@
       flake = false;
     };
 
-    zen-browser = {
-      url = "git+file:///home/rishabh/Projects/zen-browser?ref=dev";
-      flake = false;
-    };
-
     mautrix-meta-homelab = {
       url = "git+file:///home/rishabh/Projects/mautrix-meta?ref=main";
       flake = false;
@@ -49,7 +44,6 @@
       system = "x86_64-linux";
       darwinSystem = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
-      unstablePkgs = inputs.nixpkgs-unstable.legacyPackages.${system};
       unsupportedLinuxPkgs = import nixpkgs {
         inherit system;
         config.allowUnsupportedSystem = true;
@@ -83,14 +77,7 @@
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
       macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
-      zenEngineSource = pkgs.callPackage ./components/zen/source-engine.nix {
-        src = inputs.zen-browser;
-      };
-      macbookZenSource = pkgs.callPackage ./components/zen/cross-package.nix {
-        engineSource = zenEngineSource;
-        rustCbindgen = unstablePkgs.rust-cbindgen;
-        rustToolchain = darwinRustToolchain;
-      };
+      macbookFirefoxCli = pkgs.callPackage ./components/zen/firefox-cli/archive.nix { };
       macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
       macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
       darwinTabbyPrebuilt = darwinPkgs.callPackage ./components/tabby/prebuilt-package.nix {
@@ -99,19 +86,17 @@
       darwinZenPrebuilt = darwinPkgs.callPackage ./components/zen/prebuilt-package.nix {
         archive = macbookArtifacts.zen;
       };
+      darwinFirefoxCli = darwinPkgs.callPackage ./components/zen/firefox-cli/package.nix {
+        archive = macbookArtifacts.firefoxCli;
+      };
       macbookPackages = {
         tabby = darwinTabbyPrebuilt;
         zen = darwinZenPrebuilt;
+        firefoxCli = darwinFirefoxCli;
       };
       darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
         src = inputs.tabby-terminal;
         tabbyPlugins = macbookTabbyPlugins;
-      };
-      darwinZenSource = darwinPkgs.callPackage ./components/zen/package.nix {
-        archive = macbookArtifacts.zenSource;
-      };
-      macbookPackagesWithZenSource = macbookPackages // {
-        zenSource = darwinZenSource;
       };
       pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
       pythonForBlog = pkgs.python3.withPackages (ps: [
@@ -202,36 +187,8 @@
             ''
               test "$(firefox-devtools-mcp --version)" = "0.10.2"
               firefox-devtools-mcp --help | grep -Fq -- "--toolPreset"
-              touch "$out"
-            '';
-
-        zen-managed-sidebar =
-          pkgs.runCommand "zen-managed-sidebar-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodejs_24
-                pkgs.shellcheck
-                pkgs.python3
-              ];
-            }
-            ''
-              node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs
-              node --check ${inputs.zen-browser}/src/zen/sync/ZenManagedSidebar.sys.mjs
-              node --check ${inputs.zen-browser}/src/zen/space-routing/ZenSpaceRoutingManager.sys.mjs
-              node --check ${inputs.zen-browser}/src/zen/sync/ZenSpacesSyncApplier.sys.mjs
-              node --check ${./components/zen/tests/chrome-smoke.js}
-              shellcheck ${./hosts/macbook/deploy-zen-layout}
-              bash -n ${./hosts/macbook/deploy-zen-layout}
-              LAYOUT_DEPLOY_SCRIPT=${./hosts/macbook/deploy-zen-layout} \
-                python3 ${./components/zen/tests/test-layout-deploy.py}
-              ZEN_SPACES_SYNC_APPLIER=${inputs.zen-browser}/src/zen/sync/ZenSpacesSyncApplier.sys.mjs \
-                node --experimental-vm-modules ${./components/zen/tests/space-deletion.mjs}
-              ZEN_MANAGED_SIDEBAR_COMPILER=${inputs.zen-browser}/src/zen/sync/ZenManagedSidebarCompiler.sys.mjs \
-                ZEN_MANAGED_SIDEBAR_MANIFEST=${
-                  pkgs.writeText "macbook-managed-sidebar.json"
-                    self.darwinConfigurations.macbook.config.environment.etc."zen/managed-sidebar.json".text
-                } \
-                node ${./components/zen/tests/managed-sidebar.mjs}
+              firefox-devtools-mcp --help | grep -Fq -- "--connectExisting"
+              firefox-devtools-mcp --help | grep -Fq -- "--marionettePort"
               touch "$out"
             '';
 
@@ -556,8 +513,7 @@
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
-        macbook-zen-engine-source = zenEngineSource;
-        macbook-zen-source = macbookZenSource;
+        macbook-firefox-cli = macbookFirefoxCli;
       };
 
       packages.${darwinSystem} = {
@@ -572,7 +528,7 @@
         vscodium-local =
           self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.local.package;
         zen = darwinZenPrebuilt;
-        zen-source = darwinZenSource;
+        firefox-cli = darwinFirefoxCli;
         macbook-system = self.darwinConfigurations.macbook.system;
       };
 
@@ -627,7 +583,7 @@
             macbookArtifacts
             self
             ;
-          macbookPackages = macbookPackagesWithZenSource;
+          inherit macbookPackages;
         };
         modules = [
           ./hosts/macbook

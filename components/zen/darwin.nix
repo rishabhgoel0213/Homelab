@@ -8,8 +8,17 @@
 
 let
   cfg = config.homelab.apps.zen;
-  selectedPackage =
-    if cfg.packageSource == "source" then macbookPackages.zenSource else macbookPackages.zen;
+  selectedPackage = macbookPackages.zen;
+  firefoxCli = macbookPackages.firefoxCli;
+  nativeHostManifest = pkgs.writeText "firefox-cli-native-host.json" (
+    builtins.toJSON {
+      name = "firefox_cli";
+      description = "Native messaging host for firefox-cli.";
+      path = "${firefoxCli}/bin/firefox-cli";
+      type = "stdio";
+      allowed_extensions = [ "ff-cli-bridge@respawn.pro" ];
+    }
+  );
   devtoolsMcpPackage = pkgs.callPackage ./devtools-mcp/package.nix { };
   zenDevtoolsMcp = pkgs.writeShellApplication {
     name = "zen-devtools-mcp";
@@ -61,19 +70,35 @@ let
       exit "$status"
     '';
   };
+  zenLiveDevtoolsMcp = pkgs.writeShellApplication {
+    name = "zen-live-devtools-mcp";
+    runtimeInputs = [
+      devtoolsMcpPackage
+      pkgs.geckodriver
+    ];
+    text = ''
+      exec firefox-devtools-mcp \
+        --connectExisting \
+        --marionettePort 2828 \
+        --toolPreset developer \
+        "$@"
+    '';
+  };
+  zenAutomation = pkgs.writeShellApplication {
+    name = "zen-automation";
+    text = ''
+      exec ${lib.escapeShellArg "${selectedPackage}/Applications/Zen.app/Contents/MacOS/zen"} \
+        --no-remote \
+        --marionette \
+        --remote-debugging-port \
+        "$@"
+    '';
+  };
+  zenFirefoxCliXpi = pkgs.writeShellScriptBin "zen-firefox-cli-xpi" ''
+    printf '%s\n' ${lib.escapeShellArg "${firefoxCli}/share/firefox-cli/firefox-cli.xpi"}
+  '';
 in
 {
-  imports = [ ./managed-sidebar.nix ];
-
-  options.homelab.apps.zen.packageSource = lib.mkOption {
-    type = lib.types.enum [
-      "prebuilt"
-      "source"
-    ];
-    default = "prebuilt";
-    description = "Whether to use the pinned upstream bundle or the server-cross-compiled source bundle.";
-  };
-
   options.homelab.apps.zen.devtoolsMcp = {
     enable = lib.mkEnableOption "isolated Zen browser-chrome automation over Mozilla Firefox DevTools MCP";
     viewport = lib.mkOption {
@@ -86,8 +111,26 @@ in
   config = {
     environment.systemPackages = [
       selectedPackage
+      firefoxCli
+      zenAutomation
+      zenFirefoxCliXpi
     ]
-    ++ lib.optional cfg.devtoolsMcp.enable zenDevtoolsMcp;
+    ++ lib.optionals cfg.devtoolsMcp.enable [
+      zenDevtoolsMcp
+      zenLiveDevtoolsMcp
+    ];
+
+    system.activationScripts.postActivation.text = lib.mkAfter ''
+      native_host_dir="/Users/rishabhgoel/Library/Application Support/Mozilla/NativeMessagingHosts"
+      native_host_manifest="$native_host_dir/firefox_cli.json"
+      install -d -m 0755 -o rishabhgoel -g staff "$native_host_dir"
+      if [[ -e "$native_host_manifest" && ! -L "$native_host_manifest" ]]; then
+        echo "Refusing to replace unmanaged Firefox CLI native host: $native_host_manifest" >&2
+        exit 1
+      fi
+      ln -sfn ${nativeHostManifest} "$native_host_manifest"
+      chown -h rishabhgoel:staff "$native_host_manifest"
+    '';
 
     # Mozilla supports macOS enterprise policy through this system preference
     # domain. Keeping policy outside Zen.app preserves the vendor signature.

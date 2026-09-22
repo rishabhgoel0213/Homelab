@@ -20,20 +20,20 @@ need rsync
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$ssh_bin}"
 
 case "$target" in
-  codex|tabby-plugins|tabby|zen|tabby-source|zen-source|macbook-system)
+  codex|tabby-plugins|firefox-cli|tabby|zen|tabby-source|macbook-system)
     ;;
   system)
     target="macbook-system"
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, zen-source, macbook-system" >&2
+    echo "Expected one of: codex, tabby-plugins, firefox-cli, tabby, zen, tabby-source, macbook-system" >&2
     exit 2
     ;;
 esac
 
 case "$target" in
-  codex|tabby-plugins|zen-source)
+  codex|tabby-plugins|firefox-cli)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
       "$ssh_bin" "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
@@ -90,7 +90,6 @@ trap 'rm -rf "$empty_source"' EXIT
 
 flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}&shallow=1"
 tabby="path:${empty_source}"
-zen="path:${empty_source}"
 mautrix="path:${empty_source}"
 
 case "$target" in
@@ -108,6 +107,5 @@ echo "Building committed $installable locally without activation" >&2
   --no-link \
   --print-out-paths \
   --override-input tabby-terminal "$tabby" \
-  --override-input zen-browser "$zen" \
   --override-input mautrix-meta-homelab "$mautrix" \
   "$installable"

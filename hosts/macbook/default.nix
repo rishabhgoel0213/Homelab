@@ -15,7 +15,6 @@ let
 in
 {
   imports = [
-    ./zen-spaces.nix
     ../../platform/darwin/base.nix
     ../../profiles/darwin/coursework.nix
     ../../profiles/darwin/workstation.nix
@@ -84,19 +83,7 @@ in
       };
     };
     zen = {
-      packageSource = "source";
       devtoolsMcp.enable = true;
-      managedSidebar = {
-        enable = true;
-        preferences = {
-          "zen.workspaces.continue-where-left-off" = true;
-          "zen.workspaces.separate-essentials" = true;
-        };
-        spaces.General = {
-          icon = "🏠";
-          position = 0;
-        };
-      };
     };
   };
 

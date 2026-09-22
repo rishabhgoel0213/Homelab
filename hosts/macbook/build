@@ -16,7 +16,7 @@ need() {
 need nix
 
 case "$target" in
-  codex|tabby-plugins|zen-source)
+  codex|tabby-plugins|firefox-cli)
     installable=".#packages.x86_64-linux.macbook-$target"
     build_location="server"
     ;;
@@ -30,7 +30,7 @@ case "$target" in
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, zen-source, macbook-system" >&2
+    echo "Expected one of: codex, tabby-plugins, firefox-cli, tabby, zen, tabby-source, macbook-system" >&2
     exit 2
     ;;
 esac

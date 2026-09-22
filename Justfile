@@ -25,7 +25,7 @@ darwin-eval:
     nix eval --impure --raw '.#darwinConfigurations.{{darwin_host}}.system.drvPath'
 
 darwin-lock-sources:
-    nix flake lock --impure --update-input tabby-terminal --update-input zen-browser
+    nix flake lock --impure --update-input tabby-terminal
 
 # Builds one isolated target on the server or locally on the Mac without activation.
 darwin-build target="macbook-system":
@@ -36,13 +36,13 @@ darwin-build target="macbook-system":
 darwin-deploy:
     hosts/macbook/deploy "{{darwin_host}}"
 
-# Validate and replace only Zen's layout; prompts for the Mac sudo password.
-zen-deploy:
-    bash hosts/macbook/deploy-zen-layout
-
 # Builds, signs, and copies Mac application payloads without activation.
 darwin-copy-apps:
     hosts/macbook/copy-apps
+
+# Rebuilds and roots the signed Mac payload inputs on the server without Mac contact.
+darwin-prepare-artifacts:
+    bash hosts/macbook/prepare-artifacts
 
 routes:
     nix eval --impure --json .#nixosConfigurations.{{host}}.config.homelab.routeTable | jq .

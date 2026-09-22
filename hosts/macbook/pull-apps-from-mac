@@ -25,7 +25,7 @@ installables=(
   .#packages.x86_64-linux.macbook-tabby-plugins
   .#packages.x86_64-linux.macbook-tabby
   .#packages.x86_64-linux.macbook-zen
-  .#packages.x86_64-linux.macbook-zen-source
+  .#packages.x86_64-linux.macbook-firefox-cli
 )
 outputs=()
 for installable in "${installables[@]}"; do

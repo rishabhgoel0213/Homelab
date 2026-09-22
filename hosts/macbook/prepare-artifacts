@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${DARWIN_OPS_ROOT:-/srv/ops}"
+root_dir="/srv/state/macbook-deploy/gcroots"
+cd "$repo"
+
+installables=(
+  .#packages.x86_64-linux.macbook-codex
+  .#packages.x86_64-linux.macbook-tabby-plugins
+  .#packages.x86_64-linux.macbook-tabby
+  .#packages.x86_64-linux.macbook-zen
+  .#packages.x86_64-linux.macbook-firefox-cli
+)
+keys=(codex tabbyPlugins tabby zen firefoxCli)
+
+manifest_json="$(nix eval --impure --json --file "$repo/components/darwin-deploy/artifacts.nix")"
+sudo install -d -m 0755 -o "$(id -un)" -g "$(id -gn)" "$root_dir"
+
+for index in "${!installables[@]}"; do
+  output="$(nix build --impure --no-link --print-out-paths "${installables[$index]}")"
+  expected="$(jq -r --arg key "${keys[$index]}" '.[$key]' <<<"$manifest_json")"
+  if [[ "$output" != "$expected" ]]; then
+    echo "Artifact manifest is stale for ${installables[$index]}." >&2
+    echo "Built:    $output" >&2
+    echo "Manifest: $expected" >&2
+    exit 1
+  fi
+  nix-store --add-root "$root_dir/${keys[$index]}" --indirect --realise "$output" >/dev/null
+  printf '%s\n' "$output"
+done
