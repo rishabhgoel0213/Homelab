@@ -6,18 +6,18 @@ than Tabby so replacing Tabby cannot interrupt the deployment session.
 ## Managed boundary
 
 The MacBook profile installs the pinned upstream Zen Browser bundle, Firefox
-DevTools MCP, Firefox CLI 0.3.0, and its matching signed Firefox extension.
+DevTools MCP for optional live-session debugging, Firefox CLI 0.3.0, and its
+matching signed Firefox extension.
 Zen's tabs, Spaces, history, cookies, and logins are ordinary browser state.
 No Space, folder, pin, or route is declared by Nix. The Nix profile also
 installs the pinned Tabby archive and the VSCodium presets described below.
 
 The Zen extension policy continues to force-install Bitwarden. Firefox CLI's
 matching signed extension is in the Nix store; `zen-firefox-cli-xpi` prints its
-exact path. During the eventual Mac rollout, install that XPI in the
-Nix-managed Zen window and approve its pairing.
-The native messaging host is registered for the Mac user during nix-darwin
-activation. Keeping this extension out of the system-wide browser policy avoids
-installing it into the separate, non-Nix daily Zen.
+exact path. It is installed and paired in the Nix-managed Zen profile. The
+native messaging host is registered for the Mac user during nix-darwin
+activation. Keeping Firefox CLI out of the system-wide browser policy leaves
+extension installation scoped to that profile.
 
 ## Browser control from server Codex
 
@@ -34,12 +34,6 @@ Tailscale SSH connection; no browser debugging port is exposed on the tailnet.
   are needed. Both Marionette and the remote debugging agent remain bound to
   Mac loopback. Restart Zen normally afterward; Marionette changes browser
   fingerprinting while enabled.
-- `zen-devtools` remains a separate test browser with a temporary profile
-  under `~/Library/Application Support/Homelab/ZenDevTools/sessions`. It has
-  privileged browser-chrome tools for Zen UI diagnosis. Its profile is removed
-  when the MCP process exits; logs remain under the corresponding `logs`
-  directory.
-
 The live-session tools can access signed-in pages. Use them for the sites and
 actions the user requests. A new Codex session is needed after changing MCP
 configuration because its tool catalog is loaded at startup.

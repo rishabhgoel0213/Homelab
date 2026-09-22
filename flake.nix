@@ -175,14 +175,14 @@
       vscodiumRemoteActivationScript = pkgs.writeShellScript "vscodium-remote-activation-check" (
         self.nixosConfigurations.nixos-pc.config.system.activationScripts.vscodiumRemoteExtensions.text
       );
-      zenDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
+      firefoxDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
     in
     {
       checks.${system} = {
-        zen-devtools-mcp =
-          pkgs.runCommand "zen-devtools-mcp-check"
+        firefox-devtools-mcp =
+          pkgs.runCommand "firefox-devtools-mcp-check"
             {
-              nativeBuildInputs = [ zenDevtoolsMcp ];
+              nativeBuildInputs = [ firefoxDevtoolsMcp ];
             }
             ''
               test "$(firefox-devtools-mcp --version)" = "0.10.2"

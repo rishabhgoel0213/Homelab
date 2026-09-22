@@ -18,13 +18,6 @@ trust_level = "trusted"
 [projects."/home/rishabh/Projects"]
 trust_level = "trusted"
 
-[mcp_servers.zen-devtools]
-command = "/run/current-system/sw/bin/zen-devtools-mcp-remote"
-startup_timeout_sec = 60
-tool_timeout_sec = 240
-required = false
-default_tools_approval_mode = "auto"
-
 [mcp_servers.zen-live]
 command = "/run/current-system/sw/bin/zen-live-devtools-mcp-remote"
 startup_timeout_sec = 60

@@ -82,9 +82,6 @@ in
         };
       };
     };
-    zen = {
-      devtoolsMcp.enable = true;
-    };
   };
 
   homelab.coursework.cmsc216 = {
