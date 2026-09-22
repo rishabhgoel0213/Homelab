@@ -5,7 +5,7 @@
 }:
 
 let
-  version = "1.21.15b";
+  version = "1.22.2b";
 in
 stdenvNoCC.mkDerivation {
   pname = "zen-browser-prebuilt";
