@@ -100,6 +100,7 @@
         "nixpkgs-unstable": "nixpkgs-unstable",
         "sops-nix": "sops-nix",
         "tabby-terminal": "tabby-terminal",
+        "vaultwarden-nixpkgs": "vaultwarden-nixpkgs",
         "zen-browser": "zen-browser"
       }
     },
@@ -155,6 +156,22 @@
         "ref": "master",
         "type": "git",
         "url": "file:///home/rishabh/Projects/tabby"
+      }
+    },
+    "vaultwarden-nixpkgs": {
+      "locked": {
+        "lastModified": 1789921291,
+        "narHash": "sha256-Ft/BRnIqw1MywFoXydKobjjWmDFgDdYtSpJliE8+yUw=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "44a91898084f46797b5fac650c7e8c9ac38c43d4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "zen-browser": {

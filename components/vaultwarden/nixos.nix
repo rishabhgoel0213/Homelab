@@ -1,14 +1,23 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.homelab;
   host = "vault.${cfg.internalDomain}";
   stateDir = "${cfg.paths.stateRoot}/vaultwarden";
+  vaultwardenPackage =
+    inputs.vaultwarden-nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.vaultwarden;
 in
 {
   config = lib.mkIf cfg.vaultwarden.enable {
     services.vaultwarden = {
       enable = true;
+      package = vaultwardenPackage;
       domain = host;
       environmentFile = [ config.sops.secrets."vaultwarden.env".path ];
       config = {
