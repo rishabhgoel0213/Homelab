@@ -93,7 +93,7 @@
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";
-      revision = "fef71fb0c1e14b16d0e4b82159f71b9a9d2e9eb3";
+      revision = "eaea1efb308f25cee94e784d449868b99bb3a175";
     };
     syncthing.enable = true;
     singlemail.enable = true;
