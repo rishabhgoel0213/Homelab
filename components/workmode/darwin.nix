@@ -34,6 +34,9 @@ let
       exit 1
     fi
     ln -sfn ${plugin} "$target"
+    # Moving an app bundle does not terminate its old running instance.
+    # Retire only the former managed SwiftBar path before opening the new one.
+    /usr/bin/pkill -TERM -f '^/Applications/Nix Apps/SwiftBar[.]app/Contents/MacOS/SwiftBar$' || true
     /usr/bin/open -g '/Applications/Nix Background Apps/SwiftBar.app'
     /run/current-system/sw/bin/workmode setup
   '';
