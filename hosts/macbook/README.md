@@ -5,8 +5,8 @@ than Tabby so replacing Tabby cannot interrupt the deployment session.
 
 ## Managed boundary
 
-`/Applications/Nix Apps` contains interactive apps and the Workmode Study
-launcher. Background utilities (Abstand and SwiftBar) are installed separately
+`/Applications/Nix Apps` contains interactive apps. Workmode profiles are
+started through the CLI or SwiftBar. Background utilities (Abstand and SwiftBar) are installed separately
 in `/Applications/Nix Background Apps`, declared through
 `homelab.backgroundApps.packages`. Both folders are managed by activation;
 keep manually installed apps outside them. Finish active Study sessions before

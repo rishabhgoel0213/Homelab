@@ -1,6 +1,6 @@
 # Workmode
 
-Portable focus profiles with a SwiftBar menu and optional Dock launchers. Abstand
+Portable focus profiles with a SwiftBar menu and CLI. Abstand
 0.1.35 is the initial backend; SwiftBar comes from the locked nixpkgs input.
 No server service, network endpoint, account, or custom enforcement daemon is used.
 
@@ -26,8 +26,8 @@ Find an application's bundle ID with:
 
 ## After Mac deployment
 
-Abstand and SwiftBar live in `/Applications/Nix Background Apps`. The Study
-launcher stays in `/Applications/Nix Apps` for Dock access. Deployment migrates
+Abstand and SwiftBar live in `/Applications/Nix Background Apps`. Study is
+started through `workmode start study` or SwiftBar, with no app bundle. Deployment migrates
 the managed bundles and updates startup/CLI paths; finish any active Study
 session before deploying this folder change. macOS may request permission again
 for the moved Abstand bundle; check `workmode doctor` afterward.
@@ -51,8 +51,8 @@ are preserved; an existing regular file named `workmode.15s.sh` is not overwritt
 SwiftBar refreshes every 15 seconds and when opened. It displays the remaining
 minutes and a lock, offers profile starts while idle, and allows early stopping
 only for unlocked managed sessions. Backend failure is shown as unknown/error,
-never as idle. Profile launcher bundles are under `/Applications/Nix Apps` and
-can be dragged to the Dock; the menu already provides one-click starts.
+never as idle. The menu provides one-click starts; the CLI provides
+`workmode start study`. Activation removes the former Study launcher from Nix Apps.
 
 Commands: `workmode list`, `validate`, `setup`, `doctor`, `start study`, `status`,
 `stop`, `open`, and `menu`. Status prints JSON. The same interface is usable from
@@ -80,7 +80,7 @@ must be established by the deployment smoke test.
 
 ## Replacing Abstand
 
-Profiles, menu actions, and launcher names do not depend on Abstand. Add an
+Profiles, menu actions, and CLI commands do not depend on Abstand. Add an
 adapter to `BACKENDS` implementing ready/setup, sessions, recovery checks,
 prepare/start/stop and opening the app, and select it using `backend` in JSON.
 Unsupported backends and settings are rejected. The persisted backend marker
@@ -91,7 +91,7 @@ verification need validation against an installed licensed copy. Its documented
 URL API offers the required blocklist/timed-lock primitives, but pretending to
 have verified equivalent enforcement without that test would be misleading.
 Changing to Focus should require an adapter and package change, not rewriting
-profiles, the menu, or launchers. Finish sessions before replacing/upgrading
+profiles, the menu, or CLI commands. Finish sessions before replacing/upgrading
 backend apps; never remove a running locked backend as part of migration.
 
 ## Validation / deployment boundary

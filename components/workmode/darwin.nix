@@ -6,7 +6,6 @@
 }:
 let
   cfg = config.homelab.workmode;
-  profiles = builtins.fromJSON (builtins.readFile ./profiles.json);
   abstand = pkgs.callPackage ./abstand.nix { };
   cli = pkgs.writeShellScriptBin "workmode" ''
     export WORKMODE_CONFIG=/etc/workmode/profiles.json
@@ -19,32 +18,6 @@ let
     # <swiftbar.refreshOnOpen>true</swiftbar.refreshOnOpen>
     exec /run/current-system/sw/bin/workmode menu
   '';
-  launchers = pkgs.runCommand "workmode-launchers" { } (
-    lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (name: profile: ''
-        app="$out/Applications/Workmode ${profile.label}.app"
-        mkdir -p "$app/Contents/MacOS"
-        cat > "$app/Contents/Info.plist" <<'PLIST'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0"><dict>
-        <key>CFBundleIdentifier</key><string>com.therealrishabh.workmode.${name}</string>
-        <key>CFBundleName</key><string>Workmode ${profile.label}</string>
-        <key>CFBundleExecutable</key><string>launch</string>
-        <key>CFBundlePackageType</key><string>APPL</string>
-        <key>CFBundleVersion</key><string>1</string>
-        <key>LSUIElement</key><true/>
-        </dict></plist>
-        PLIST
-        cat > "$app/Contents/MacOS/launch" <<'SCRIPT'
-        #!/bin/sh
-        export SWIFTBAR=1
-        exec /run/current-system/sw/bin/workmode start ${lib.escapeShellArg name}
-        SCRIPT
-        chmod +x "$app/Contents/MacOS/launch"
-      '') profiles.profiles
-    )
-  );
   login = pkgs.writeShellScript "workmode-login" ''
     set -eu
     plugin_dir=$(/usr/bin/defaults read com.ameba.SwiftBar PluginDirectory 2>/dev/null || true)
@@ -72,10 +45,7 @@ in
       abstand
       pkgs.swiftbar
     ];
-    environment.systemPackages = [
-      cli
-      launchers
-    ];
+    environment.systemPackages = [ cli ];
     environment.etc."workmode/profiles.json".source = ./profiles.json;
     launchd.user.agents.workmode = {
       serviceConfig = {
