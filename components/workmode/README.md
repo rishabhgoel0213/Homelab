@@ -8,7 +8,7 @@ No server service, network endpoint, account, or custom enforcement daemon is us
 
 Edit `components/workmode/profiles.json`, validate with `workmode validate`, and
 redeploy the Mac. The only configured profile is Study: a locked 90-minute
-session blocking reddit.com, x.com, instagram.com, gmail.com, and mail.google.com
+session blocking reddit.com, x.com, instagram.com, youtube.com, gmail.com, and mail.google.com
 (the normal Gmail inbox hostname), including subdomains. There are no app blocks
 or automatic app/page launches. Empty blocklists are deliberately disabled.
 
