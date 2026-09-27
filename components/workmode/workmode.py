@@ -348,15 +348,17 @@ def menu(config, backend, command):
         clock = f"{remaining}m" if remaining is not None else "active"
         if remaining == 0:
             clock = "finishing"
-        lines[0] = f"Workmode {clock} {'🔒' if s['locked'] else ''}"
-        for s in sessions:
-            parts = s["name"].split("/")
+        labels = []
+        for session in sessions:
+            parts = session["name"].split("/")
             label = (
                 config["profiles"].get(parts[1], {}).get("label", parts[1])
                 if len(parts) == 3 and parts[0] == "Workmode"
-                else s["name"]
+                else session["name"]
             )
-            lines.append(clean(label))
+            labels.append(clean(label))
+        lines[0] = f"{labels[0]} {clock} {'🔒' if s['locked'] else ''}"
+        lines.extend(labels)
         if (
             len(sessions) == 1
             and not sessions[0]["locked"]
