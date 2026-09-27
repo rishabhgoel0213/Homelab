@@ -179,6 +179,13 @@
     in
     {
       checks.${system} = {
+        workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+          export PYTHONDONTWRITEBYTECODE=1
+          python3 ${./components/workmode}/test_workmode.py
+          python3 ${./components/workmode}/workmode.py --config ${./components/workmode/profiles.json} validate
+          touch "$out"
+        '';
+
         firefox-devtools-mcp =
           pkgs.runCommand "firefox-devtools-mcp-check"
             {

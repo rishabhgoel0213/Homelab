@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "backend": "abstand",
+  "profiles": {
+    "study": {
+      "label": "Study",
+      "minutes": 90,
+      "locked": true,
+      "blocked_apps": [],
+      "blocked_sites": [
+        "reddit.com",
+        "x.com",
+        "instagram.com",
+        "gmail.com",
+        "mail.google.com"
+      ],
+      "launch_apps": [],
+      "launch_urls": []
+    }
+  }
+}

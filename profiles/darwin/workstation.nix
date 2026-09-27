@@ -6,6 +6,7 @@
     ../../components/projects/darwin.nix
     ../../components/tabby/darwin.nix
     ../../components/vscodium/darwin.nix
+    ../../components/workmode/darwin.nix
     ../../components/zen/darwin.nix
   ];
 }

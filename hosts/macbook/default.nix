@@ -21,6 +21,8 @@ in
     ../../components/darwin-deploy/darwin.nix
   ];
 
+  homelab.workmode.enable = true;
+
   homelab.apps = {
     tabby.packageSource = "prebuilt";
     vscodium = {
