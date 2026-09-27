@@ -5,6 +5,14 @@ than Tabby so replacing Tabby cannot interrupt the deployment session.
 
 ## Managed boundary
 
+`/Applications/Nix Apps` contains interactive apps and the Workmode Study
+launcher. Background utilities (Abstand and SwiftBar) are installed separately
+in `/Applications/Nix Background Apps`, declared through
+`homelab.backgroundApps.packages`. Both folders are managed by activation;
+keep manually installed apps outside them. Finish active Study sessions before
+deploying the initial folder migration, then check Abstand permissions and run
+`workmode setup` and `workmode doctor`.
+
 The MacBook profile installs the pinned upstream Zen Browser bundle, Firefox
 DevTools MCP for optional live-session debugging, Firefox CLI 0.3.0, and its
 matching signed Firefox extension.

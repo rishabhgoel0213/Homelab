@@ -5,6 +5,8 @@
 }:
 
 {
+  imports = [ ./background-applications.nix ];
+
   system.primaryUser = "rishabhgoel";
   system.stateVersion = 6;
   system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;

@@ -61,16 +61,18 @@ let
       exit 1
     fi
     ln -sfn ${plugin} "$target"
-    /usr/bin/open -g '/Applications/Nix Apps/SwiftBar.app'
+    /usr/bin/open -g '/Applications/Nix Background Apps/SwiftBar.app'
     /run/current-system/sw/bin/workmode setup
   '';
 in
 {
   options.homelab.workmode.enable = lib.mkEnableOption "portable focus profiles with Abstand and SwiftBar";
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [
+    homelab.backgroundApps.packages = [
       abstand
       pkgs.swiftbar
+    ];
+    environment.systemPackages = [
       cli
       launchers
     ];

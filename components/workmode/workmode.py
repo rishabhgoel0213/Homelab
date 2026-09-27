@@ -98,7 +98,7 @@ class Abstand:
     def __init__(self):
         self.binary = os.environ.get(
             "WORKMODE_ABSTAND",
-            "/Applications/Nix Apps/Abstand.app/Contents/MacOS/Abstand",
+            "/Applications/Nix Background Apps/Abstand.app/Contents/MacOS/Abstand",
         )
 
     def call(self, *args, json_output=True):

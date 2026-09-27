@@ -26,6 +26,12 @@ Find an application's bundle ID with:
 
 ## After Mac deployment
 
+Abstand and SwiftBar live in `/Applications/Nix Background Apps`. The Study
+launcher stays in `/Applications/Nix Apps` for Dock access. Deployment migrates
+the managed bundles and updates startup/CLI paths; finish any active Study
+session before deploying this folder change. macOS may request permission again
+for the moved Abstand bundle; check `workmode doctor` afterward.
+
 The user LaunchAgent installs the plugin in SwiftBar's existing plugin folder,
 or selects `~/Library/Application Support/Workmode/SwiftBar` on first use. It
 opens SwiftBar and sets up Abstand's own recovery agent. Existing SwiftBar plugins
