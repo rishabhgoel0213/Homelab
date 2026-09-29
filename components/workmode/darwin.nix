@@ -49,7 +49,9 @@ in
       pkgs.swiftbar
     ];
     environment.systemPackages = [ cli ];
-    environment.etc."workmode/profiles.json".source = ./profiles.json;
+    # Materialize the profile as a store file with a runtime dependency; a path
+    # into the flake source can otherwise leave a dangling /etc symlink.
+    environment.etc."workmode/profiles.json".text = builtins.readFile ./profiles.json;
     # Gecko can leave web-content accessibility inactive after a browser launch.
     # Abstand reads that tree to identify sites; macOS Accessibility permission
     # alone does not ensure it is available. Keep it enabled while Workmode is on.
