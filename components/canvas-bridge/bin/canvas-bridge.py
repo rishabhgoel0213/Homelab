@@ -916,6 +916,9 @@ class SyncEngine:
                         {"source": "course.syllabus_body"},
                     )
                     summary["documents"] += 1
+                # Release the writer before fetching course content. Pairing and
+                # OAuth use separate connections to the same database.
+                self.db.commit()
                 course_summary = self._sync_course(course_id, course)
                 for key, count in course_summary.items():
                     summary[key] += count
@@ -940,6 +943,7 @@ class SyncEngine:
             self.db.commit()
             return summary
         except Exception as error:
+            self.db.rollback()
             self.db.execute(
                 "UPDATE sync_status SET state = 'error', completed_at = ?, error = ?, summary_json = NULL WHERE singleton = 1",
                 (now_iso(), str(error)[:1000]),
@@ -1039,6 +1043,8 @@ class SyncEngine:
         else:
             self.db.execute("DELETE FROM module_items WHERE course_id = ?", (course_id,))
 
+        self.db.commit()
+
         assignments = self.canvas.paginated(
             f"/api/v1/courses/{course_id}/assignments?order_by=due_at&include[]=submission&per_page=100"
         )
@@ -1061,6 +1067,7 @@ class SyncEngine:
             )
             counts["documents"] += 1
         self._delete_missing_documents(course_id, "assignment", assignment_ids)
+        self.db.commit()
 
         announcements = self.canvas.paginated(
             "/api/v1/announcements?"
@@ -1092,6 +1099,7 @@ class SyncEngine:
             )
             counts["documents"] += 1
         self._delete_missing_documents(course_id, "announcement", announcement_ids)
+        self.db.commit()
 
         if course.get("default_view") == "wiki":
             try:
@@ -1124,7 +1132,9 @@ class SyncEngine:
                 sanitize_metadata(page),
             )
             counts["documents"] += 1
+            self.db.commit()
         self._delete_missing_documents(course_id, "page", sorted(page_urls))
+        self.db.commit()
 
         for file_id in sorted(file_ids)[:MAX_FILES_PER_COURSE]:
             try:
@@ -1135,6 +1145,7 @@ class SyncEngine:
                     continue
                 raise
             downloaded = self._sync_file(course_id, file_data)
+            self.db.commit()
             counts["files_downloaded" if downloaded else "files_skipped"] += 1
             counts["documents"] += 1
         self._delete_missing_documents(course_id, "file", sorted(file_ids))

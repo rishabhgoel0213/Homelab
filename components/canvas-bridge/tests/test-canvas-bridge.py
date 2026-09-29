@@ -157,6 +157,88 @@ class CanvasBridgeTests(unittest.TestCase):
         self.assertIn("Setup guide (/courses/10/pages/setup-guide)", home["body"])
         self.assertIn("Resources (https://example.test/resources)", home["body"])
 
+    def test_pairing_remains_available_during_sync_io(self):
+        with self.bridge.db_session() as db, self.bridge.db_session() as pairing_db:
+            security = self.bridge.WebSecurity(pairing_db)
+            pairing_db.execute("PRAGMA busy_timeout=50")
+            engine = self.bridge.SyncEngine(db)
+            checkpoints = []
+            course = {"id": "10", "name": "Test", "syllabus_body": "Syllabus", "default_view": "wiki"}
+
+            def check_pairing(stage):
+                checkpoints.append(stage)
+                self.assertFalse(db.in_transaction, stage)
+                code = security.create_pairing_code()
+                self.assertTrue(security.consume_pairing_code(code), stage)
+                cookie = security.issue_session()
+                self.assertIsNotNone(security.validate_session(cookie), stage)
+
+            def paginated(path):
+                check_pairing(path)
+                if path.startswith("/api/v1/courses?"):
+                    return [course]
+                if "/modules?" in path:
+                    return [{"id": "20", "name": "Module", "items": [
+                        {"id": "30", "type": "Page", "page_url": "page-a"},
+                        {"id": "31", "type": "Page", "page_url": "page-b"},
+                    ]}]
+                if "/assignments?" in path:
+                    return [{"id": "40", "name": "Assignment", "description": '<a href="/files/50">One</a>'}]
+                if path.startswith("/api/v1/announcements?"):
+                    return [{"id": "41", "title": "Notice", "message": '<a href="/files/51">Two</a>'}]
+                self.fail(path)
+
+            def api_json(path):
+                check_pairing(path)
+                if path == "/api/v1/courses/10?include[]=term&include[]=syllabus_body":
+                    return course, None
+                if path.endswith("/front_page"):
+                    return {"url": "home", "title": "Home", "body": "Welcome"}, None
+                if "/pages/" in path:
+                    return {"title": "Page", "body": "Content"}, None
+                if path.startswith("/api/v1/files/"):
+                    file_id = path.rsplit("/", 1)[1]
+                    return {"id": file_id, "display_name": file_id + ".txt", "size": 4,
+                            "content-type": "text/plain", "url": "https://example.test/" + file_id}, None
+                self.fail(path)
+
+            def download(*args, **kwargs):
+                check_pairing("download")
+                return self.bridge.HTTPResult(status=200, headers={}, body=b"text", url=args[0])
+
+            def extract(*args):
+                check_pairing("extract")
+                return "text"
+
+            with mock.patch.object(engine.canvas, "paginated", side_effect=paginated), \
+                 mock.patch.object(engine.canvas, "api_json", side_effect=api_json), \
+                 mock.patch.object(self.bridge.SafeHTTPClient, "request", side_effect=download), \
+                 mock.patch.object(self.bridge, "extract_file_text", side_effect=extract):
+                for selection in (None, ["10"]):
+                    with self.subTest(selection=selection):
+                        summary = engine.run(selection)
+                        self.assertEqual(2, summary["files_downloaded"])
+                        self.assertFalse(db.in_transaction)
+            self.assertEqual(2, checkpoints.count("download"))
+            self.assertEqual(4, checkpoints.count("extract"))
+
+    def test_failed_sync_rolls_back_incomplete_batch_before_recording_error(self):
+        with self.bridge.db_session() as db:
+            engine = self.bridge.SyncEngine(db)
+            course = {"id": "10", "name": "Test"}
+
+            def failed_course(*args):
+                db.execute("INSERT INTO settings(key, value) VALUES('incomplete', 'batch')")
+                raise RuntimeError("failed write batch")
+
+            with mock.patch.object(engine.canvas, "paginated", return_value=[course]), \
+                 mock.patch.object(engine, "_sync_course", side_effect=failed_course):
+                with self.assertRaisesRegex(RuntimeError, "failed write batch"):
+                    engine.run()
+            self.assertIsNone(db.execute("SELECT value FROM settings WHERE key='incomplete'").fetchone())
+            self.assertEqual("error", db.execute("SELECT state FROM sync_status").fetchone()[0])
+            self.assertFalse(db.in_transaction)
+
     def test_pairing_code_is_single_use(self):
         with self.bridge.db_session() as db:
             security = self.bridge.WebSecurity(db)
