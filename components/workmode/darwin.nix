@@ -50,6 +50,16 @@ in
     ];
     environment.systemPackages = [ cli ];
     environment.etc."workmode/profiles.json".source = ./profiles.json;
+    # Gecko can leave web-content accessibility inactive after a browser launch.
+    # Abstand reads that tree to identify sites; macOS Accessibility permission
+    # alone does not ensure it is available. Keep it enabled while Workmode is on.
+    system.defaults.CustomSystemPreferences."/Library/Preferences/org.mozilla.firefox".Preferences."accessibility.force_disabled" =
+      {
+        Value = -1;
+        Status = "locked";
+        Type = "number";
+      };
+
     launchd.user.agents.workmode = {
       serviceConfig = {
         Label = "com.therealrishabh.workmode";

@@ -59,6 +59,23 @@ Commands: `workmode list`, `validate`, `setup`, `doctor`, `start study`, `status
 Apple Shortcuts or a keyboard shortcut. Login errors are in
 `/tmp/workmode-login.err`.
 
+## Zen reports an active session but sites are not blocked
+
+Abstand requires both macOS Accessibility permission and Zen's own accessibility
+service. With the latter inactive, the log reports `website=none` and website
+rules cannot match. `about:support` shows Accessibility → Activated.
+
+Workmode now manages `accessibility.force_disabled = -1` through Mozilla's
+macOS enterprise preferences, keeping Gecko accessibility enabled across browser
+launches. This is scoped to the Workmode module and does not change Compact Mode.
+After the first policy deployment, restart Zen normally, verify Activated is
+true, and test a blocked site. The Firefox policy domain also applies to Firefox
+if installed. Enabling accessibility can add browser overhead.
+
+For an immediate repair before deployment, set that preference to `-1` in
+`about:config`. A stale Abstand process left at its old app path also needs a
+restart, but restarting Abstand alone does not activate Zen accessibility.
+
 ## Backend boundary and locking
 
 Only the Abstand adapter knows its CLI and JSON formats. It verifies the exact
