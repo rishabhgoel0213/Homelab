@@ -70,10 +70,7 @@
         hostRustToolchain.rustc
         darwinRustTarget.rust-std
       ];
-      macbookCodex = pkgs.callPackage ./components/codex/cross-package.nix {
-        macosSdk = unsupportedLinuxPkgs.apple-sdk_15.src;
-        rustToolchain = darwinRustToolchain;
-      };
+      macbookCodex = pkgs.callPackage ./components/codex/cross-package.nix { };
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
       macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
@@ -179,6 +176,26 @@
     in
     {
       checks.${system} = {
+        codex-update =
+          pkgs.runCommand "codex-update-check"
+            {
+              nativeBuildInputs = with pkgs; [
+                python3
+                bash
+                git
+                jq
+                perl
+                shellcheck
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              shellcheck ${./components/codex/bin/update} ${./components/codex/bin/auto-update} ${./components/codex/bin/publish-mac}
+              python3 ${./components/codex}/tests/update.py
+              python3 ${./components/codex}/tests/mac_client.py
+              touch "$out"
+            '';
+
         workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           export PYTHONDONTWRITEBYTECODE=1
           python3 ${./components/workmode}/test_workmode.py
@@ -516,6 +533,7 @@
       };
 
       packages.${system} = {
+        codex = pkgs.callPackage ./components/codex/package.nix { };
         macbook-codex = macbookCodex;
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;

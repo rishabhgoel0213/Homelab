@@ -4,7 +4,7 @@ set -euo pipefail
 repo="${CODEX_OPS_ROOT:-/srv/ops}"
 host="${HOST:-nixos-pc}"
 target="${1:-latest}"
-package_file="${CODEX_PACKAGE_FILE:-$repo/components/codex/package.nix}"
+package_file="${CODEX_PACKAGE_FILE:-$repo/components/codex/release.nix}"
 lock_file="${PACKAGE_UPDATE_LOCK_FILE:-${CODEX_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}}"
 update_user="${CODEX_UPDATE_USER:-rishabh}"
 sudo_cmd="${SUDO:-/run/wrappers/bin/sudo}"
@@ -42,13 +42,19 @@ after_version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$pac
 
 if [[ "$before_hash" == "$after_hash" ]]; then
   echo "Codex is already current at $after_version." >&2
-  exit 0
-fi
-
-echo "Codex changed from $before_version to $after_version; switching NixOS generation." >&2
-if [[ "$(id -u)" -eq 0 ]]; then
-  runuser -u "$update_user" -- "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
 else
-  "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
+  echo "Codex changed from $before_version to $after_version; switching NixOS generation." >&2
+  if [[ "$(id -u)" -eq 0 ]]; then
+    runuser -u "$update_user" -- "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
+  else
+    "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
+  fi
+fi
+# Also retry publication when the pin was already current (e.g. a prior copy
+# or signing failure). Publication never contacts or activates the Mac.
+if [[ "$(id -u)" -eq 0 ]]; then
+  "$repo/components/codex/bin/publish-mac"
+else
+  "$sudo_cmd" "$repo/components/codex/bin/publish-mac"
 fi
 echo "Codex auto-update applied $after_version. Restart codex-remote-control.service manually when ready." >&2

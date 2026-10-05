@@ -3,20 +3,16 @@ set -euo pipefail
 
 repo="${CODEX_OPS_ROOT:-/srv/ops}"
 host="${HOST:-nixos-pc}"
-package_file="${CODEX_PACKAGE_FILE:-$repo/components/codex/package.nix}"
+package_file="${CODEX_PACKAGE_FILE:-$repo/components/codex/release.nix}"
+manifest_file="${CODEX_ARTIFACT_FILE:-$repo/components/darwin-deploy/artifacts.nix}"
 target="${1:-latest}"
 
-need() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Missing required command: $1" >&2
+for command in git jq nix perl; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Missing required command: $command" >&2
     exit 1
   fi
-}
-
-need git
-need jq
-need nix
-need perl
+done
 
 if [[ ! -f "$package_file" ]]; then
   echo "Missing package file: $package_file" >&2
@@ -38,92 +34,108 @@ else
   fi
 fi
 
-if [[ -z "${tag:-}" ]]; then
-  echo "Could not determine Codex tag." >&2
+if [[ ! "$tag" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Expected a stable Codex release tag, got: $tag" >&2
   exit 1
 fi
 
 version="${tag#rust-v}"
-src_url="https://github.com/openai/codex/archive/refs/tags/$tag.tar.gz"
-current_version="$(
-  perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file"
-)"
+current_version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file")"
+archive_target="$(perl -ne 'if (/target = "([^"]+)";/) { print $1; exit }' "$package_file")"
+if [[ ! "$archive_target" =~ ^[a-zA-Z0-9_-]+$ ]] || ! grep -q 'archiveHash = "sha256-' "$package_file"; then
+  echo "Package must declare a complete release archive target and archiveHash." >&2
+  exit 1
+fi
 
-if [[ "${CODEX_UPDATE_FORCE:-0}" != "1" && "$current_version" == "$version" ]] && ! grep -q 'lib\.fakeHash' "$package_file"; then
+if [[ "${CODEX_UPDATE_FORCE:-0}" != "1" && "$current_version" == "$version" ]]; then
   echo "Codex package already at $version." >&2
   exit 0
 fi
 
-echo "Updating Codex package to $tag" >&2
-src_prefetch_json="$(nix store prefetch-file --json --unpack "$src_url")"
-src_hash="$(jq -r .hash <<<"$src_prefetch_json")"
-src_store_path="$(jq -r .storePath <<<"$src_prefetch_json")"
-cargo_lock="$(find "$src_store_path" -path '*/codex-rs/Cargo.lock' -print -quit)"
-
-if [[ -z "$cargo_lock" ]]; then
-  echo "Could not find codex-rs/Cargo.lock in $src_store_path." >&2
+# Fetch the COMPLETE platform archive. Upstream owns its bundle inventory;
+# there is no local list of binaries, resources, or optional features to update.
+echo "Updating complete Codex package to $tag ($archive_target)" >&2
+archive_url="https://github.com/openai/codex/releases/download/$tag/codex-package-$archive_target.tar.gz"
+archive_hash="$(nix store prefetch-file --json "$archive_url" | jq -er '.hash')"
+mac_target="$(perl -ne 'if (/macTarget = "([^"]+)";/) { print $1; exit }' "$package_file")"
+if [[ ! "$mac_target" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "Missing Mac target in release pin." >&2
+  exit 1
+fi
+mac_hash="$(nix store prefetch-file --json "https://github.com/openai/codex/releases/download/$tag/codex-provisioned-package-$mac_target.tar.gz" | jq -er '.hash')"
+if [[ ! "$archive_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ || ! "$mac_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]]; then
+  echo "Invalid archive hash returned by Nix." >&2
   exit 1
 fi
 
-rusty_v8_version="$(
-  perl -0ne 'if (/\[\[package\]\]\s+name = "v8"\s+version = "([^"]+)"/s) { print $1; exit }' "$cargo_lock"
-)"
-if [[ -z "$rusty_v8_version" ]]; then
-  echo "Could not determine the rusty_v8 crate version from $cargo_lock." >&2
+# Restore the previous pin if validation fails, so tomorrow's run can retry.
+# Never overwrite an intervening edit made by another process.
+update_dir="$(mktemp -d)"
+cp -p "$package_file" "$update_dir/original"
+cp -p "$manifest_file" "$update_dir/manifest-original"
+candidate_hash=""
+manifest_hash=""
+finish() {
+  status=$?
+  if [[ "$status" -ne 0 && -n "$candidate_hash" ]]; then
+    if [[ "$(sha256sum "$package_file" | awk '{print $1}')" == "$candidate_hash" ]]; then
+      cp -p "$update_dir/original" "$package_file"
+      echo "Codex validation failed; restored the previous package pin." >&2
+    else
+      echo "Package changed during validation; leaving the concurrent edit intact." >&2
+    fi
+  fi
+  if [[ "$status" -ne 0 && -n "$manifest_hash" ]] &&
+     [[ "$(sha256sum "$manifest_file" | awk '{print $1}')" == "$manifest_hash" ]]; then
+    cp -p "$update_dir/manifest-original" "$manifest_file"
+  fi
+  rm -f "$update_dir/original" "$update_dir/candidate" "$update_dir/manifest-original" "$update_dir/manifest-candidate"
+  rmdir "$update_dir"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+CODEX_NEW_VERSION="$version" CODEX_NEW_ARCHIVE_HASH="$archive_hash" CODEX_NEW_MAC_HASH="$mac_hash" \
+  perl -0pe '
+    s{version = "[^"]+";}{version = "$ENV{CODEX_NEW_VERSION}";};
+    s{archiveHash = "sha256-[^"]+";}{archiveHash = "$ENV{CODEX_NEW_ARCHIVE_HASH}";};
+    s{macArchiveHash = "sha256-[^"]+";}{macArchiveHash = "$ENV{CODEX_NEW_MAC_HASH}";};
+  ' "$update_dir/original" > "$update_dir/candidate"
+candidate_hash="$(sha256sum "$update_dir/candidate" | awk '{print $1}')"
+if [[ "$(sha256sum "$package_file" | awk '{print $1}')" != "$(sha256sum "$update_dir/original" | awk '{print $1}')" ]]; then
+  echo "Package changed while preparing the update; refusing to overwrite it." >&2
   exit 1
 fi
+cp "$update_dir/candidate" "$package_file"
 
-rusty_v8_base="https://github.com/openai/codex/releases/download/rusty-v8-v$rusty_v8_version"
-linux_target="x86_64-unknown-linux-gnu"
-darwin_target="aarch64-apple-darwin"
-
-linux_archive_hash="$(nix store prefetch-file --json "$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$linux_target.a.gz" | jq -r .hash)"
-linux_binding_hash="$(nix store prefetch-file --json "$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$linux_target.rs" | jq -r .hash)"
-darwin_archive_hash="$(nix store prefetch-file --json "$rusty_v8_base/librusty_v8_ptrcomp_sandbox_release_$darwin_target.a.gz" | jq -r .hash)"
-darwin_binding_hash="$(nix store prefetch-file --json "$rusty_v8_base/src_binding_ptrcomp_sandbox_release_$darwin_target.rs" | jq -r .hash)"
-
-perl -0pi -e \
-  "s{version = \"[^\"]+\";}{version = \"$version\";};
-   s{srcHash = \"sha256-[^\"]+\";}{srcHash = \"$src_hash\";};
-   s{cargoHash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{cargoHash = lib.fakeHash;};
-   s{rustyV8Version = \"[^\"]+\";}{rustyV8Version = \"$rusty_v8_version\";};
-   s{rustyV8LinuxArchiveHash = \"sha256-[^\"]+\";}{rustyV8LinuxArchiveHash = \"$linux_archive_hash\";};
-   s{rustyV8LinuxBindingHash = \"sha256-[^\"]+\";}{rustyV8LinuxBindingHash = \"$linux_binding_hash\";};
-   s{rustyV8DarwinArchiveHash = \"sha256-[^\"]+\";}{rustyV8DarwinArchiveHash = \"$darwin_archive_hash\";};
-   s{rustyV8DarwinBindingHash = \"sha256-[^\"]+\";}{rustyV8DarwinBindingHash = \"$darwin_binding_hash\";}" \
-  "$package_file"
-
-set +e
-build_output="$(
-  cd "$repo" && nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel" 2>&1
-)"
-build_status=$?
-set -e
-
-if [[ "$build_status" -eq 0 ]]; then
-  echo "Build unexpectedly succeeded with lib.fakeHash; leaving package file as-is." >&2
+mac_output="$(cd "$repo" && nix build --impure --no-link --print-out-paths .#macbook-codex)"
+if [[ ! "$mac_output" =~ ^/nix/store/[a-z0-9]{32}-codex-darwin-bundle-[0-9.]+$ ]]; then
+  echo "Unexpected Mac package output: $mac_output" >&2
   exit 1
 fi
-
-cargo_hash="$(
-  printf '%s\n' "$build_output" \
-    | sed -nE 's/.*got:[[:space:]]*(sha256-[A-Za-z0-9+\/=]+).*/\1/p' \
-    | tail -1
-)"
-
-if [[ -z "$cargo_hash" ]]; then
-  printf '%s\n' "$build_output" >&2
-  echo "Could not extract Cargo vendor hash from Nix output." >&2
+CODEX_MAC_OUTPUT="$mac_output" perl -0pe \
+  's{codex = "[^"]+";}{codex = "$ENV{CODEX_MAC_OUTPUT}";};' \
+  "$update_dir/manifest-original" > "$update_dir/manifest-candidate"
+if [[ "$(sha256sum "$manifest_file" | awk '{print $1}')" != "$(sha256sum "$update_dir/manifest-original" | awk '{print $1}')" ]]; then
+  echo "Mac manifest changed concurrently; refusing to overwrite it." >&2
   exit 1
 fi
-
-perl -0pi -e \
-  "s{cargoHash = (?:\"sha256-[^\"]+\"|lib\\.fakeHash);}{cargoHash = \"$cargo_hash\";}" \
-  "$package_file"
+manifest_hash="$(sha256sum "$update_dir/manifest-candidate" | awk '{print $1}')"
+cp "$update_dir/manifest-candidate" "$manifest_file"
 
 (
   cd "$repo"
+  # Includes package inventory verification and the voice runtime smoke test.
   nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel"
 )
 
-echo "Codex package updated to $version." >&2
+if [[ "$(sha256sum "$package_file" | awk '{print $1}')" != "$candidate_hash" ]]; then
+  echo "Package changed during validation; refusing to report a successful update." >&2
+  exit 1
+fi
+if [[ "$(sha256sum "$manifest_file" | awk '{print $1}')" != "$manifest_hash" ]]; then
+  echo "Mac manifest changed during validation; refusing to report success." >&2
+  exit 1
+fi
+echo "Complete Codex package updated to $version." >&2

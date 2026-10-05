@@ -122,6 +122,10 @@ codex-update:
 codex-auto-update:
     sudo components/codex/bin/auto-update
 
+# Publish the already-pinned signed Mac CLI; does not contact the Mac.
+codex-publish-mac:
+    sudo components/codex/bin/publish-mac
+
 pi-update:
     nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/pi/bin/update
 

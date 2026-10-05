@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${CODEX_OPS_ROOT:-/srv/ops}"
+state="${CODEX_MAC_RELEASE_DIR:-/srv/state/codex-mac-release}"
+key="${MACBOOK_SIGNING_KEY:-/var/lib/homelab-nix-cache/macbook-1.sec}"
+update_user="${CODEX_UPDATE_USER:-rishabh}"
+if [[ "$(id -u)" != 0 ]]; then
+  echo "Run publish-mac as root to sign the prepared Nix output." >&2
+  exit 1
+fi
+cd "$repo"
+output="$(runuser -u "$update_user" -- nix build --impure --no-link --print-out-paths .#macbook-codex)"
+[[ "$output" =~ ^/nix/store/[a-z0-9]{32}-codex-darwin-bundle-[0-9.]+$ ]]
+version="$(jq -er '.version' "$output/codex-package.json")"
+expected="$(nix eval --impure --raw --file "$repo/components/darwin-deploy/artifacts.nix" codex)"
+if [[ "$output" != "$expected" ]]; then
+  echo "Refusing to publish: Darwin artifact pin $expected does not match $output." >&2
+  exit 1
+fi
+public_key="$(<"$repo/components/darwin-deploy/cache-public-key.txt")"
+nix store sign --recursive --key-file "$key" "$output"
+nix store verify --sigs-needed 1 --trusted-public-keys "$public_key" "$output"
+install -d -m 0755 "$state" "$state/gcroots"
+if [[ -L "$state/gcroots/current" ]]; then
+  previous="$(readlink -f "$state/gcroots/current")"
+  if [[ "$previous" != "$output" ]]; then
+    nix-store --add-root "$state/gcroots/previous" --indirect --realise "$previous" >/dev/null
+  fi
+fi
+nix-store --add-root "$state/gcroots/current" --indirect --realise "$output" >/dev/null
+pending="$(mktemp "$state/.release.XXXXXX")"
+trap 'rm -f "$pending"' EXIT
+jq -n --arg version "$version" --arg storePath "$output" \
+  '{schema: 1, target: "aarch64-apple-darwin", version: $version, storePath: $storePath}' > "$pending"
+chmod 0644 "$pending"
+mv -f "$pending" "$state/current.json"
+echo "Published signed Mac Codex $version: $output" >&2

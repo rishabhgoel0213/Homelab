@@ -49,11 +49,15 @@ configuration because its tool catalog is loaded at startup.
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
   lockfile, and update the Nix dependency hash.
-- Nix installs the server-cross-compiled Codex CLI from
+- Nix installs the complete upstream-signed Codex CLI bundle packaged on Linux by
   `components/codex/cross-package.nix`. Codex.app itself remains unmanaged.
   Both intentionally share `~/.codex/config.toml` and auth state. The managed
   Mac config trusts `/Users/rishabhgoel` and uses the automatic approval
   reviewer for on-request approvals.
+  `codex-server` starts a native Mac terminal UI against the Linux app-server,
+  keeping voice devices local. `codex-update` downloads the latest signed
+  server-prepared package; a user LaunchAgent does this every 30 minutes.
+  See `components/codex/RUNBOOK.md` for voice permission checks and recovery.
 - Tailscale is outside the Darwin configuration. The existing standalone app,
   service, node identity, and local state remain unmanaged and untouched. The
   deployment scripts may use its existing network path only as transport.
@@ -135,8 +139,8 @@ private key or decrypted archive to the Mac merely to inspect it.
 ## Build-only validation
 
 Build targets are exported independently so package failures can be isolated
-without activating nix-darwin or launching either app. Codex is cross-compiled
-for Apple silicon on Linux; the pinned application and Firefox CLI archives and
+without activating nix-darwin or launching either app. The complete signed
+Apple-silicon Codex release is packaged on Linux; the pinned application and Firefox CLI archives and
 locked Tabby plugins are also realized there. Native archive extraction happens
 on the Mac:
 
@@ -255,7 +259,7 @@ Re-running the bootstrap is not part of normal Darwin deployment.
 
 ## Server-driven activation
 
-The Linux server cross-builds Codex and packages the pinned application and
+The Linux server packages the complete signed Codex release and pinned application and
 Firefox CLI archives, signs their Nix store paths, and copies them over the
 tailnet. The remaining Darwin derivations extract the application bundles and
 Firefox CLI package on the Mac from the committed server revision.

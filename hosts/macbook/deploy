@@ -40,9 +40,16 @@ cd "$repo"
 "$repo/hosts/macbook/copy-apps"
 
 echo "Building the committed Darwin system locally on $ssh_host" >&2
+# The selected clean checkout may be a prepared deployment worktree. Pass
+# exactly that source to the Mac build, rather than silently using /srv/ops.
+printf -v build_command '%q ' env \
+  NIX_BIN=/nix/var/nix/profiles/default/bin/nix \
+  MACBOOK_BUILD_SERVER=nixos-pc "DARWIN_OPS_ROOT=$repo" \
+  /bin/bash -s -- macbook-system
 system_path="$({
-  ssh "$ssh_host" \
-    "env NIX_BIN=/nix/var/nix/profiles/default/bin/nix MACBOOK_BUILD_SERVER=nixos-pc DARWIN_OPS_ROOT=/srv/ops /bin/bash -s -- macbook-system" \
+  # build_command was shell-quoted above for deliberate remote evaluation.
+  # shellcheck disable=SC2029
+  ssh "$ssh_host" "$build_command" \
     < "$repo/hosts/macbook/build-from-mac"
 })"
 
