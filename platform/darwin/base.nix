@@ -57,6 +57,7 @@
   environment.systemPackages = with pkgs; [
     git
     just
+    micro
     openssh
     ripgrep
   ];

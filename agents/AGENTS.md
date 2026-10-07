@@ -40,6 +40,9 @@ before cloning another copy.
 
 ## Change Discipline
 
+- Never create Git worktrees for requested changes. Make infrastructure changes
+  directly in the existing `/srv/ops` checkout, preserving unrelated edits.
+
 - Inspect the real target repository and preserve unrelated user changes.
 - Use the narrowest relevant checks before applying a system change.
 - Keep build outputs out of the checkout: use `just build` for the host or pass

@@ -117,6 +117,7 @@ in
     htop
     jq
     just
+    micro
     openssh
     restic
     ripgrep
