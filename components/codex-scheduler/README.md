@@ -42,9 +42,13 @@ defaults to 30 minutes and may be set from 30 seconds to two hours.
 
 Runs start in fresh Codex sessions using the managed authentication, plugins,
 and project instructions. The workspace-write sandbox is restricted to the
-chosen directory; approval policy is `never`, so operations requiring user
-approval fail instead of waiting. The scheduler MCP is disabled in child runs
-to avoid schedules recursively creating more schedules. Project paths must be
+chosen directory. `--approve-for-me` uses `approval_policy="on-request"` and
+`approvals_reviewer="auto_review"` so eligible connector and sandbox-boundary
+requests are reviewed automatically. Denied requests remain denied; requests
+that require human input cannot be answered by an unattended run and must be
+reported in its final summary. The per-run timeout also bounds stalled runs.
+The scheduler MCP is disabled in child runs to avoid schedules recursively
+creating more schedules. Project paths must be
 existing directories under `/home/rishabh/Projects`, `/home/rishabh/Documents`,
 or `/srv/ops`; symlinks are resolved again at execution.
 
