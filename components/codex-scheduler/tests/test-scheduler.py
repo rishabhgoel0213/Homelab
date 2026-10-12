@@ -137,7 +137,7 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual("test-thread", run["thread_id"])
         argv = original(job, self.root / "summary")
         self.assertIn("workspace-write", argv)
-        self.assertIn("--approve-for-me", argv)
+        self.assertNotIn("--approve-for-me", argv)  # Cannot be combined with --sandbox.
         self.assertIn('approval_policy="on-request"', argv)
         self.assertIn('approvals_reviewer="auto_review"', argv)
         self.assertIn("mcp_servers.codex-scheduler.enabled=false", argv)

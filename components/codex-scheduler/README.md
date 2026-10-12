@@ -42,8 +42,8 @@ defaults to 30 minutes and may be set from 30 seconds to two hours.
 
 Runs start in fresh Codex sessions using the managed authentication, plugins,
 and project instructions. The workspace-write sandbox is restricted to the
-chosen directory. `--approve-for-me` uses `approval_policy="on-request"` and
-`approvals_reviewer="auto_review"` so eligible connector and sandbox-boundary
+chosen directory. The runner explicitly sets `approval_policy="on-request"`
+and `approvals_reviewer="auto_review"` so eligible connector and sandbox-boundary
 requests are reviewed automatically. Denied requests remain denied; requests
 that require human input cannot be answered by an unattended run and must be
 reported in its final summary. The per-run timeout also bounds stalled runs.

@@ -277,7 +277,7 @@ def enqueue_due(db, now):
 def codex_command(job, summary_path):
     command = [CODEX, "exec", "--skip-git-repo-check", "--sandbox", "workspace-write",
                "--cd", job["project"], "--json", "--output-last-message", str(summary_path),
-               "--approve-for-me", "-c", 'approval_policy="on-request"',
+               "-c", 'approval_policy="on-request"',
                "-c", 'approvals_reviewer="auto_review"',
                "-c", "mcp_servers.codex-scheduler.enabled=false"]
     if job["model"]:
