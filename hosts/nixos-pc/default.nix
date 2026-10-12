@@ -90,6 +90,7 @@
     qwenImage21.enable = true;
     jupyterlab.enable = true;
     blogSite.enable = true;
+    projectPages.enable = true;
     t3code = {
       enable = true;
       sourceCheckout = "/home/rishabh/Projects/t3code";

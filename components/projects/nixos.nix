@@ -62,6 +62,8 @@ let
   '';
 in
 {
+  imports = [ ./pages.nix ];
+
   environment.systemPackages = [
     projectctl
     projectAlias

@@ -436,6 +436,15 @@
               touch "$out"
             '';
 
+        project-pages = pkgs.runCommand "project-pages-check"
+          { nativeBuildInputs = [ pythonForBlog pkgs.ruff ]; }
+          ''
+            ruff check ${./components/projects/bin/project-pages.py} ${./components/projects/tests/test-project-pages.py}
+            PROJECT_PAGES_SCRIPT=${./components/projects/bin/project-pages.py} \
+              python3 ${./components/projects/tests/test-project-pages.py}
+            touch "$out"
+          '';
+
         blog-admin =
           pkgs.runCommand "blog-admin-check"
             {

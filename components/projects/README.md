@@ -140,3 +140,34 @@ environment behavior, lifecycle status, and Jupyter links belong to the project
 control plane. Codex and Pi child processes are routed through `projectctl exec`
 inside the canonical project tree, while legacy projects outside that tree keep
 their host execution behavior.
+
+## Private static project files
+
+On this server, `https://projects.internal.therealrishabh.com/<project>/<file>`
+serves files directly from `/home/rishabh/Projects`, including HTML pages and
+relative assets. For example:
+
+<https://projects.internal.therealrishabh.com/relativistic-ed/PROJECT.html>
+
+Changes and new project directories are available immediately; there is no
+publish or copy step. Only GET/HEAD are supported. A directory with an existing
+`index.html` serves that page; other directories and missing files return 404.
+No directory listing, catch-all page, code execution, or upload API is provided.
+Dotfiles/dot-directories and symlinks that resolve outside Projects are excluded.
+Files served through symlinks must also resolve to a non-hidden path inside
+Projects. Byte ranges and conditional requests are supported, with browser
+cache revalidation on subsequent requests.
+
+Caddy terminates trusted HTTPS using the existing internal certificate. This
+route accepts the actual connection peer only from Tailscale's IPv4/IPv6
+ranges; a forwarded address cannot grant access. The existing split-DNS wildcard
+resolves the hostname to the server's Tailscale addresses. The public Cloudflare
+listener has no project-file route. The backend binds only to loopback and has a
+read-only bind of Projects in its systemd sandbox; the rest of the home directory
+is hidden. Existing Quarto blog, preview, and administration routes are unchanged.
+
+The service and port are declared by `homelab.projectPages` in `pages.nix`.
+After editing configuration, use `just check`, then `just switch` when applying it.
+Inspect it with `systemctl status project-pages` or
+`journalctl -u project-pages`. The `project-pages` flake check verifies file,
+index, HTTP method, cache/range, traversal, hidden-path, and symlink behavior.
