@@ -18,6 +18,14 @@ trust_level = "trusted"
 [projects."/home/rishabh/Projects"]
 trust_level = "trusted"
 
+[mcp_servers.codex-scheduler]
+command = "/run/current-system/sw/bin/codex-scheduler"
+args = ["mcp"]
+startup_timeout_sec = 10
+tool_timeout_sec = 30
+required = false
+default_tools_approval_mode = "auto"
+
 [mcp_servers.zen-live]
 command = "/run/current-system/sw/bin/zen-live-devtools-mcp-remote"
 startup_timeout_sec = 60

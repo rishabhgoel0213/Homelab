@@ -95,6 +95,18 @@ in
     zenFirefoxCliRemote
   ];
 
+  # Refresh managed client configuration on activation without restarting
+  # an interactive remote-control session. New clients discover new MCP tools.
+  system.activationScripts.codexConfig = {
+    deps = [ "users" ];
+    text = ''
+      install -d -m 0700 -o rishabh -g users ${lib.escapeShellArg codexHome}
+      install -m 0600 -o rishabh -g users \
+        ${pkgs.writeText "codex-server-config.toml" (builtins.readFile ./config/server.toml)} \
+        ${lib.escapeShellArg "${codexHome}/config.toml"}
+    '';
+  };
+
   environment.sessionVariables = {
     CODEX_HOME = codexHome;
   };

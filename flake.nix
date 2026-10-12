@@ -176,6 +176,23 @@
     in
     {
       checks.${system} = {
+        codex-scheduler =
+          pkgs.runCommand "codex-scheduler-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
+              ruff check ${./components/codex-scheduler/bin/codex-scheduler.py} ${./components/codex-scheduler/tests/test-scheduler.py}
+              CODEX_SCHEDULER_SCRIPT=${./components/codex-scheduler/bin/codex-scheduler.py} \
+                python3 ${./components/codex-scheduler/tests/test-scheduler.py}
+              touch "$out"
+            '';
+
         codex-update =
           pkgs.runCommand "codex-update-check"
             {

@@ -15,6 +15,7 @@
     ../../platform/nixos/base.nix
     ../../platform/nixos/agents.nix
     ../../components/codex/nixos.nix
+    ../../components/codex-scheduler/nixos.nix
     ../../components/pi/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
