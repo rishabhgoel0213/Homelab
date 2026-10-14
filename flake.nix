@@ -213,6 +213,21 @@
               touch "$out"
             '';
 
+        space-wallpaper =
+          pkgs.runCommand "space-wallpaper-check"
+            {
+              nativeBuildInputs = [
+                (pkgs.python3.withPackages (ps: [ ps.pillow ]))
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              ruff check ${./components/space-wallpaper}/wallpaper.py ${./components/space-wallpaper}/test_wallpaper.py
+              python3 ${./components/space-wallpaper}/test_wallpaper.py
+              touch "$out"
+            '';
+
         workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           export PYTHONDONTWRITEBYTECODE=1
           python3 ${./components/workmode}/test_workmode.py

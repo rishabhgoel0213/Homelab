@@ -22,6 +22,7 @@ in
   ];
 
   homelab.workmode.enable = true;
+  homelab.spaceWallpaper.enable = true;
 
   homelab.apps = {
     tabby.packageSource = "prebuilt";
