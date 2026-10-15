@@ -32,7 +32,7 @@ class Wallpapers(unittest.TestCase):
         self.images.mkdir()
         self.state_path = self.root / "state.json"
         self.cfg = dict(directory=str(self.images), intervalSeconds=3600, cacheImages=2,
-                        maxDownloadMiB=2, maxImageMiB=1)
+                        maxDownloadMiB=2, maxImageMiB=1, displays=[(2880, 1864)])
         self.entries = [dict(id=str(i), title=f"Image {i}", description="A real image of space.",
                              width=4000, height=2400,
                              url=f"https://images-assets.nasa.gov/image/{i}.jpg",
@@ -40,7 +40,7 @@ class Wallpapers(unittest.TestCase):
 
     def fake_download(self, entry, directory, cfg):
         path = wallpaper.image_path(directory, entry["id"])
-        path.write_bytes(b"fixture")
+        Image.new("RGB", (4000, 2400), "navy").save(path, "JPEG")
         return path
 
     def test_curated_catalogue_and_url_validation(self):
@@ -133,10 +133,103 @@ class Wallpapers(unittest.TestCase):
                 wallpaper.set_desktop(path)
 
     def test_pause_and_interval_prevent_downloads(self):
-        for state in [dict(paused=True), dict(changedAt=wallpaper.time.time())]:
+        for state in [dict(paused=True), dict(changedAt=wallpaper.time.time(),
+                     displayProfile=dict(version=1, mode="fill", targets=[[2880, 1864]]))]:
             with patch.object(wallpaper, "download_image") as download:
                 self.assertFalse(wallpaper.rotate(self.cfg, self.entries, state, self.state_path))
                 download.assert_not_called()
+
+    def test_display_report_uses_native_and_larger_retina_backing_pixels(self):
+        report = {"SPDisplaysDataType": [{"spdisplays_ndrvs": [{
+            "_name": "Color LCD", "spdisplays_pixelresolution": "spdisplays_2880x1864Retina",
+            "_spdisplays_pixels": "3420 x 2214", "_spdisplays_resolution": "1710 x 1107 @ 60Hz",
+        }]}]}
+        self.assertEqual(wallpaper.parse_display_targets(report), [(3420, 2214)])
+        display = report["SPDisplaysDataType"][0]["spdisplays_ndrvs"][0]
+        display["_spdisplays_pixels"] = "2560 x 1656"
+        self.assertEqual(wallpaper.parse_display_targets(report), [(2880, 1864)])
+        display.pop("spdisplays_pixelresolution")
+        with self.assertRaisesRegex(RuntimeError, "native pixels"):
+            wallpaper.parse_display_targets(report)
+        with self.assertRaises(RuntimeError):
+            wallpaper.parse_display_targets({})
+
+    def test_native_rotated_external_display_and_offline_display(self):
+        report = {"SPDisplaysDataType": [{"spdisplays_ndrvs": [
+            {"spdisplays_pixelresolution": "3840 x 2160", "_spdisplays_pixels": "2160 x 3840"},
+            {"spdisplays_online": "spdisplays_no"},
+        ]}]}
+        self.assertEqual(wallpaper.parse_display_targets(report), [(2160, 3840)])
+
+    def test_crop_pixel_floor_rejects_excess_area_in_wrong_dimension(self):
+        self.assertEqual(wallpaper.crop_dimensions((4000, 4000), (2880, 1864)), (4000, 2588))
+        self.assertTrue(wallpaper.meets_displays((2880, 1864), [(2880, 1864)]))
+        for size in [(7680, 1080), (2000, 10000), (2956, 5120), (3840, 2160)]:
+            self.assertFalse(wallpaper.meets_displays(size, [(3420, 2214)]))
+        self.assertTrue(wallpaper.meets_displays((3420, 2214), [(3420, 2214)]))
+        self.assertFalse(wallpaper.meets_displays((5120, 3000), [(2880, 1864), (3840, 2160), (2160, 3840)]))
+
+    def test_download_rejects_crop_below_current_backing_resolution(self):
+        self.cfg["displays"] = [(3420, 2214)]
+        data = io.BytesIO()
+        Image.new("RGB", (3840, 2160), "navy").save(data, "JPEG")
+        with patch.object(wallpaper.urllib.request, "urlopen", return_value=Response(data.getvalue())):
+            with self.assertRaisesRegex(ValueError, "upscaling"):
+                wallpaper.download_image(self.entries[0], self.images, self.cfg)
+        self.assertEqual(list(self.images.iterdir()), [])
+
+    def test_undersized_old_cache_is_revalidated_and_replaced(self):
+        path = wallpaper.image_path(self.images, self.entries[0]["id"])
+        Image.new("RGB", (1000, 1000), "navy").save(path, "JPEG")
+        self.assertIsNone(wallpaper.cached_image(self.entries[0], self.images, self.cfg))
+        data = io.BytesIO()
+        Image.new("RGB", (4000, 2400), "navy").save(data, "JPEG")
+        with patch.object(wallpaper.urllib.request, "urlopen", return_value=Response(data.getvalue())):
+            wallpaper.download_image(self.entries[0], self.images, self.cfg)
+        self.assertIsNotNone(wallpaper.cached_image(self.entries[0], self.images, self.cfg))
+
+    def test_offline_fallback_rejects_old_undersized_pixels(self):
+        current = self.fake_download(self.entries[0], self.images, self.cfg)
+        stale = wallpaper.image_path(self.images, self.entries[1]["id"])
+        Image.new("RGB", (1500, 3000), "navy").save(stale, "JPEG")
+        state = dict(current={**self.entries[0], "file": str(current)})
+        with patch.object(wallpaper, "download_image", side_effect=OSError("offline")):
+            with patch("sys.stderr", new=io.StringIO()), self.assertRaises(RuntimeError):
+                wallpaper.rotate(self.cfg, self.entries, state, self.state_path, True, lambda p: None)
+        self.assertEqual(state["current"]["id"], "0")
+
+    def test_metadata_filter_runs_before_download(self):
+        entries = [{**entry, "width": 2956, "height": 5120} for entry in self.entries]
+        self.cfg["displays"] = [(3420, 2214)]
+        with patch.object(wallpaper, "download_image") as download:
+            with self.assertRaisesRegex(RuntimeError, "after cropping"):
+                wallpaper.rotate(self.cfg, entries, {}, self.state_path, True, lambda p: None)
+            download.assert_not_called()
+
+    def test_new_display_policy_applies_without_waiting_an_hour(self):
+        state = dict(changedAt=wallpaper.time.time())  # Old version's state has no crop policy.
+        with patch.object(wallpaper, "download_image", side_effect=self.fake_download):
+            self.assertTrue(wallpaper.rotate(self.cfg, self.entries, state, self.state_path, setter=lambda p: None))
+        self.assertEqual(state["displayProfile"]["mode"], "fill")
+        self.assertEqual(state["eligibleImages"], 4)
+
+    def test_one_eligible_image_can_still_receive_the_new_crop_policy(self):
+        path = self.fake_download(self.entries[0], self.images, self.cfg)
+        state = dict(current={**self.entries[0], "file": str(path)}, changedAt=wallpaper.time.time())
+        with patch.object(wallpaper, "download_image", side_effect=self.fake_download):
+            self.assertTrue(wallpaper.rotate(self.cfg, self.entries[:1], state, self.state_path, setter=lambda p: None))
+        self.assertEqual(state["eligibleImages"], 1)
+        self.assertEqual(state["displayProfile"]["mode"], "fill")
+
+    def test_resize_does_not_reduce_portrait_crop_below_display_floor(self):
+        self.cfg["displays"] = [(3420, 2214)]
+        data = io.BytesIO()
+        Image.new("RGB", (4000, 10000), "navy").save(data, "JPEG")
+        with patch.object(wallpaper.urllib.request, "urlopen", return_value=Response(data.getvalue())):
+            path = wallpaper.download_image(self.entries[0], self.images, self.cfg)
+        with Image.open(path) as image:
+            self.assertTrue(wallpaper.meets_displays(image.size, self.cfg["displays"]))
+            self.assertGreater(image.height, 5120)
 
     def test_menu_metadata_cannot_inject_swiftbar_commands(self):
         state = dict(current={**self.entries[0], "title": "Hello\nInjected | bash=evil"})

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Curated NASA wallpapers; AppKit is imported only when changing a Mac desktop."""
+"""Curated NASA wallpapers with display-aware resolution checks and crop-to-fill."""
 import argparse
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import random
@@ -63,6 +64,73 @@ def validate_catalogue(entries):
     return entries
 
 
+def parse_display_targets(report):
+    """Use physical pixels, and the larger backing buffer when macOS scales it."""
+    targets = []
+
+    def dimensions(value):
+        match = re.search(r"(\d+)\s*[x×]\s*(\d+)", str(value))
+        return tuple(map(int, match.groups())) if match else None
+
+    for gpu in report.get("SPDisplaysDataType", []):
+        for display in gpu.get("spdisplays_ndrvs", []):
+            if display.get("spdisplays_online") == "spdisplays_no":
+                continue
+            native = dimensions(display.get("spdisplays_pixelresolution", ""))
+            backing = dimensions(display.get("_spdisplays_pixels", ""))
+            # Do not mistake the logical “looks like” resolution for physical pixels.
+            if native is None:
+                raise RuntimeError(f"Cannot determine native pixels for {display.get('_name', 'display')}")
+            if backing and (native[0] > native[1]) != (backing[0] > backing[1]):
+                native = native[::-1]  # A physically rotated external display.
+            backing = backing or native
+            targets.append((max(native[0], backing[0]), max(native[1], backing[1])))
+    if not targets or any(min(size) <= 0 for size in targets):
+        raise RuntimeError("No connected display with a valid native resolution")
+    return sorted(set(targets))
+
+
+def display_targets():
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/system_profiler", "SPDisplaysDataType", "-json"],
+            check=True, capture_output=True, text=True, timeout=30,
+            env={**os.environ, "LC_ALL": "C", "LANG": "C"},
+        )
+        return parse_display_targets(json.loads(result.stdout))
+    except (subprocess.SubprocessError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"Cannot inspect display pixels: {error}") from error
+
+
+def crop_dimensions(size, target):
+    """Largest crop of the source at the display's aspect ratio, without scaling."""
+    width, height = size
+    target_width, target_height = target
+    if width * target_height > height * target_width:
+        return height * target_width // target_height, height
+    return width, width * target_height // target_width
+
+
+def meets_displays(size, targets):
+    return all(
+        crop_dimensions(size, target)[0] >= target[0]
+        and crop_dimensions(size, target)[1] >= target[1]
+        for target in targets
+    )
+
+
+def cached_image(entry, directory, cfg):
+    path = image_path(directory, entry["id"])
+    try:
+        with Image.open(path) as image:
+            if image.format != "JPEG" or not meets_displays(image.size, cfg["displays"]):
+                return None
+            image.load()
+        return path
+    except (OSError, ValueError, Image.DecompressionBombError):
+        return None
+
+
 def image_path(directory, identity):
     return directory / f"space-{hashlib.sha256(identity.encode()).hexdigest()[:32]}.jpg"
 
@@ -70,8 +138,9 @@ def image_path(directory, identity):
 def download_image(entry, directory, cfg):
     """Bound network/disk usage, validate decoded pixels, and atomically publish a JPEG."""
     target = image_path(directory, entry["id"])
-    if target.exists():
-        return target
+    cached = cached_image(entry, directory, cfg)
+    if cached is not None:
+        return cached
     raw_path = output_path = None
     try:
         request = urllib.request.Request(entry["url"], headers={"User-Agent": "Homelab-Space-Wallpaper/1.0"})
@@ -97,10 +166,18 @@ def download_image(entry, directory, cfg):
                 raise ValueError("Downloaded image is below the resolution floor")
             image.load()
             image = ImageOps.exif_transpose(image).convert("RGB")
-            image.thumbnail((5120, 5120), Image.Resampling.LANCZOS)
+            if not meets_displays(image.size, cfg["displays"]):
+                raise ValueError("Cropped image would need upscaling to fill the display")
+            # Keep sufficient source pixels even with a portrait source or 6K display.
+            required_scale = max(max(w / image.width, h / image.height) for w, h in cfg["displays"])
+            scale = min(1, max(5120 / max(image.size), required_scale))
+            if scale < 1:
+                image = image.resize((math.ceil(image.width * scale), math.ceil(image.height * scale)), Image.Resampling.LANCZOS)
+            if not meets_displays(image.size, cfg["displays"]):
+                raise ValueError("Rendered crop is below the display resolution")
             with tempfile.NamedTemporaryFile(dir=directory, prefix=".space-render-", delete=False) as rendered:
                 output_path = Path(rendered.name)
-            # 5K retains more than the MacBook panel's native resolution.
+            # The final cached pixels, not only catalogue metadata, must qualify.
             image.save(output_path, "JPEG", quality=93, optimize=True)
             if output_path.stat().st_size > cfg["maxImageMiB"] * MIB:
                 raise ValueError("Rendered image exceeds the cache entry size limit")
@@ -136,8 +213,15 @@ def prune(directory, protected, limit):
 def rotate(cfg, entries, state, state_path, force=False, setter=set_desktop):
     directory = Path(cfg["directory"]).expanduser()
     directory.mkdir(parents=True, exist_ok=True)
-    if not force and (state.get("paused") or time.time() - state.get("changedAt", 0) < cfg["intervalSeconds"]):
+    profile = {"version": 1, "mode": "fill", "targets": [list(t) for t in cfg["displays"]]}
+    if not force and state.get("paused"):
         return False
+    if (not force and state.get("displayProfile") == profile
+            and time.time() - state.get("changedAt", 0) < cfg["intervalSeconds"]):
+        return False
+    entries = [e for e in entries if meets_displays((e["width"], e["height"]), cfg["displays"])]
+    if not entries:
+        raise RuntimeError("No catalogue image has enough pixels after cropping for the connected displays")
     by_id = {e["id"]: e for e in entries}
     current_id = state.get("current", {}).get("id")
     remaining = [identity for identity in state.get("remaining", []) if identity in by_id and identity != current_id]
@@ -147,6 +231,8 @@ def rotate(cfg, entries, state, state_path, force=False, setter=set_desktop):
         # A new shuffle cycle should not immediately repeat the last image.
         remaining.sort(key=lambda identity: identity == current_id)
     candidates = [by_id[identity] for identity in remaining if identity != current_id]
+    if not candidates and current_id in by_id:
+        candidates = [by_id[current_id]]  # Still apply a new crop/display policy with a one-image pool.
     chosen = target = None
     for entry in candidates[:3]:
         try:
@@ -159,19 +245,20 @@ def rotate(cfg, entries, state, state_path, force=False, setter=set_desktop):
         # Network failure: prefer unused cached entries, then any cached alternative.
         offline = candidates + [e for e in entries if e["id"] != current_id]
         for entry in offline:
-            path = image_path(directory, entry["id"])
-            if path.exists():
+            path = cached_image(entry, directory, cfg)
+            if path is not None:
                 chosen, target = entry, path
                 break
     if chosen is None:
         raise RuntimeError("No new image available; keeping the existing desktop")
     protected = {target}
     if current_id:
-        protected.add(image_path(directory, current_id))
+        protected.add(Path(state["current"].get("file", image_path(directory, current_id))))
     prune(directory, protected, cfg["cacheImages"])
     setter(target)
     target.touch()
     state.update(current={**chosen, "file": str(target)}, changedAt=time.time(),
+                 displayProfile=profile, eligibleImages=len(entries),
                  remaining=[i for i in remaining if i != chosen["id"]])
     atomic_json(state_path, state)
     prune(directory, {target}, cfg["cacheImages"])
@@ -232,6 +319,7 @@ def main():
             atomic_json(state_path, state)
             if state["paused"]:
                 return
+        cfg["displays"] = display_targets()
         rotate(cfg, entries, state, state_path, force=args.action == "next")
 
 

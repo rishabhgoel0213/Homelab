@@ -8,12 +8,13 @@ function run(argv) {
     const workspace = $.NSWorkspace.sharedWorkspace;
     const options = $.NSMutableDictionary.alloc.init;
     options.setObjectForKey($(Number($.NSImageScaleProportionallyUpOrDown)), $.NSWorkspaceDesktopImageScalingKey);
-    options.setObjectForKey($(false), $.NSWorkspaceDesktopImageAllowClippingKey);
+    options.setObjectForKey($(true), $.NSWorkspaceDesktopImageAllowClippingKey);
     options.setObjectForKey($.NSColor.blackColor, $.NSWorkspaceDesktopImageFillColorKey);
 
     // Read-only live validation of the bridge and screen access.
     if (argv.length === 1 && argv[0] === '--check') {
-        return JSON.stringify({screens: count, currentURL: ObjC.unwrap(
+        return JSON.stringify({screens: count, cropToFill: ObjC.unwrap(
+            options.objectForKey($.NSWorkspaceDesktopImageAllowClippingKey)), currentURL: ObjC.unwrap(
             workspace.desktopImageURLForScreen(screens.objectAtIndex(0)).absoluteString)});
     }
     if (argv.length !== 1) throw new Error('Expected one local wallpaper path');
