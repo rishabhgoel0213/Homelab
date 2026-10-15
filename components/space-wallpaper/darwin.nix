@@ -8,10 +8,10 @@ let
   cfg = config.homelab.spaceWallpaper;
   python = pkgs.python3.withPackages (ps: [
     ps.pillow
-    ps.pyobjc-framework-Cocoa
   ]);
   cli = pkgs.writeShellScriptBin "space-wallpaper" ''
     export SPACE_WALLPAPER_CONFIG=/etc/space-wallpaper/config.json
+    export SPACE_WALLPAPER_DESKTOP_HELPER=${./set-desktop.js}
     exec ${python}/bin/python3 ${./wallpaper.py} "$@"
   '';
   plugin = pkgs.writeShellScript "space-wallpaper.1m.sh" ''

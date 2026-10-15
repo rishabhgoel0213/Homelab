@@ -113,37 +113,16 @@ def download_image(entry, directory, cfg):
 
 
 def set_desktop(path):
-    from AppKit import (
-        NSColor, NSScreen, NSWorkspace, NSImageScaleProportionallyUpOrDown,
-        NSWorkspaceDesktopImageScalingKey, NSWorkspaceDesktopImageAllowClippingKey,
-        NSWorkspaceDesktopImageFillColorKey,
-    )
-    from Foundation import NSURL
-
-    screens = NSScreen.screens()
-    if not screens:
-        raise RuntimeError("No desktop screens in this login session")
-    workspace = NSWorkspace.sharedWorkspace()
-    options = {
-        NSWorkspaceDesktopImageScalingKey: NSImageScaleProportionallyUpOrDown,
-        NSWorkspaceDesktopImageAllowClippingKey: False,
-        NSWorkspaceDesktopImageFillColorKey: NSColor.blackColor(),
-    }
-    # Roll back any already-updated screen if a later display rejects the image.
-    previous = [(s, workspace.desktopImageURLForScreen_(s), workspace.desktopImageOptionsForScreen_(s)) for s in screens]
-    updated = []
+    helper = os.environ.get("SPACE_WALLPAPER_DESKTOP_HELPER", str(Path(__file__).with_name("set-desktop.js")))
     try:
-        for screen, old_url, old_options in previous:
-            ok, error = workspace.setDesktopImageURL_forScreen_options_error_(
-                NSURL.fileURLWithPath_(str(path)), screen, options, None)
-            if not ok:
-                raise RuntimeError(f"macOS could not set the wallpaper: {error}")
-            updated.append((screen, old_url, old_options))
-    except Exception:
-        for screen, old_url, old_options in updated:
-            if old_url:
-                workspace.setDesktopImageURL_forScreen_options_error_(old_url, screen, old_options or {}, None)
-        raise
+        result = subprocess.run(
+            ["/usr/bin/osascript", "-l", "JavaScript", helper, str(path)],
+            capture_output=True, text=True, timeout=45,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError("macOS timed out while setting the wallpaper") from error
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "macOS could not set the wallpaper")
 
 
 def prune(directory, protected, limit):

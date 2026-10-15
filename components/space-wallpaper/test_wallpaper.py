@@ -117,6 +117,21 @@ class Wallpapers(unittest.TestCase):
         self.assertEqual(self.state_path.read_text(), original)
         self.assertTrue(path.exists())
 
+    def test_native_bridge_uses_literal_path_and_reports_failure(self):
+        path = self.root / "image with 'quotes' and spaces.jpg"
+        with patch.object(wallpaper.subprocess, "run") as run:
+            run.return_value.returncode = 0
+            wallpaper.set_desktop(path)
+            self.assertEqual(run.call_args.args[0][-1], str(path))
+            self.assertNotIn("shell", run.call_args.kwargs)
+            run.return_value.returncode = 1
+            run.return_value.stderr = "native desktop failure"
+            with self.assertRaisesRegex(RuntimeError, "native desktop failure"):
+                wallpaper.set_desktop(path)
+            run.side_effect = wallpaper.subprocess.TimeoutExpired("osascript", 45)
+            with self.assertRaisesRegex(RuntimeError, "timed out"):
+                wallpaper.set_desktop(path)
+
     def test_pause_and_interval_prevent_downloads(self):
         for state in [dict(paused=True), dict(changedAt=wallpaper.time.time())]:
             with patch.object(wallpaper, "download_image") as download:

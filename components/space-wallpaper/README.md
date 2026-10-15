@@ -6,7 +6,7 @@ or spacecraft observations rather than illustrations. Infrared observations
 use assigned colors. The collection emphasizes interesting subjects across
 several years; it does not automatically ingest new releases.
 
-`darwin.nix` installs the Python/Pillow/AppKit CLI, a user LaunchAgent, and a
+`darwin.nix` installs the Python/Pillow CLI and a built-in macOS JavaScript/AppKit helper, a user LaunchAgent, and a
 SwiftBar menu using the existing managed SwiftBar application. The Mac downloads
 one image directly from NASA when needed; no server service, credentials, API
 key, manual Wallpaper settings, or separate installer is required.
@@ -77,7 +77,9 @@ lives in `~/Library/Application Support/Space Wallpapers/state.json`. Only
 and pruned. Keep manually saved favorites under a different name or outside that
 folder. Logs are `/tmp/space-wallpaper.err` and `/tmp/space-wallpaper-menu.err`.
 The CLI locks concurrent changes and only records a new current image after
-AppKit accepts it. It does not request AppleScript automation permissions.
+AppKit accepts it. The helper calls AppKit directly through macOS’s built-in
+JavaScript bridge; it does not automate System Events or request its permissions.
+This avoids a Python/PyObjC libffi trampoline crash observed on this Mac.
 
 Disable with `homelab.spaceWallpaper.enable = false` and redeploy. Existing
 images, metadata, and the last selected wallpaper remain. The old SwiftBar
