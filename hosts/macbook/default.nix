@@ -90,5 +90,7 @@ in
   homelab.coursework.cmsc216 = {
     enable = true;
     directoryId = "r1shabhg";
+    # Temporary workaround for the Zaratan CVMFS outage. Restore "course" after recovery.
+    remoteEnvironment = "system";
   };
 }

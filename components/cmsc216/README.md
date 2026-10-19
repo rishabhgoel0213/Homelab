@@ -100,3 +100,24 @@ are preserved on disk for recovery, but this environment does not use them.
 `exam-check` checks only the isolated editor and Zaratan connection. It does
 not inspect or close other applications; the student remains responsible for
 the complete exam rules.
+
+### Zaratan CVMFS outage workaround
+
+`homelab.coursework.cmsc216.remoteEnvironment` defaults to `"course"`.
+The Mac host currently selects `"system"` to bypass the stalled CVMFS software
+filesystem. After redeployment, the existing sync, run, test, shell, and doctor
+commands use a clean remote environment with `/usr/bin:/bin`. The shell skips
+login/startup files so the course modules are not loaded again. File permissions
+remain private (`umask 077`) and test concurrency remains `PARALLEL=8`.
+Authentication and workspace tasks use the same commands as before.
+
+This temporarily uses Zaratan's system GCC, GDB, and Python rather than the
+professor's module versions. Some assignments may require the newer course
+versions. `bootstrap` is disabled in system mode because initial course setup
+requires the course modules. Explicit commands such as `bash -l` or manually
+sourcing the course environment can reintroduce the stalled paths. The initial
+SSH shell still reads the account's existing startup files; this workaround
+requires those files to finish before the remote command starts.
+
+Once CVMFS recovers, set `remoteEnvironment = "course"` in
+`hosts/macbook/default.nix` and redeploy. No Zaratan startup files are modified.

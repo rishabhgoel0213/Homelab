@@ -10,6 +10,11 @@ set -euo pipefail
 
 ssh_alias="${CMSC216_SSH_ALIAS:-cmsc216-zaratan}"
 auth_persist="${CMSC216_AUTH_PERSIST:-8h}"
+remote_environment="${CMSC216_REMOTE_ENVIRONMENT:-course}"
+case "$remote_environment" in
+  course|system) ;;
+  *) printf 'cmsc216: invalid remote environment: %s\n' "$remote_environment" >&2; exit 1 ;;
+esac
 sync_root="$CMSC216_LOCAL_ROOT"
 
 ssh_bin="${CMSC216_SSH_BIN:-/usr/bin/ssh}"
@@ -145,6 +150,32 @@ shell_quote() {
   printf '%q' "$1"
 }
 
+# The outer SSH shell may already have loaded the course modules. Clear linker
+# settings with shell builtins before starting env, then discard all inherited
+# module settings (including compiler, Python, and exported shell functions).
+wrap_remote_command() {
+  local command_text="$1"
+  if [[ "$remote_environment" == system ]]; then
+    # Expand these variables on Zaratan, not on the Mac.
+    # shellcheck disable=SC2016
+    printf '%s' 'unset LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT; exec /usr/bin/env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" TERM="${TERM:-xterm-256color}" PATH=/usr/bin:/bin PARALLEL=8 /bin/bash --noprofile --norc -c '
+    shell_quote "umask 077; $command_text"
+    printf '\n'
+  else
+    printf '%s\n' "$command_text"
+  fi
+}
+
+remote_rsync_command() {
+  if [[ "$remote_environment" == system ]]; then
+    # rsync appends its server arguments after --rsync-path. Bash -c consumes
+    # the first one as $0, so supply a name and explicitly forward "$@".
+    printf '%s cmsc216-rsync\n' "$(wrap_remote_command 'exec rsync "$@"')"
+  else
+    printf 'rsync\n'
+  fi
+}
+
 build_remote_command() {
   local remote_directory="$1"
   shift
@@ -155,7 +186,7 @@ build_remote_command() {
     command_text+=" $(shell_quote "$1")"
     shift
   done
-  printf '%s\n' "$command_text"
+  wrap_remote_command "$command_text"
 }
 
 sync_to_zaratan() {
@@ -172,6 +203,7 @@ sync_to_zaratan() {
     --exclude=.git/ \
     --exclude=.vscode/ \
     --exclude=.cmsc216-sftp-backups/ \
+    --rsync-path="$(remote_rsync_command)" \
     --rsh="$ssh_bin" \
     "$sync_root/" "$ssh_alias:$CMSC216_REMOTE_ROOT/"
 }
@@ -242,10 +274,11 @@ doctor() {
     failed=1
   fi
 
+  printf 'Remote environment: %s\n' "$remote_environment"
   if ssh_probe; then
     printf 'ok: noninteractive Zaratan SSH succeeds\n'
     if "$ssh_bin" -o BatchMode=yes "$ssh_alias" \
-      "test -d $(shell_quote "$CMSC216_REMOTE_ROOT") && command -v gcc >/dev/null && command -v gdb >/dev/null"; then
+      "$(wrap_remote_command "test -d $(shell_quote "$CMSC216_REMOTE_ROOT") && gcc --version >/dev/null && gdb --version >/dev/null")"; then
       printf 'ok: remote directory, gcc, and gdb are available\n'
     else
       printf 'incomplete: Zaratan course directory or toolchain is missing; run cmsc216 bootstrap\n' >&2
@@ -266,6 +299,7 @@ doctor() {
 }
 
 bootstrap() {
+  [[ "$remote_environment" == course ]] || die "bootstrap requires the course environment; restore it after the CVMFS outage before initializing a new account"
   require_macos_tool "$ssh_bin" "macOS OpenSSH"
   ensure_local_directories
   authenticate
@@ -364,8 +398,14 @@ case "$command" in
   shell)
     ensure_local_directories
     ensure_authenticated
+    if [[ "$remote_environment" == system ]]; then
+      note "Using Zaratan system tools while the course CVMFS environment is unavailable."
+      remote_shell='/bin/bash --noprofile --norc -i'
+    else
+      remote_shell='bash -l'
+    fi
     "$ssh_bin" -t "$ssh_alias" \
-      "cd $(shell_quote "$CMSC216_REMOTE_ROOT") && exec bash -l"
+      "$(wrap_remote_command "cd $(shell_quote "$CMSC216_REMOTE_ROOT") && exec $remote_shell")"
     ;;
   run)
     run_remote "$@"

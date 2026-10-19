@@ -18,6 +18,7 @@ let
       dataRoot
       directoryId
       localRoot
+      remoteEnvironment
       ;
   };
   sshConfig = ''
@@ -62,6 +63,12 @@ in
       type = lib.types.nullOr lib.types.str;
       default = null;
       description = "Zaratan synchronization root; defaults to /home/<directoryId>/216-sync.";
+    };
+
+    remoteEnvironment = lib.mkOption {
+      type = lib.types.enum [ "course" "system" ];
+      default = "course";
+      description = "Use the professor's course modules, or isolated Zaratan system tools during CVMFS outages.";
     };
 
     authPersist = lib.mkOption {

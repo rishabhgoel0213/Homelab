@@ -7,6 +7,7 @@
   dataRoot,
   codiumBin,
   authPersist ? "8h",
+  remoteEnvironment ? "course",
 }:
 
 let
@@ -25,6 +26,7 @@ let
       export CMSC216_REMOTE_ROOT=${lib.escapeShellArg remoteRoot}
       export CMSC216_DATA_ROOT=${lib.escapeShellArg dataRoot}
       export CMSC216_CODIUM_BIN=${lib.escapeShellArg codiumBin}
+      export CMSC216_REMOTE_ENVIRONMENT=${lib.escapeShellArg remoteEnvironment}
       export CMSC216_AUTH_PERSIST=${lib.escapeShellArg authPersist}
       export CMSC216_DOWNLOAD_SCRIPT=${./bin/download-lab.py}
 

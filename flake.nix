@@ -350,6 +350,7 @@
               bash -n ${./components/cmsc216/bin/cmsc216}
               shellcheck ${./components/cmsc216/bin/cmsc216}
               PYTHONDONTWRITEBYTECODE=1 python3 ${./components/cmsc216}/tests/download-lab.py
+              PYTHONDONTWRITEBYTECODE=1 python3 ${./components/cmsc216}/tests/remote-environment.py ${./components/cmsc216/bin/cmsc216}
               bash -n ${./components/cmsc216/tests/auth.bash}
               bash -n ${./components/cmsc216/tests/fake-ssh}
               shellcheck ${./components/cmsc216/tests/auth.bash}
