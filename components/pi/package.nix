@@ -9,7 +9,7 @@
 }:
 
 let
-  version = "1.2.0";
+  version = "1.3.0";
 in
 stdenv.mkDerivation {
   pname = "pi-coding-agent";
@@ -17,7 +17,7 @@ stdenv.mkDerivation {
 
   src = fetchurl {
     url = "https://github.com/earendil-works/pi/releases/download/v${version}/pi-linux-x64.tar.gz";
-    hash = "sha256-APw2z/3rzupaSCMNpizz+0YxePj+GFdmZS+WACokaEc=";
+    hash = "sha256-JPW+Motm1No2h2KWmJUBl09Dq4Q0+7V8NcUjo+pQXe0=";
   };
 
   sourceRoot = "pi";

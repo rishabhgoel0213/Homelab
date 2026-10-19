@@ -1,5 +1,5 @@
 {
-  codex = "/nix/store/3i0hznlgndmw0m7rw6j7fqsca1jpfi32-codex-darwin-bundle-0.162.1";
+  codex = "/nix/store/d3sm0vz2x33fx77gh25z5pgik4s4d9ni-codex-darwin-bundle-0.163.0";
   tabbyPlugins = "/nix/store/j09p0vgs1i5gq9am8fzf3fbb6ahpfg1m-tabby-managed-plugins-2026-08-22";
   tabby = "/nix/store/j81y48mgya9p3b9815a3d46ijnrw23bf-tabby-terminal-prebuilt-archive-1.0.235";
   zen = "/nix/store/ksjsw6z9a0k8fw40c6clvc39rxqvlan6-zen-browser-prebuilt-archive-1.22.2b";
