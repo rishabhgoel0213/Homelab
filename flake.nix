@@ -176,6 +176,8 @@
     in
     {
       checks.${system} = {
+        micro = pkgs.callPackage ./components/micro/package.nix { };
+
         codex-scheduler =
           pkgs.runCommand "codex-scheduler-check"
             {

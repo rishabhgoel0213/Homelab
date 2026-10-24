@@ -117,7 +117,7 @@ in
     htop
     jq
     just
-    micro
+    (callPackage ../../components/micro/package.nix { })
     openssh
     restic
     ripgrep

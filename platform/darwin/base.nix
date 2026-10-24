@@ -57,7 +57,7 @@
   environment.systemPackages = with pkgs; [
     git
     just
-    micro
+    (callPackage ../../components/micro/package.nix { })
     openssh
     ripgrep
   ];

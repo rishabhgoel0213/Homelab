@@ -1,0 +1,37 @@
+filetype: x86-att
+
+detect:
+    filename: '\.[sS]$'
+
+rules:
+    # GAS instructions occupy the first field after optional labels/prefixes.
+    - statement: '(?i)(^|;)\s*([a-z_.$][a-z0-9_.$]*:\s*|[0-9]+:\s*)*((lock|rep|repe|repz|repne|repnz)\s+)*[a-z][a-z0-9]*\b'
+    - symbol.operator: '[,;:+*/$@-]'
+    - symbol.brackets: '[()]'
+    - constant.number: '\b(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)\b'
+    - constant: '\$-?(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+|[a-zA-Z_.$][a-zA-Z0-9_.$]*)\b'
+    - identifier: '(?i)%(r(ax|bx|cx|dx|si|di|bp|sp|ip|flags)|e(ax|bx|cx|dx|si|di|bp|sp|ip|flags)|[abcd][lh]|[abcd]x|[sd]il|[bs]pl|[sd]i|[bs]p|ip|r(8|9|1[0-5])[bwd]?|[xyz]mm[0-9]+|mm[0-7]|st(\([0-7]\))?|[cdefgs]s|[cd]r[0-9]+|k[0-7]|mxcsr)\b'
+    - identifier: '(?i)%st\([0-7]\)'
+    - preproc: '^\s*\.[a-zA-Z_][a-zA-Z0-9_.]*\b'
+    - identifier: '[a-zA-Z_.$][a-zA-Z0-9_.$]*:|\b[0-9]+[fb]\b|\b[0-9]+:'
+
+    - constant.string:
+        start: '"'
+        end: '"'
+        skip: '\\.'
+        rules:
+            - constant.specialChar: '\\.'
+
+    # GAS character constants have an opening quote without a closing quote.
+    - constant: "'(\\\\.|[^\\\\])"
+
+    - comment:
+        start: '#|//'
+        end: '$'
+        rules:
+            - todo: '\b(TODO|XXX|FIXME)\b:?'
+    - comment:
+        start: '/\*'
+        end: '\*/'
+        rules:
+            - todo: '\b(TODO|XXX|FIXME)\b:?'
