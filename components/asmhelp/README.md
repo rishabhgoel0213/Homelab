@@ -9,11 +9,17 @@ asmhelp cmpq
 asmhelp lea
 asmhelp search 'conditional jump'
 asmhelp syntax
+asmhelp regs
 asmhelp list
 ```
 
 Interactive output uses the configured `$MANPAGER`/`$PAGER`, falling back to
 `less`. Piped output is plain text. Set `ASMHELP_PAGER=cat` to disable paging.
+
+`asmhelp regs` shows the overlapping 64/32/16/8-bit general-purpose register
+names, integer argument and return roles, caller/callee-save classes, and the
+important partial-register rules. It is the terminal equivalent of the CMSC216
+`regs.png` table.
 
 The pinned dataset is published by [x86-64.net](https://x86-64.net/about/),
 generated from Intel XED and Clang, and includes forms, encodings, operand

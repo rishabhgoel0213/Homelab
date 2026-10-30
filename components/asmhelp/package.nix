@@ -57,6 +57,12 @@ python3.pkgs.buildPythonApplication rec {
     grep -Fq 'jcc' search-condition.txt
     "$out/bin/asmhelp" syntax > syntax.txt
     grep -Fq 'displacement(base,index,scale)' syntax.txt
+    "$out/bin/asmhelp" regs > regs.txt
+    grep -Fq '%rax    | %eax' regs.txt
+    grep -Fq '%rdi    | %edi' regs.txt
+    grep -Fq 'argument 6' regs.txt
+    grep -Fq 'caller must save it' regs.txt
+    grep -Fq 'Writing a 32-bit' regs.txt
     ${lib.optionalString (stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64) ''
       as --64 -o examples.o ${./tests/examples.s}
       objdump -dr -M att examples.o > examples.dump

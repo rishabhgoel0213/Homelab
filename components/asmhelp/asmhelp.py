@@ -366,6 +366,75 @@ GOTCHAS
 """
 
 
+def regs_page():
+    rows = [
+        ("%rax", "%eax", "%ax", "%al", "return value", "caller"),
+        ("%rbx", "%ebx", "%bx", "%bl", "general purpose", "callee"),
+        ("%rcx", "%ecx", "%cx", "%cl", "argument 4", "caller"),
+        ("%rdx", "%edx", "%dx", "%dl", "argument 3", "caller"),
+        ("%rsi", "%esi", "%si", "%sil", "argument 2", "caller"),
+        ("%rdi", "%edi", "%di", "%dil", "argument 1", "caller"),
+        ("%rsp", "%esp", "%sp", "%spl", "stack pointer", "special"),
+        ("%rbp", "%ebp", "%bp", "%bpl", "frame/base pointer", "callee"),
+        ("%r8", "%r8d", "%r8w", "%r8b", "argument 5", "caller"),
+        ("%r9", "%r9d", "%r9w", "%r9b", "argument 6", "caller"),
+        ("%r10", "%r10d", "%r10w", "%r10b", "general purpose", "caller"),
+        ("%r11", "%r11d", "%r11w", "%r11b", "general purpose", "caller"),
+        ("%r12", "%r12d", "%r12w", "%r12b", "general purpose", "callee"),
+        ("%r13", "%r13d", "%r13w", "%r13b", "general purpose", "callee"),
+        ("%r14", "%r14d", "%r14w", "%r14b", "general purpose", "callee"),
+        ("%r15", "%r15d", "%r15w", "%r15b", "general purpose", "callee"),
+    ]
+    widths = (7, 7, 7, 7, 20, 8)
+    headers = ("64-bit", "32-bit", "16-bit", "8-bit", "System V AMD64 role", "saved by")
+
+    def rule(char="-"):
+        return "+" + "+".join(char * (width + 2) for width in widths) + "+"
+
+    def row(values):
+        return "| " + " | ".join(f"{value:<{width}}" for value, width in zip(values, widths)) + " |"
+
+    table = [rule(), row(headers), rule("="), *(row(values) for values in rows), rule()]
+    return """x86-64 general-purpose registers (AT&T / System V AMD64)
+================================================================
+
+""" + "\n".join(table) + """
+
+CALLING-CONVENTION KEY
+  caller   The called function may overwrite this register. If the calling
+           function needs its value after `call`, the caller must save it.
+  callee   A function that changes this register must restore the incoming
+           value before it returns.
+  special  `%rsp` tracks the stack. Restore it to its entry value before `ret`;
+           do not treat it as a general-purpose saved register.
+
+WIDTH RULES
+  The names in each row overlap the same physical register. Writing a 32-bit
+  name (for example `%eax`) clears the upper 32 bits of the 64-bit register.
+  Writing a 16- or 8-bit name leaves the other bits unchanged.
+
+  `%ah`, `%bh`, `%ch`, and `%dh` name bits 8–15 of the first four legacy
+  registers. They cannot be encoded in an instruction that uses a REX prefix;
+  prefer the low-byte names shown above in 64-bit code.
+
+ARGUMENTS AND RETURN VALUES
+  Integer/pointer arguments 1–6: `%rdi`, `%rsi`, `%rdx`, `%rcx`, `%r8`, `%r9`
+  Integer/pointer return value: `%rax`
+  Narrow integer arguments use the corresponding 32/16/8-bit names. Floating-
+  point/vector arguments and returns use XMM registers and follow separate ABI
+  rules. Structs and large values can also use different passing rules.
+
+OTHER SPECIAL REGISTERS
+  `%rip` is the instruction pointer. It is not a general-purpose register and
+  has no directly addressable 32/16/8-bit subregisters. RIP-relative memory,
+  such as `symbol(%rip)`, is the normal position-independent form.
+
+This is the terminal equivalent of the CMSC216 `regs.png` table, with ABI
+wording clarified. The roles shown are for the 64-bit System V ABI used by the
+course and by ordinary Linux/macOS C code, not the Windows x64 convention.
+"""
+
+
 def search(query, data):
     terms = query.lower().split()
 
@@ -415,6 +484,9 @@ def main():
     args = parser.parse_args()
     if args.command == "syntax":
         emit(syntax_page())
+        return 0
+    if args.command in {"regs", "registers"}:
+        emit(regs_page())
         return 0
     data, by_id = load_data()
     if args.command == "search":
