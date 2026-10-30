@@ -55,6 +55,7 @@
   security.pam.services.sudo_local.enable = false;
 
   environment.systemPackages = with pkgs; [
+    (callPackage ../../components/asmhelp/package.nix { })
     git
     just
     (callPackage ../../components/micro/package.nix { })

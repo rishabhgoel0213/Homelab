@@ -105,6 +105,7 @@ in
 
   environment.systemPackages = with pkgs; [
     age
+    (callPackage ../../components/asmhelp/package.nix { })
     bitwarden-cli
     bubblewrap
     caddy

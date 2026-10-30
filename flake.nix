@@ -176,6 +176,7 @@
     in
     {
       checks.${system} = {
+        asmhelp = pkgs.callPackage ./components/asmhelp/package.nix { };
         micro = pkgs.callPackage ./components/micro/package.nix { };
 
         codex-scheduler =
