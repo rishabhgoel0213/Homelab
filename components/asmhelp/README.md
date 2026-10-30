@@ -1,33 +1,31 @@
 # asmhelp
 
-`asmhelp` is a fully offline, terminal-first x86-64 instruction manual focused
-on GNU assembler (AT&T) syntax.
+`asmhelp` is a deliberately small, fully offline terminal reference for the
+x86-64 GNU/AT&T assembly, System V calling convention, GDB, and binary tools
+used in CMSC216.
 
 ```console
+asmhelp                    # show the complete course-scoped topic list
 asmhelp mov
 asmhelp cmpq
-asmhelp lea
-asmhelp search 'conditional jump'
-asmhelp syntax
+asmhelp div                # signed and unsigned division recipe
+asmhelp remainder          # alias for the same division page
+asmhelp signed comparison  # local full-text search
 asmhelp regs
-asmhelp list
+asmhelp stack
+asmhelp gdb memory
 ```
 
-Interactive output uses the configured `$MANPAGER`/`$PAGER`, falling back to
-`less`. Piped output is plain text. Set `ASMHELP_PAGER=cat` to disable paging.
+There are no subcommands to learn: everything after `asmhelp` is a topic,
+instruction spelling, alias, or search phrase. An exact alias opens its page. A
+search with one match opens that page; several matches produce a short list.
 
-`asmhelp regs` shows the overlapping 64/32/16/8-bit general-purpose register
-names, integer argument and return roles, caller/callee-save classes, and the
-important partial-register rules. It is the terminal equivalent of the CMSC216
-`regs.png` table.
+The editable textual database is [`topics.toml`](topics.toml). It is derived
+from the local CMSC216 GDB/assembly reference and Labs 04–07. It intentionally
+omits x86 instructions and architecture topics outside that course material.
+The installed program never uses the network, an LLM, embeddings, or another
+backend; it performs deterministic alias and full-text searches over the
+packaged TOML file.
 
-The pinned dataset is published by [x86-64.net](https://x86-64.net/about/),
-generated from Intel XED and Clang, and includes forms, encodings, operand
-access, flags, ISA sets, extension metadata, and concise original summaries.
-The package preserves its attribution notice. `asmhelp` generates an AT&T view
-and adds hand-checked quick references for commonly used instructions.
-
-Generated AT&T forms are a convenience layer, not a replacement for GNU `as`
-in exceptional syntax families. Pages explicitly call out the x87, `ENTER`,
-far-control-transfer, and newly introduced instruction caveat, and retain the
-source XED/Intel form and encoding beside every generated form.
+Interactive output uses `$MANPAGER`/`$PAGER`, falling back to `less`. Piped
+output is plain text. Set `ASMHELP_PAGER=cat` to disable paging.

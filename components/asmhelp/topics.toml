@@ -1,0 +1,519 @@
+[manual]
+title = "CMSC216 x86-64 Assembly Help"
+intro = """
+A deliberately small, offline reference for the GNU/AT&T x86-64 assembly,
+calling convention, GDB, and binary tools used in CMSC216. Run `asmhelp TOPIC`
+or give a few search words. Examples: `asmhelp mov`, `asmhelp div`,
+`asmhelp signed comparison`, `asmhelp stack`, and `asmhelp gdb memory`.
+"""
+scope = "Derived from the local CMSC216 GDB/assembly reference and Labs 04–07. It is a course workbench, not a complete x86 encyclopedia or a confirmed exam-coverage list."
+
+[[topic]]
+id = "syntax"
+title = "AT&T syntax and operand widths"
+category = "Start here"
+aliases = ["att", "at&t", "operands", "suffixes", "widths", "immediate"]
+keywords = ["source destination dollar percent b w l q comment label"]
+summary = "Read source/destination order, operand sigils, and b/w/l/q size suffixes."
+see = ["regs", "memory", "mov"]
+body = """
+CORE RULE
+  Most instructions are written:  operation source, destination
+  `subl %esi, %eax` means eax = eax - esi.
+
+OPERAND SPELLING
+  `$42`      immediate constant 42
+  `%rax`     the value in register rax
+  `(%rax)`   memory at the address held in rax
+  `name:`    a label; `# text` starts a comment
+
+WIDTH SUFFIXES
+  b = 8 bits / 1 byte       w = 16 bits / 2 bytes
+  l = 32 bits / 4 bytes     q = 64 bits / 8 bytes
+
+Use a width matching the C object. Keep pointers in 64-bit registers. Most
+two-operand instructions cannot have both operands in memory; copy through a
+register. A 32-bit register write clears the upper half of its 64-bit register.
+"""
+
+[[topic]]
+id = "regs"
+title = "General-purpose registers"
+category = "Start here"
+aliases = ["registers", "register table", "calling convention registers"]
+keywords = ["rax eax return rdi argument caller callee saved"]
+summary = "Map 64/32/16/8-bit names and see argument, return, and save roles."
+see = ["calls", "stack", "syntax"]
+body = """
++---------+---------+---------+---------+----------------------+----------+
+| 64-bit  | 32-bit  | 16-bit  | 8-bit   | System V AMD64 role  | saved by |
++=========+=========+=========+=========+======================+==========+
+| %rax    | %eax    | %ax     | %al     | return value         | caller   |
+| %rbx    | %ebx    | %bx     | %bl     | general purpose      | callee   |
+| %rcx    | %ecx    | %cx     | %cl     | argument 4           | caller   |
+| %rdx    | %edx    | %dx     | %dl     | argument 3           | caller   |
+| %rsi    | %esi    | %si     | %sil    | argument 2           | caller   |
+| %rdi    | %edi    | %di     | %dil    | argument 1           | caller   |
+| %rsp    | %esp    | %sp     | %spl    | stack pointer        | special  |
+| %rbp    | %ebp    | %bp     | %bpl    | frame/base pointer   | callee   |
+| %r8     | %r8d    | %r8w    | %r8b    | argument 5           | caller   |
+| %r9     | %r9d    | %r9w    | %r9b    | argument 6           | caller   |
+| %r10    | %r10d   | %r10w   | %r10b   | general purpose      | caller   |
+| %r11    | %r11d   | %r11w   | %r11b   | general purpose      | caller   |
+| %r12    | %r12d   | %r12w   | %r12b   | general purpose      | callee   |
+| %r13    | %r13d   | %r13w   | %r13b   | general purpose      | callee   |
+| %r14    | %r14d   | %r14w   | %r14b   | general purpose      | callee   |
+| %r15    | %r15d   | %r15w   | %r15b   | general purpose      | callee   |
++---------+---------+---------+---------+----------------------+----------+
+
+CALLER/CALLEE KEY
+  caller  A called function may overwrite it; the caller must save it if live.
+  callee  A function that changes it must restore the incoming value.
+  special Restore `%rsp` before `ret`; do not use it as a scratch register.
+
+Writing `%eax` (or any 32-bit name) clears the upper 32 bits. Writing an 8- or
+16-bit name leaves other bits unchanged. `%rip` is the instruction pointer, not
+a general-purpose register. The legacy `%ah/%bh/%ch/%dh` names cannot be used
+with a REX prefix; prefer the low-byte names shown above in 64-bit code.
+"""
+
+[[topic]]
+id = "memory"
+title = "Memory addressing"
+category = "Start here"
+aliases = ["addressing", "array", "pointer", "dereference", "effective address"]
+keywords = ["displacement base index scale little endian rip relative"]
+summary = "Decode displacement(base,index,scale), arrays, pointers, and RIP-relative data."
+see = ["lea", "mov", "globals"]
+body = """
+ADDRESS FORM
+  D(base,index,scale)
+  effective address = D + base + index*scale; scale is 1, 2, 4, or 8.
+
+EXAMPLES
+  (%rdi)              memory at rdi
+  12(%rdi)            memory at rdi + 12 bytes
+  (%rdi,%rcx,4)       int array element at base rdi, index rcx
+  8(%rdi,%rcx,4)      memory at rdi + 4*rcx + 8
+  name(%rip)           position-independent reference to a symbol
+
+Displacements are bytes; hardware does not infer a C element size. `mov` with a
+memory operand accesses memory. `lea` computes the address without accessing
+memory. x86-64 is little endian: the least-significant byte is at the lowest
+address.
+"""
+
+[[topic]]
+id = "mov"
+title = "MOV: copy, load, and store"
+category = "Instructions"
+aliases = ["movb", "movw", "movl", "movq", "copy", "load", "store"]
+keywords = ["data movement memory register immediate"]
+summary = "Copy values between immediates, registers, and memory at a chosen width."
+see = ["extend", "memory", "syntax"]
+body = """
+FORMS
+  mov{b,w,l,q} source, destination
+
+EXAMPLES
+  movl %edi, %eax          copy a 32-bit argument into the return register
+  movl (%rdi), %eax        load 4 bytes from memory
+  movl %eax, 4(%rdi)       store 4 bytes at address rdi + 4
+  movq %rax, -8(%rbp)      store an 8-byte value
+  movl $42, %eax           load an immediate; also clears upper rax
+
+Memory-to-memory MOV is not encodable: use a register between the load and
+store. Choose the suffix from the object width, not the pointer width.
+"""
+
+[[topic]]
+id = "extend"
+title = "Sign and zero extension"
+category = "Instructions"
+aliases = ["movsx", "movzx", "movsbl", "movzbl", "movswl", "movzwl", "movslq", "sign extend", "zero extend"]
+keywords = ["signed unsigned widen byte short int long"]
+summary = "Widen a smaller integer while preserving its signed or unsigned meaning."
+see = ["mov", "regs"]
+body = """
+COMMON FORMS
+  movsbl %al, %eax     sign-extend 8 bits to 32
+  movzbl %al, %eax     zero-extend 8 bits to 32
+  movswl %ax, %eax     sign-extend 16 bits to 32
+  movzwl %ax, %eax     zero-extend 16 bits to 32
+  movslq %eax, %rax    sign-extend 32 bits to 64
+
+The mnemonic encodes both widths: `movsbl` means signed byte to long. There is
+no need for a zero-extend 32-to-64 instruction: any 32-bit register write
+already clears the upper 32 bits.
+"""
+
+[[topic]]
+id = "lea"
+title = "LEA: compute an address"
+category = "Instructions"
+aliases = ["leaq", "leal", "address of"]
+keywords = ["effective address arithmetic array rip relative"]
+summary = "Compute an address or simple arithmetic without reading memory or changing flags."
+see = ["memory", "globals"]
+body = """
+FORM
+  lea{l,q} memory-address-syntax, destination-register
+
+EXAMPLES
+  leaq 4(%rdi), %rax          rax = rdi + 4; no memory read
+  leaq (%rdi,%rdi,4), %rax    rax = 5*rdi
+  leaq symbol(%rip), %rdi     address of a global or string
+
+The source deliberately looks like a memory operand, but LEA computes only the
+effective address. `movl symbol(%rip), %eax` loads a value; `leaq
+symbol(%rip), %rax` gets its address.
+"""
+
+[[topic]]
+id = "arithmetic"
+title = "Integer arithmetic"
+category = "Instructions"
+aliases = ["add", "addl", "addq", "sub", "subl", "subq", "inc", "incl", "dec", "decl", "neg", "negl", "imul", "imull", "multiply", "multiplication"]
+keywords = ["addition subtraction increment decrement negate product flags"]
+summary = "Use ADD, SUB, INC, DEC, NEG, and IMUL for course integer arithmetic."
+see = ["division", "compare", "syntax"]
+body = """
+COMMON FORMS
+  addl %esi, %eax          eax += esi
+  subl %esi, %eax          eax -= esi
+  incl %eax / decl %eax    add/subtract 1 (do not update CF)
+  negl %eax                two's-complement negation
+  imull %esi, %eax         low 32 bits of eax * esi
+  imull $5, %edi, %eax     eax = low 32 bits of 5 * edi
+
+ADD, SUB, NEG, and IMUL update arithmetic flags. Most forms store into their
+last operand. Multiplication can overflow; the two/three-operand IMUL forms keep
+only the destination-width low bits.
+"""
+
+[[topic]]
+id = "division"
+title = "Integer division"
+category = "Instructions"
+aliases = ["divide", "div", "divl", "divq", "idiv", "idivl", "idivq", "quotient", "remainder", "modulo", "mod", "cltd", "cdq", "cqto", "cqo"]
+keywords = ["signed unsigned dividend divisor edx eax rdx rax truncate zero trap"]
+summary = "Set up EDX:EAX or RDX:RAX, then obtain both quotient and remainder."
+see = ["arithmetic", "extend", "regs"]
+body = """
+SIGNED 32-BIT DIVISION
+  # Compute signed dividend / divisor and dividend % divisor
+  movl dividend, %eax
+  cltd                    # sign-extend eax into edx:eax (`cdq` alias)
+  idivl divisor           # divisor is a register or memory, never immediate
+  # Quotient: %eax        Remainder: %edx
+
+SIGNED 64-BIT DIVISION
+  movq dividend, %rax
+  cqto                    # sign-extend rax into rdx:rax (`cqo` alias)
+  idivq divisor
+  # Quotient: %rax        Remainder: %rdx
+
+UNSIGNED 32-BIT DIVISION
+  movl dividend, %eax
+  xorl %edx, %edx         # high half is zero for a 32-bit dividend
+  divl divisor
+  # Quotient: %eax        Remainder: %edx
+
+For a constant divisor, first put it in a register; DIV/IDIV do not accept an
+immediate. Division by zero or a quotient too large for the destination traps.
+Signed division truncates toward zero. Arithmetic right shift rounds negative
+values differently, so SAR is not a general replacement for signed division.
+"""
+
+[[topic]]
+id = "bitwise"
+title = "Bitwise logic"
+category = "Instructions"
+aliases = ["and", "andl", "or", "orl", "xor", "xorl", "not", "notl", "mask", "masking"]
+keywords = ["bits clear set toggle invert zero"]
+summary = "Use AND, OR, XOR, and NOT to mask, combine, clear, and invert bits."
+see = ["shifts", "compare"]
+body = """
+FORMS AND USES
+  andl %esi, %eax         bitwise AND; useful for clearing/masking bits
+  orl  %esi, %eax         bitwise OR; useful for setting bits
+  xorl %esi, %eax         bitwise XOR; useful for toggling bits
+  xorl %eax, %eax         set eax and all of rax to zero
+  notl %eax               invert every bit; flags are unchanged
+
+AND/OR/XOR update ZF, SF, and PF and clear CF/OF. An immediate mask uses `$`,
+for example `andl $0xff, %eax`.
+"""
+
+[[topic]]
+id = "shifts"
+title = "Bit shifts"
+category = "Instructions"
+aliases = ["shift", "sal", "sall", "shl", "shll", "shr", "shrl", "sar", "sarl", "sarq"]
+keywords = ["logical arithmetic left right cl multiply divide power two"]
+summary = "Shift left, logical-right, or arithmetic-right by an immediate or CL count."
+see = ["bitwise", "division"]
+body = """
+COMMON FORMS
+  sall $3, %eax / shll $3, %eax    left 3; SAL and SHL are identical
+  shrl $3, %eax                    logical right; fill with zeros
+  sarl $3, %eax                    arithmetic right; copy sign bit
+  sarl %cl, %eax                   variable count must be in cl
+
+32-bit shifts use the low 5 bits of the count; 64-bit shifts use the low 6.
+Left shift can implement multiplication by a power of two when overflow is
+acceptable. SAR on a negative signed value rounds toward negative infinity;
+IDIV rounds toward zero.
+"""
+
+[[topic]]
+id = "compare"
+title = "CMP, TEST, and flags"
+category = "Control flow"
+aliases = ["cmp", "cmpb", "cmpw", "cmpl", "cmpq", "test", "testl", "testq", "flags", "rflags", "eflags"]
+keywords = ["zero sign carry overflow zf sf cf of destination source"]
+summary = "Set flags for subtraction or bitwise AND before a branch, SETcc, or CMOVcc."
+see = ["branches", "conditionals"]
+body = """
+CMP
+  cmp{b,w,l,q} source, destination
+  Sets flags for destination - source; stores no result.
+  `cmpl %esi, %edi` compares edi against esi.
+
+TEST
+  test{b,w,l,q} source, destination
+  Sets flags for source AND destination; stores no result.
+  `testl %eax, %eax` tests eax for zero (ZF) or negative (SF).
+
+FLAGS USED IN THE COURSE
+  ZF  result was zero             SF  result sign bit
+  CF  unsigned carry/borrow       OF  signed overflow
+
+Conditional instructions consume the current flags. Do not put a flag-changing
+instruction between CMP/TEST and the jump or conditional operation that uses it.
+"""
+
+[[topic]]
+id = "branches"
+title = "Jumps and signed/unsigned comparisons"
+category = "Control flow"
+aliases = ["branch", "jump", "jmp", "je", "jz", "jne", "jnz", "jl", "jle", "jg", "jge", "jb", "jbe", "ja", "jae", "loop", "if"]
+keywords = ["conditional equality less greater signed unsigned flags"]
+summary = "Choose the correct jump after CMP/TEST, especially signed versus unsigned."
+see = ["compare", "conditionals"]
+body = """
+  Relation              Signed       Unsigned
+  equal                 je / jz      je / jz
+  not equal             jne / jnz    jne / jnz
+  less                  jl           jb
+  less or equal         jle          jbe
+  greater               jg           ja
+  greater or equal      jge          jae
+
+`jmp label` is unconditional. Signed conditions interpret SF/OF; unsigned
+conditions interpret CF/ZF. For `cmpl %esi,%edi`, the table compares edi to
+esi because CMP sets flags for destination - source. `js`/`jns` test only the
+sign flag; they are not general two-value signed comparisons.
+"""
+
+[[topic]]
+id = "conditionals"
+title = "SETcc and CMOVcc"
+category = "Control flow"
+aliases = ["setcc", "sete", "setne", "setl", "setg", "cmov", "cmovcc", "cmovl", "conditional move", "boolean"]
+keywords = ["zero one branchless flags register byte"]
+summary = "Turn flags into a 0/1 byte or conditionally copy into a register."
+see = ["compare", "branches", "extend"]
+body = """
+SETcc
+  sete %al             write 1 if equal, otherwise 0
+  setl %al             write 1 for signed less-than
+  movzbl %al, %eax     convert the byte into a clean 32-bit Boolean
+
+CMOVcc
+  cmovl %esi, %eax     copy esi to eax only if signed-less flags are set
+
+The condition suffixes match the jump table. SETcc writes one byte. CMOVcc has
+a register destination and a register/memory source. Both read existing flags
+and do not replace the preceding CMP/TEST.
+"""
+
+[[topic]]
+id = "calls"
+title = "Function calls and calling convention"
+category = "Functions and data"
+aliases = ["call", "ret", "return", "arguments", "parameters", "abi", "calling convention", "printf"]
+keywords = ["rdi rsi rdx rcx r8 r9 rax caller callee saved"]
+summary = "Pass integer/pointer arguments, preserve registers, call functions, and return values."
+see = ["regs", "stack"]
+body = """
+INTEGER/POINTER ABI
+  arguments 1–6:  %rdi, %rsi, %rdx, %rcx, %r8, %r9
+  return value:   %rax (or %eax for int)
+
+CALL/RETURN
+  call func       pushes the following instruction address, then jumps
+  ret             pops that address into rip; takes no operand
+
+Caller-saved registers may be overwritten by any call. If a value must survive,
+save it or place it in a callee-saved register. A function that changes rbx,
+rbp, or r12–r15 must restore it before returning. For the integer/pointer-only
+course `printf` calls, put 0 in `%eax` after arranging other arguments, then
+`call printf@PLT`.
+"""
+
+[[topic]]
+id = "stack"
+title = "Stack frames and alignment"
+category = "Functions and data"
+aliases = ["rsp", "push", "pushq", "pop", "popq", "local variables", "alignment", "prologue", "epilogue"]
+keywords = ["reserve release call return address 16 byte"]
+summary = "Reserve locals, save registers, restore RSP, and align the stack before CALL."
+see = ["calls", "regs", "memory"]
+body = """
+  pushq %rbx          rsp -= 8; store rbx at the new top
+  popq %rbx           load from the top; rsp += 8
+  subq $24, %rsp      reserve 24 uninitialized bytes
+  addq $24, %rsp      release those bytes
+  movl $7, 4(%rsp)    store a 4-byte local
+  leaq 4(%rsp), %rdi  pass that local's address as argument 1
+
+Restore saved registers in reverse order and restore `%rsp` before `ret`. For
+ordinary course calls, `%rsp` must be divisible by 16 immediately before
+`call`. At function entry it is 8 modulo 16 because CALL pushed an 8-byte return
+address. Count every push and allocation.
+"""
+
+[[topic]]
+id = "globals"
+title = "Globals and assembler directives"
+category = "Functions and data"
+aliases = ["global", "directives", "data section", "text section", "rodata", "rip relative", ".data", ".text", ".globl"]
+keywords = ["byte short long quad asciz zero symbol label array string"]
+summary = "Define code/data symbols and access global values or addresses with RIP-relative forms."
+see = ["memory", "lea", "mov"]
+body = """
+SECTIONS AND SYMBOLS
+  .text / .data / .section .rodata    code / writable / read-only data
+  .globl func                         export a symbol (`.global` alias)
+  func:                               define a symbol at this location
+
+DATA DIRECTIVES
+  .byte / .short / .long / .quad      emit 1 / 2 / 4 / 8-byte integers
+  .asciz "hi"                          emit a null-terminated string
+  .zero 8                              emit eight zero bytes
+
+ACCESS
+  movl count(%rip), %eax              load a global 4-byte value
+  movl %eax, count(%rip)              store it
+  leaq count(%rip), %rdi              get its address
+"""
+
+[[topic]]
+id = "structs"
+title = "Struct fields and packed values"
+category = "Functions and data"
+aliases = ["struct", "structure", "packed struct", "field", "fields", "offset", "offsets"]
+keywords = ["layout pointer by value bits mask shift header byte word long quad"]
+summary = "Use documented byte offsets in memory and unpack small by-value structs from registers."
+see = ["memory", "bitwise", "shifts", "calls"]
+body = """
+STRUCT THROUGH A POINTER
+  Use the field's documented byte offset from the pointer and the field's own
+  width. For a 16-bit field at offset 2 from `%rdi`, for example:
+    movw 2(%rdi), %ax       load the field
+    movw %ax, 2(%rdi)       store the field
+
+PACKED/BY-VALUE STRUCT
+  A sufficiently small struct may arrive packed into one or more argument
+  registers rather than through a pointer. Follow the supplied C header's
+  register and bit layout; do not invent it from the source declaration.
+  A common extraction pattern is:
+    movq %rdi, %rax         copy the packed value
+    shrq $N, %rax           move the desired field down
+    andl $MASK, %eax        keep only that field's bits
+
+Use MOVSX/MOVZX when widening a signed/unsigned narrow field. Field offsets are
+bytes; packed positions are bits. Preserve the original packed register if more
+fields are still needed, because shifts and masks destroy parts of the copy.
+"""
+
+[[topic]]
+id = "gdb"
+title = "GDB execution and inspection"
+category = "Debugging"
+aliases = ["debug", "debugger", "breakpoint", "break", "step", "next", "continue", "backtrace", "tui"]
+keywords = ["run stepi nexti finish watch frame locals args layout asm regs"]
+summary = "Start, stop, step, inspect registers/frames, and use the text interface."
+see = ["gdb-memory", "tools"]
+body = """
+FAST START
+  gdb -tui ./prog
+  (gdb) set args input.txt
+  (gdb) break main
+  (gdb) run
+
+EXECUTION
+  run / continue / kill       restart / resume / stop the program
+  step / next                 source line, entering / stepping over calls
+  stepi / nexti               machine instruction, entering / over calls
+  finish                      run until the selected function returns
+
+BREAKS AND STATE
+  break func / break file.c:42 / break *func+24
+  info breakpoints / disable 2 / enable 2 / delete 2
+  watch x                     stop when an in-scope expression changes
+  p/x $rax / info registers / backtrace / frame 1 / info locals
+
+TUI: `layout asm`, `layout regs`, `layout split`, `focus cmd`, and Ctrl-L.
+The highlighted instruction is normally the next one to execute.
+"""
+
+[[topic]]
+id = "gdb-memory"
+title = "GDB memory examination"
+category = "Debugging"
+aliases = ["gdb memory", "examine", "x command", "disassemble", "disas"]
+keywords = ["count format size address x d u t c s i b h w g"]
+summary = "Use x/COUNT-FORMAT-SIZE ADDRESS without confusing values and memory."
+see = ["gdb", "memory"]
+body = """
+FORM
+  x/COUNT FORMAT SIZE ADDRESS       written together, e.g. `x/4xw $rsp`
+
+FORMAT: x hex, d signed, u unsigned, t binary, c char, s string, i instruction
+SIZE:   b 1 byte, h 2 bytes, w 4 bytes, g 8 bytes
+
+EXAMPLES
+  x/8xb $rdi         eight bytes in hex at the pointer
+  x/4dw $rsp         four 4-byte signed integers
+  x/4xg $rsp         four 8-byte hex values/pointers
+  x/s $rdi           null-terminated string
+  x/6i $rip          six instructions
+  disassemble func   function instructions and addresses
+
+`p/x $rax` prints the register value. `x/gx $rax` dereferences it and reads
+memory. In GDB, size `w` means 4 bytes; assembly suffix `w` means 2 bytes.
+"""
+
+[[topic]]
+id = "tools"
+title = "Assembly and binary tools"
+category = "Debugging"
+aliases = ["gcc", "objdump", "nm", "strings", "readelf", "compile", "disassembly"]
+keywords = ["symbols sections generate assembly debug info makefile"]
+summary = "Generate assembly, disassemble programs, and inspect symbols, strings, and sections."
+see = ["gdb", "globals"]
+body = """
+  gcc -Og -S file.c        generate `file.s`; do not link
+  objdump -d prog          disassemble executable code
+  objdump -t prog          show the symbol table
+  nm prog                  list symbols
+  strings prog             find printable strings
+  readelf -S prog          inspect ELF sections
+
+Prefer the provided course Makefile for normal builds. Build debugging targets
+with `-g`; `-Og` keeps useful optimization while remaining debugger-friendly.
+Disassembly adds addresses and machine-code bytes and may show numeric
+RIP-relative offsets alongside resolved symbol names.
+"""

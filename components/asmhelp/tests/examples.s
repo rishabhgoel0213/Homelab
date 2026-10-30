@@ -1,34 +1,37 @@
     .text
     .globl asmhelp_examples
 asmhelp_examples:
-    movb %al, (%rdi)
-    movw %ax, 2(%rdi)
-    movl $42, %eax
-    movq %rax, -8(%rbp)
-    movabsq $0x1122334455667788, %rax
-    movq 8(%rdi,%rcx,4), %rax
-    leaq 8(%rdi,%rsi,4), %rax
-    leaq asmhelp_examples(%rip), %rdi
-    leal 3(%edi,%edi,4), %eax
-    cmpq %rsi, %rdi
-    cmpl $10, %eax
-    cmpb $0, (%rdi)
-    testq %rax, %rax
-    addq %rsi, %rax
-    subl $4, %eax
-    andl $0xff, %eax
-    orq %rsi, %rax
+    movl %edi, %eax
+    movl (%rdi), %eax
+    movl %eax, 4(%rdi)
+    leaq 4(%rdi), %rax
+    leaq (%rdi,%rdi,4), %rax
+    movsbl %al, %eax
+    movzbl %al, %eax
+    movswl %ax, %eax
+    movzwl %ax, %eax
+    movslq %eax, %rax
+    addl %esi, %eax
+    subl %esi, %eax
+    incl %eax
+    decl %eax
+    negl %eax
+    notl %eax
+    imull %esi, %eax
+    imull $5, %edi, %eax
+    andl %esi, %eax
+    orl %esi, %eax
     xorl %eax, %eax
-    shlq $1, %rax
-    shrq %cl, %rax
-    sarq $2, %rax
-    imulq %rsi, %rax
-    imulq $10, %rdi, %rax
-    movzbl (%rdi), %eax
-    movzbq %al, %rax
-    movzwl %ax, %edx
-    movsbl (%rdi), %eax
-    movsbq %al, %rax
-    movslq %eax, %rdx
-    call *%rax
-    jmp *%rax
+    sall $3, %eax
+    shrl $3, %eax
+    sarl %cl, %eax
+    cltd
+    idivl %esi
+    cmpl %esi, %edi
+    testl %eax, %eax
+    sete %al
+    setl %al
+    cmovl %esi, %eax
+    pushq %rbx
+    popq %rbx
+    ret
