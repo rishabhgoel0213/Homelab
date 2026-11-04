@@ -259,8 +259,11 @@ t3code-status:
 t3code-logs:
     journalctl -u t3code.service -f
 
-t3code-mobile-bootstrap:
-    components/t3code/bin/build-mobile-bootstrap
+t3code-update target="nightly":
+    components/t3code/bin/update "{{target}}"
+
+t3code-auto-update:
+    components/t3code/bin/auto-update
 
 local-model-fetch model:
     sudo systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"

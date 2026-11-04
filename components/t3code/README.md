@@ -1,62 +1,47 @@
-# T3 Code and Pi
+# T3 Code nightly
 
-T3 Code is the tailnet-only web UI for the server's managed Codex and Pi
-providers:
+The server runs the official, unmodified upstream nightly at:
 
-```text
 https://t3code.internal.therealrishabh.com
-```
 
-The service is declarative in `components/t3code/nixos.nix`. It binds only to
-`127.0.0.1:3773`; Caddy publishes it through the existing internal wildcard
-certificate and CoreDNS/Tailscale route.
+The Nix package downloads the versioned Linux x64 release from
+[pingdotgg/t3code](https://github.com/pingdotgg/t3code/releases) and verifies its
+pinned SHA256. It does not build or execute the private fork.
 
-## Managed state
+## Updates
 
-- T3 Code: `/srv/state/t3code`
-- Codex: `/srv/state/codex`
-- Pi: `/srv/state/pi/agent`
+`just t3code-update` resolves npm's official `t3@nightly` tag, updates the
+version and hash in `package.nix`, and builds the host without activating it.
+A failed build restores the old pin. An exact nightly version can be supplied
+as an argument.
 
-T3 Code's Codex provider explicitly uses `/run/current-system/sw/bin/codex`
-and `/srv/state/codex`, so the same authentication, plugins, and prior Codex
-sessions used by direct Codex invocations are visible in T3 Code.
+`just t3code-auto-update` also deploys when the installed version differs from
+the pin, then checks the service and HTTP endpoint. Failed deployments remain
+eligible for retry. The systemd timer runs daily at 06:00 America/New_York with
+up to ten minutes of randomized delay. It shares the Codex/Pi deployment lock.
+Updates restart T3 Code and can interrupt active T3 turns or terminals.
 
-Pi uses `/run/current-system/sw/bin/pi` with `PI_CODING_AGENT_DIR` set to
-`/srv/state/pi/agent`. Pi credentials, sessions, skills, extensions, prompts,
-and future customizations therefore persist in one managed location. Pi MCP
-integration is intentionally not configured yet.
+## State and providers
 
-## Pi package updates
+State remains at `/srv/state/t3code`. `CODEX_HOME=/srv/state/codex` shares the
+managed Codex authentication. Provider configuration otherwise uses upstream
+defaults and the normal upstream Settings UI.
 
-```bash
-just pi-update
-just pi-auto-update
-```
+The custom projectctl adapter, Pi provider, task UI, Jupyter editor integration,
+and private Android/Expo update service are removed from the deployment.
+Use upstream mobile clients. Add project paths in the standard T3 UI; projectctl
+continues independently. The old fork checkout is retained for recovery but is
+not a package input. Initial migration backups are under
+`/srv/state/t3code-backups`.
 
-`pi-update` updates `components/pi/package.nix` to the latest stable `v*`
-release and verifies the new tarball by building the host configuration. If the
-fetch or build fails, it restores the previous package pin.
-
-`pi-auto-update` runs the same update and switches the NixOS generation only
-when the package file changes. New Pi sessions then use the updated package;
-existing sessions are not interrupted. `pi-auto-update.timer` runs each morning
-at 05:30 with a short randomized delay, after the Codex update window. Both
-automatic updaters share a lock so NixOS switches cannot overlap.
-
-## Private source pin
-
-The package builds the exact revision declared by
-`homelab.t3code.revision` from the canonical private checkout at
-`/home/rishabh/Projects/t3code`. Nix reads the committed Git tree, so uncommitted
-working-tree changes do not enter the build.
-
-To publish and deploy a new fork revision:
-
-1. Commit and push it from `/home/rishabh/Projects/t3code`.
-2. Set `homelab.t3code.revision` to the new 40-character commit in
-   `hosts/nixos-pc/default.nix`.
-3. Update `components/t3code/package.nix`'s `pnpmDeps.hash` if the lockfile changed.
-4. Run `just check`, `just build`, and `just switch` from `/srv/ops`.
+The initial fork conversion uses `bin/migrate-private-fork.py` with the service
+stopped. First provision the backup parent with
+`sudo install -d -m 0700 -o rishabh -g users /srv/state/t3code-backups`.
+It backs up the entire state, resets fork settings/keybindings, and
+reconciles conflicting migration IDs 36, 41, and 42. Upstream then performs its
+own schema migration into `userdata/statev2.sqlite`. This is a one-time step,
+not part of the nightly updater. To recover the old fork, stop T3 and restore
+the full backup together with the prior NixOS generation.
 
 ## Operations
 
@@ -65,11 +50,9 @@ just t3code-doctor
 just t3code-pair
 just t3code-status
 just t3code-logs
+systemctl status t3code-auto-update.timer
+journalctl -u t3code-auto-update
 ```
 
-`just t3code-pair` mints a ten-minute pairing token. Open the internal URL and
-enter that token when prompted; the command's localhost URL and QR code refer
-to the same server but are not the normal tailnet entrypoint.
-
-T3 Code has its own pairing/access controls. Do not publish this route through
-the public Cloudflare ingress lane.
+The server binds to loopback port 3773; Caddy provides the existing private HTTPS
+route. Pairing is handled by upstream T3. The route remains tailnet-only.

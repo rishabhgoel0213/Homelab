@@ -1,8 +1,7 @@
 # Durable Projects
 
 `projectctl` is the terminal-first control plane for permanent workspaces. Its
-canonical root is `/home/rishabh/Projects`; T3 Code consumes the same versioned
-JSON model through its server-side project-control adapter.
+canonical root is `/home/rishabh/Projects`.
 
 ## Project Model
 
@@ -130,16 +129,10 @@ starts its configured Python kernel inside the same Nix environment.
 
 ## T3 Code Boundary
 
-T3's server invokes `projectctl` for catalog, lifecycle, environment, and
-Jupyter operations, then reconciles active entries into its conversation
-projection using the stable project UUID. The web and Android clients use that
-RPC surface; neither client reads the filesystem directly.
-
-T3 keeps UI state and native conversation references. Project identity, paths,
-environment behavior, lifecycle status, and Jupyter links belong to the project
-control plane. Codex and Pi child processes are routed through `projectctl exec`
-inside the canonical project tree, while legacy projects outside that tree keep
-their host execution behavior.
+T3 Code runs the unmodified official nightly. Add project directories through
+its standard UI. It does not synchronize projectctl metadata or wrap agent
+processes with `projectctl exec`; enter a project's environment explicitly when
+needed. The projectctl CLI remains independently available.
 
 ## Private static project files
 

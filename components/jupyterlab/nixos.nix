@@ -96,8 +96,6 @@ in
       description = "Private authentication-free JupyterLab workspace editor";
     };
 
-    homelab.t3code.browserEditorUrls.jupyterlab = "https://${fqdn}";
-
     assertions = [
       {
         assertion = homelab.acme.enable;

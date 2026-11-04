@@ -94,11 +94,7 @@
     blogSite.enable = true;
     projectPages.enable = true;
     umdGradplan.enable = true;
-    t3code = {
-      enable = true;
-      sourceCheckout = "/home/rishabh/Projects/t3code";
-      revision = "eaea1efb308f25cee94e784d449868b99bb3a175";
-    };
+    t3code.enable = true;
     syncthing.enable = true;
     singlemail.enable = true;
     samba.enable = true;

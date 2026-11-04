@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${T3CODE_OPS_ROOT:-/srv/ops}"
+host="${HOST:-nixos-pc}"
+package_file="${T3CODE_PACKAGE_FILE:-$repo/components/t3code/package.nix}"
+target="${1:-nightly}"
+
+if [[ "$target" == nightly ]]; then
+  version="$(curl --fail --silent --show-error --connect-timeout 15 --max-time 60 \
+    https://registry.npmjs.org/t3/nightly | jq -er .version)"
+else
+  version="${target#v}"
+fi
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}\.[0-9]+$ ]]; then
+  echo "Expected an official nightly version, got: $version" >&2
+  exit 1
+fi
+current_version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file")"
+if [[ "$current_version" == "$version" ]]; then
+  echo "T3 Code pin is already at $version." >&2
+  exit 0
+fi
+
+url="https://github.com/pingdotgg/t3code/releases/download/v$version/t3-$version-linux-x64.tar.gz"
+src_hash="$(nix store prefetch-file --json "$url" | jq -er .hash)"
+[[ "$src_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
+backup="$(mktemp)"
+cp -- "$package_file" "$backup"
+succeeded=0
+restore_on_failure() {
+  status=$?
+  if [[ "$succeeded" -ne 1 ]]; then
+    cp -- "$backup" "$package_file"
+    echo "T3 Code build failed; restored previous pin." >&2
+  fi
+  rm -f -- "$backup"
+  exit "$status"
+}
+trap restore_on_failure EXIT
+perl -0pi -e \
+  "s{version = \"[^\"]+\";}{version = \"$version\";};
+   s{hash = \"sha256-[^\"]+\";}{hash = \"$src_hash\";}" "$package_file"
+(
+  cd "$repo"
+  nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel"
+)
+succeeded=1
+echo "T3 Code nightly pin updated to $version." >&2

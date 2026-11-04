@@ -548,15 +548,22 @@
               touch "$out"
             '';
 
-        t3code-updates =
-          pkgs.runCommand "t3code-updates-check"
+        t3code-update =
+          pkgs.runCommand "t3code-update-check"
             {
-              nativeBuildInputs = [ pkgs.python3 ];
+              nativeBuildInputs = [
+                pkgs.shellcheck
+                pkgs.python3
+                pkgs.bash
+                pkgs.coreutils
+                pkgs.jq
+                pkgs.perl
+              ];
             }
             ''
-              python3 -m py_compile ${./components/t3code/bin/updates-server.py}
-              T3CODE_UPDATES_SERVER_SCRIPT=${./components/t3code/bin/updates-server.py} \
-                python3 ${./components/t3code/tests/test-updates-server.py}
+              shellcheck ${./components/t3code/bin/update} ${./components/t3code/bin/auto-update} ${./components/t3code/bin/doctor}
+              T3CODE_UPDATE_SCRIPT=${./components/t3code/bin/update} \
+                python3 ${./components/t3code/tests/update.py}
               touch "$out"
             '';
 
