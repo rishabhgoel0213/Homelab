@@ -9,6 +9,8 @@
 
 let
   version = "0.1.8-nightly.20261104.4179";
+  mobileApkName = "t3code-android-internal-2.2.0-741.apk";
+  mobileApkHash = "sha256-gTKckn4RiQHUAq3J7e5xe7RghPEWmE8P43diXW15s+8=";
 in
 stdenv.mkDerivation {
   pname = "t3code";
@@ -42,6 +44,13 @@ stdenv.mkDerivation {
   installCheckPhase = ''
     test "$("$out/bin/t3" --version)" = "t3 v${version}"
   '';
+  passthru = {
+    inherit mobileApkName mobileApkHash;
+    mobileApk = fetchurl {
+      url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/${mobileApkName}";
+      hash = mobileApkHash;
+    };
+  };
   meta = {
     description = "Official T3 Code nightly server and web UI";
     homepage = "https://github.com/pingdotgg/t3code";

@@ -12,7 +12,9 @@ pinned SHA256. It does not build or execute the private fork.
 
 `just t3code-update` resolves npm's official `t3@nightly` tag, updates the
 version and hash in `package.nix`, and builds the host without activating it.
-A failed build restores the old pin. An exact nightly version can be supplied
+It also resolves and hashes the official Android APK attached to that exact
+release. Both pins advance together; a release without exactly one matching APK
+is rejected. A failed build restores both old pins. An exact nightly version can be supplied
 as an argument.
 
 `just t3code-auto-update` also deploys when the installed version differs from
@@ -56,3 +58,24 @@ journalctl -u t3code-auto-update
 
 The server binds to loopback port 3773; Caddy provides the existing private HTTPS
 route. Pairing is handled by upstream T3. The route remains tailnet-only.
+
+## Official nightly Android download
+
+Open https://updates.internal.therealrishabh.com/ on the phone with Tailscale
+enabled, then download and install the APK. The stable download URL is
+`/nightly.apk`; `/bootstrap.apk` remains an alias for the old bookmarked URL.
+`/release.json` identifies the server nightly, original upstream APK filename,
+and pinned hash. Caddy serves the verified APK directly from the Nix store and
+rejects connections outside the tailnet. Responses disable caching so a phone
+does not reuse yesterday's APK. The old custom `/api/manifest` Expo endpoint is
+not restored.
+
+Every successful daily nightly deployment switches the server and this download
+to the same upstream release. The file is the official, unmodified APK, not a
+locally rebuilt fork. Android still requires confirmation to install new APKs;
+this endpoint does not push or silently install them. The official app's own
+compatible JavaScript updates come from upstream's Expo service and follow
+upstream's mobile update channel independently of the server pin. Native changes
+require downloading and installing a new APK. A signature mismatch with an old
+custom build may require uninstalling that phone app first; save any local drafts
+before uninstalling. Server conversations and project files stay on the server.

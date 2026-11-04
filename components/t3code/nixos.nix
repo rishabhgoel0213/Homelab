@@ -10,6 +10,38 @@ let
   cfg = config.homelab.t3code;
   stateDir = homelab.paths.t3codeState;
   package = pkgs.callPackage ./package.nix { };
+  mobileIndex = pkgs.writeText "t3code-nightly-download.html" ''
+    <!doctype html>
+    <html lang="en"><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>T3 Code nightly for Android</title>
+    <body><h1>T3 Code nightly for Android</h1>
+    <p>Official Android build attached to server nightly ${package.version}.</p>
+    <p><a href="/nightly.apk">Download Android APK</a></p>
+    <p>Build: ${package.mobileApkName}</p>
+    <p>Enable Tailscale, download, then confirm installation on your phone.
+    Android may ask you to allow installations from your browser.</p>
+    <p>Connect to <a href="https://t3code.${homelab.internalDomain}">T3 Code</a>
+    using a fresh pairing code.</p>
+    <p>This link follows the server's daily nightly updates. Installing a new APK
+    requires confirmation. Compatible in-app updates are provided by upstream.</p>
+    </body></html>
+  '';
+  mobileManifest = pkgs.writeText "t3code-nightly-release.json" (
+    builtins.toJSON {
+      serverVersion = package.version;
+      apkName = package.mobileApkName;
+      apkHash = package.mobileApkHash;
+      apkUrl = "/nightly.apk";
+    }
+  );
+  mobileDownloads = pkgs.runCommand "t3code-nightly-mobile-${package.version}" { } ''
+    mkdir -p "$out"
+    ln -s ${mobileIndex} "$out/index.html"
+    ln -s ${mobileManifest} "$out/release.json"
+    ln -s ${package.mobileApk} "$out/nightly.apk"
+    ln -s nightly.apk "$out/bootstrap.apk"
+  '';
 in
 {
   options.homelab.t3code = {
@@ -107,6 +139,24 @@ in
       visibility = "internal";
       upstream = "http://127.0.0.1:${toString cfg.port}";
       description = "Private official T3 Code nightly UI";
+    };
+    homelab.routes.t3code-updates = {
+      enable = true;
+      host = "updates";
+      visibility = "internal";
+      description = "Official Android APK from the deployed T3 Code nightly";
+      caddyConfig = ''
+        @outsideTailnet not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+        respond @outsideTailnet "Tailnet access required." 403
+        root * ${mobileDownloads}
+        header Cache-Control "no-store"
+        @apk path /nightly.apk /bootstrap.apk
+        header @apk {
+          Content-Type application/vnd.android.package-archive
+          Content-Disposition "attachment; filename=t3code-nightly.apk"
+        }
+        file_server
+      '';
     };
     assertions = [
       {

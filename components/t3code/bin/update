@@ -22,6 +22,13 @@ if [[ "$current_version" == "$version" ]]; then
   exit 0
 fi
 
+release="$(curl --fail --silent --show-error --connect-timeout 15 --max-time 60 \
+  "https://api.github.com/repos/pingdotgg/t3code/releases/tags/v$version")"
+apk_name="$(jq -er '[.assets[] | select(.name | test("^t3code-android-[A-Za-z0-9._-]+\\.apk$"))] |
+  if length == 1 then .[0].name else error("Expected exactly one official Android APK") end' <<<"$release")"
+apk_url="https://github.com/pingdotgg/t3code/releases/download/v$version/$apk_name"
+apk_hash="$(nix store prefetch-file --json "$apk_url" | jq -er .hash)"
+[[ "$apk_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
 url="https://github.com/pingdotgg/t3code/releases/download/v$version/t3-$version-linux-x64.tar.gz"
 src_hash="$(nix store prefetch-file --json "$url" | jq -er .hash)"
 [[ "$src_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
@@ -40,10 +47,12 @@ restore_on_failure() {
 trap restore_on_failure EXIT
 perl -0pi -e \
   "s{version = \"[^\"]+\";}{version = \"$version\";};
-   s{hash = \"sha256-[^\"]+\";}{hash = \"$src_hash\";}" "$package_file"
+   s{hash = \"sha256-[^\"]+\";}{hash = \"$src_hash\";};
+   s{mobileApkName = \"[^\"]+\";}{mobileApkName = \"$apk_name\";};
+   s{mobileApkHash = \"sha256-[^\"]+\";}{mobileApkHash = \"$apk_hash\";}" "$package_file"
 (
   cd "$repo"
   nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel"
 )
 succeeded=1
-echo "T3 Code nightly pin updated to $version." >&2
+echo "T3 Code server and Android APK pins updated to nightly $version." >&2

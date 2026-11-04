@@ -8,15 +8,24 @@ import unittest
 
 
 class UpdateTest(unittest.TestCase):
-    def run_update(self, target, build_status=0):
+    def run_update(self, target, build_status=0, apk_count=1):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             package = root / "package.nix"
             original = 'version = "0.1.7-nightly.20261103.4100";\nhash = "sha256-' + 'A' * 43 + '=";\n'
+            original += 'mobileApkName = "t3code-android-internal-2.1.0-700.apk";\nmobileApkHash = "sha256-' + 'D' * 43 + '=";\n'
             package.write_text(original)
             nix = root / "nix"
-            nix.write_text('#!' + shutil.which('bash') + '\nif [[ "$1" == store ]]; then\n  echo \'{"hash":"sha256-' + 'B' * 43 + '="}\'\nelse\n  exit ' + str(build_status) + '\nfi\n')
+            nix.write_text('#!' + shutil.which('bash') + '\nif [[ "$1" == store ]]; then\n'
+                           '  if [[ "$*" == *.apk ]]; then\n'
+                           '    echo \'{"hash":"sha256-' + 'C' * 43 + '="}\'\n'
+                           '  else\n    echo \'{"hash":"sha256-' + 'B' * 43 + '="}\'\n  fi\n'
+                           'else\n  exit ' + str(build_status) + '\nfi\n')
             nix.chmod(0o755)
+            curl = root / "curl"
+            assets = ','.join('{"name":"t3code-android-internal-2.2.0-741.apk"}' for _ in range(apk_count))
+            curl.write_text('#!' + shutil.which('bash') + '\necho \'{"assets":[' + assets + ']}\'\n')
+            curl.chmod(0o755)
             result = subprocess.run(
                 ["bash", os.environ["T3CODE_UPDATE_SCRIPT"], target],
                 env={**os.environ, "PATH": str(root) + ":" + os.environ["PATH"],
@@ -35,6 +44,18 @@ class UpdateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('version = "0.1.8-nightly.20261104.4179";', actual)
         self.assertIn('sha256-' + 'B' * 43 + '=', actual)
+        self.assertIn('mobileApkName = "t3code-android-internal-2.2.0-741.apk";', actual)
+        self.assertIn('mobileApkHash = "sha256-' + 'C' * 43 + '=";', actual)
+
+    def test_missing_apk_keeps_server_and_phone_pins_unchanged(self):
+        result, actual, original = self.run_update("0.1.8-nightly.20261104.4179", apk_count=0)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(actual, original)
+
+    def test_ambiguous_apks_keep_pins_unchanged(self):
+        result, actual, original = self.run_update("0.1.8-nightly.20261104.4179", apk_count=2)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(actual, original)
 
     def test_invalid_version_leaves_pin_untouched(self):
         result, actual, original = self.run_update('0.1.8"; malicious')
