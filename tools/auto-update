@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -x /run/wrappers/bin/sudo ]]; then
+  export PATH="/run/wrappers/bin:$PATH"
+fi
+
 component="${1:?Expected codex, pi, or t3code}"
 repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
 deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"

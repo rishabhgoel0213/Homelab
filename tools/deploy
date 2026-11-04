@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# systemd's Nix package PATH includes the non-setuid sudo payload. Use NixOS's
+# configured privilege wrappers when invoking the operator recipes.
+if [[ -x /run/wrappers/bin/sudo ]]; then
+  export PATH="/run/wrappers/bin:$PATH"
+fi
+
 repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
 deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"
 branch="${HOMELAB_DEPLOY_BRANCH:-main}"
