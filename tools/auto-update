@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+component="${1:?Expected codex, pi, or t3code}"
+repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
+deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"
+update_user="${HOMELAB_UPDATE_USER:-rishabh}"
+target="${2:-latest}"
+if [[ "$component" == t3code && $# -lt 2 ]]; then target=nightly; fi
+case "$component" in
+  codex) files=(components/codex/release.nix components/darwin-deploy/artifacts.nix) ;;
+  pi) files=(components/pi/package.nix) ;;
+  t3code) files=(components/t3code/package.nix) ;;
+  *) echo "Unknown updater: $component" >&2; exit 1 ;;
+esac
+# Run Git and release edits as the checkout owner, including from systemd.
+if [[ "$(id -u)" == 0 ]]; then
+  exec runuser -u "$update_user" -- env \
+    HOMELAB_DEV_ROOT="$repo" HOMELAB_DEPLOY_ROOT="$deployment" \
+    PACKAGE_UPDATE_LOCK_FILE="${PACKAGE_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}" \
+    HOST="${HOST:-nixos-pc}" "$repo/tools/auto-update" "$component" "$target"
+fi
+exec 9>"${PACKAGE_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}"
+if ! flock -n 9; then
+  echo 'Another Homelab update or deployment is running; deferred.' >&2
+  exit 0
+fi
+for checkout in "$repo" "$deployment"; do
+  if [[ -n "$(git -C "$checkout" status --porcelain --untracked-files=all)" ]]; then
+    echo "Checkout has ongoing work; deferring automatic update: $checkout" >&2
+    exit 0
+  fi
+  [[ "$(git -C "$checkout" symbolic-ref --short HEAD)" == main ]] \
+    || { echo "Automatic updates require main in $checkout" >&2; exit 1; }
+done
+git -C "$repo" fetch origin main
+git -C "$repo" merge --ff-only origin/main
+export CODEX_OPS_ROOT="$repo" PI_OPS_ROOT="$repo" T3CODE_OPS_ROOT="$repo"
+"$repo/components/$component/bin/update" "$target"
+mapfile -t changed < <(git -C "$repo" diff --name-only)
+for path in "${changed[@]}"; do
+  allowed=0
+  for file in "${files[@]}"; do [[ "$path" != "$file" ]] || allowed=1; done
+  [[ "$allowed" == 1 ]] || { echo "Concurrent unrelated edit; leaving changes uncommitted: $path" >&2; exit 1; }
+done
+if [[ -n "$(git -C "$repo" ls-files --others --exclude-standard)" ]] \
+  || ! git -C "$repo" diff --cached --quiet; then
+  echo 'Concurrent new or staged files; leaving changes uncommitted.' >&2
+  exit 1
+fi
+if [[ ${#changed[@]} -gt 0 ]]; then
+  version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$repo/${files[0]}")"
+  git -C "$repo" add -- "${files[@]}"
+  git -C "$repo" commit -m "$component: update to $version"
+fi
+revision="$(git -C "$repo" rev-parse HEAD)"
+deployed_revision="$(git -C "$deployment" rev-parse HEAD)"
+active_revision="$(cat "${HOMELAB_ACTIVE_REVISION_FILE:-/run/current-system/etc/homelab/revision}" 2>/dev/null || true)"
+if [[ "$revision" != "$deployed_revision" ]] || [[ "$revision" != "$active_revision" ]]; then
+  HOMELAB_DEPLOY_LOCK_HELD=1 "$repo/tools/deploy"
+else
+  echo "$component is current; both checkouts and active system match $revision." >&2
+fi
+if [[ "$component" == codex ]]; then
+  sudo env CODEX_OPS_ROOT="$deployment" "$deployment/components/codex/bin/publish-mac"
+  echo 'Mac output published; running Codex processes are not restarted.' >&2
+elif [[ "$component" == t3code ]]; then
+  "$deployment/components/t3code/bin/doctor"
+fi

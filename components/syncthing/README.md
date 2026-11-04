@@ -15,8 +15,9 @@ web UI bound to localhost on the server.
 ## Apply Server Config
 
 ```bash
-cd /srv/ops
-just switch
+cd /home/rishabh/Projects/Homelab
+# Commit the requested configuration changes first.
+just deploy
 ```
 
 Check the service:

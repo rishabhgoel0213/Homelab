@@ -17,9 +17,6 @@ in
   ];
 
   environment.etc = {
-    "agents/AGENTS.md".source = ../../agents/AGENTS.md;
-    "agents/ENVIRONMENT.md".source = ../../agents/ENVIRONMENT.md;
-    "agents/MEMORY.md".source = ../../agents/MEMORY.md;
-    "agents/README.md".source = ../../agents/README.md;
+    "agents/AGENTS.md".source = ../../AGENTS.md;
   };
 }

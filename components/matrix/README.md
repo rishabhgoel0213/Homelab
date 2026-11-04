@@ -199,10 +199,12 @@ After committing and testing a fork update, refresh only that source pin and
 apply it through the normal validation gate:
 
 ```bash
-cd /srv/ops
+cd /home/rishabh/Projects/Homelab
 nix flake update mautrix-meta-homelab
 just check
-just switch
+git add flake.lock
+git commit -m "matrix: update bridge source pin"
+just deploy
 ```
 
 The fork deliberately emits ordinary Matrix `m.text` fallbacks for unknown,

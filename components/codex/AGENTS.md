@@ -1,20 +1,21 @@
 # Server Codex Guidance
 
-This Codex home is managed by `/srv/ops`. The source for this file is
-`/srv/ops/components/codex/AGENTS.md`; the runtime copy lives at
+This Codex home is managed by Homelab. Edit this file in
+`/home/rishabh/Projects/Homelab/components/codex/AGENTS.md`; the runtime copy lives at
 `/srv/state/codex/AGENTS.md`.
 
 ## Server Context
 
 - Agent sessions should run in durable projects under `/home/rishabh/Projects`
-  or another canonical repository such as `/srv/ops`.
-- Read `/etc/agents/AGENTS.md` and `/etc/agents/ENVIRONMENT.md` before server,
+  (use `/home/rishabh/Projects/Homelab` for infrastructure).
+- Read `/etc/agents/AGENTS.md` before server,
   NixOS, Cloudflare,
   Tailscale, Codex, backup, route, or service work.
-- Route work to `/srv/ops`, `/home/rishabh/Projects`, or
+- Route work to `/home/rishabh/Projects/Homelab`, other `/home/rishabh/Projects`, or
   `/home/rishabh/Documents`. Use `projectctl create <name>` when a new project
   is needed.
-- Treat `/srv/ops` as the source of truth for durable server configuration.
+- Edit and commit infrastructure in Homelab, then run `just deploy` to push,
+  fast-forward `/srv/ops`, and activate the server. Do not edit `/srv/ops` directly.
 - Treat `/srv/state` as runtime state. Do not edit service state directly unless
   a runbook calls for it or the user explicitly asks.
 - For authorized signup, login, and verification workflows, create a scoped
@@ -25,10 +26,10 @@ This Codex home is managed by `/srv/ops`. The source for this file is
 
 ## Codex Configuration
 
-- The desired Codex config is `/srv/ops/components/codex/config/server.toml`.
+- Edit the desired Codex config in `/home/rishabh/Projects/Homelab/components/codex/config/server.toml`.
 - The managed runtime Codex home is `/srv/state/codex`.
 - Do not make durable config changes only in `/srv/state/codex`; update
-  `/srv/ops/components/codex` and run the appropriate ops command instead.
+  Homelab's `components/codex` and deploy the committed change instead.
 
 ## Zen Visual Testing
 

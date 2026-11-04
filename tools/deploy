@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
+deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"
+branch="${HOMELAB_DEPLOY_BRANCH:-main}"
+lock="${PACKAGE_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}"
+if [[ "${HOMELAB_DEPLOY_LOCK_HELD:-0}" != 1 ]]; then
+  exec 9>"$lock"
+  flock 9
+fi
+repo="$(realpath "$repo")"
+deployment="$(realpath "$deployment")"
+[[ "$repo" != "$deployment" ]] || { echo 'Development and deployment checkouts must differ.' >&2; exit 1; }
+[[ "$(git -C "$repo" remote get-url origin)" == "$(git -C "$deployment" remote get-url origin)" ]] \
+  || { echo 'Development and deployment must use the same origin.' >&2; exit 1; }
+for checkout in "$repo" "$deployment"; do
+  [[ -z "$(git -C "$checkout" status --porcelain --untracked-files=all)" ]] \
+    || { echo "Refusing to deploy with a dirty checkout: $checkout" >&2; exit 1; }
+  [[ "$(git -C "$checkout" symbolic-ref --short HEAD)" == "$branch" ]] \
+    || { echo "Expected $branch in $checkout" >&2; exit 1; }
+done
+revision="$(git -C "$repo" rev-parse HEAD)"
+git -C "$repo" fetch origin "$branch"
+git -C "$repo" merge-base --is-ancestor FETCH_HEAD "$revision" \
+  || { echo 'Origin has commits missing from Homelab; reconcile before deploying.' >&2; exit 1; }
+git -C "$repo" fetch --no-tags "$deployment" "$branch"
+git -C "$repo" merge-base --is-ancestor FETCH_HEAD "$revision" \
+  || { echo 'Deployment has commits missing from Homelab; reconcile before deploying.' >&2; exit 1; }
+(
+  cd "$repo"
+  just check
+  just build
+)
+# Checks must not have changed the commit or either working tree.
+[[ "$(git -C "$repo" rev-parse HEAD)" == "$revision" ]]
+for checkout in "$repo" "$deployment"; do
+  [[ -z "$(git -C "$checkout" status --porcelain --untracked-files=all)" ]]
+done
+git -C "$repo" push origin "$revision:refs/heads/$branch"
+git -C "$deployment" fetch origin "$branch"
+git -C "$deployment" merge --ff-only "$revision"
+[[ "$(git -C "$deployment" rev-parse HEAD)" == "$revision" ]]
+(
+  cd "$deployment"
+  just switch
+)
+echo "Published and deployed $revision from $repo via $deployment." >&2

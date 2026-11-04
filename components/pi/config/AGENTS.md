@@ -1,23 +1,24 @@
 # Server Pi Guidance
 
-This Pi home is managed by `/srv/ops`. Pi's durable agent directory is
+This Pi home is managed by Homelab. Pi's durable agent directory is
 `/srv/state/pi/agent`; do not create a second global Pi home under the user's
 home directory.
 
 ## Server Context
 
 - Agent sessions should run in durable projects under `/home/rishabh/Projects`
-  or another canonical repository such as `/srv/ops`.
-- Read `/etc/agents/AGENTS.md` and `/etc/agents/ENVIRONMENT.md` before server,
+  (use `/home/rishabh/Projects/Homelab` for infrastructure).
+- Read `/etc/agents/AGENTS.md` before server,
   NixOS, Cloudflare,
   Tailscale, backup, route, or service work.
-- Route durable infrastructure work to `/srv/ops`, software projects to
+- Route durable infrastructure work to `/home/rishabh/Projects/Homelab`, software projects to
   `/home/rishabh/Projects`, and durable documents to `/home/rishabh/Documents`.
-- Treat `/srv/ops` as configuration source and `/srv/state` as runtime state.
+- Edit and commit configuration in Homelab, then `just deploy` to push,
+  fast-forward `/srv/ops`, and activate it. `/srv/state` remains runtime state.
 
 ## Pi Configuration
 
-- The desired global Pi guidance and settings are in `/srv/ops/components/pi/config`.
+- Edit global Pi guidance and settings in `/home/rishabh/Projects/Homelab/components/pi/config`.
 - The managed runtime Pi agent directory is `/srv/state/pi/agent`.
 - Pi sessions, credentials, extensions, skills, prompts, and models belong
   under the managed agent directory.

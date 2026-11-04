@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  self,
   ...
 }:
 
@@ -10,10 +11,12 @@ let
   shellVar = name: value: "${name}=${lib.escapeShellArg (toString value)}";
 in
 {
+  environment.etc."homelab/revision".text = "${self.rev or "uncommitted"}\n";
   environment.etc."homelab/paths.env".text = ''
     ${shellVar "homelab_user" "rishabh"}
     ${shellVar "homelab_group" "users"}
     ${shellVar "homelab_ops_root" cfg.paths.opsRoot}
+    ${shellVar "homelab_dev_root" cfg.paths.devRoot}
     ${shellVar "homelab_state_root" cfg.paths.stateRoot}
     ${shellVar "homelab_projects_root" cfg.paths.projectsRoot}
     ${shellVar "homelab_user_home" cfg.paths.userHome}
@@ -31,6 +34,7 @@ in
   '';
 
   systemd.tmpfiles.rules = [
+    "f /tmp/homelab-package-update.lock 0600 rishabh users - -"
     "d ${cfg.paths.opsRoot} 0755 rishabh users - -"
     "d ${cfg.paths.stateRoot} 0755 root root - -"
     "d ${cfg.paths.stateRoot}/backrest 0700 root root - -"

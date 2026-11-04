@@ -2,6 +2,10 @@
 
 Codex is managed as a first-class homelab service.
 
+Edit all paths below through the corresponding files in
+`/home/rishabh/Projects/Homelab`, then commit and run `just deploy` there.
+`/srv/ops` paths describe the deployed copies; do not edit that checkout.
+
 ```text
 /srv/ops/components/codex      desired Codex config and plugin source
 /srv/state/codex    live Codex runtime state
@@ -53,7 +57,7 @@ Top-level `[mcp_servers.*]` config is reserved for short-lived experiments or
 cases where a plugin wrapper would add no durable value.
 
 `just codex-update` pins the complete official Linux and provisioned Mac
-release archives in `/srv/ops/components/codex/release.nix` to the latest
+release archives in Homelab's `components/codex/release.nix` to the latest
 stable upstream `rust-v*` tag. Each archive hash covers all binaries, resource bundles, and package
 metadata. Installation copies the entire archive, including future bundles;
 there is no local allowlist of Cargo binaries or resource directories.
@@ -67,8 +71,10 @@ rewriting or re-signing upstream Mach-O files. It is not a source cross-build.
 Use `nix build --impure --no-link .#codex` to validate the server package alone.
 Use `nix build --impure --no-link .#macbook-codex` for the Mac package.
 
-`codex-auto-update` runs the same package update and switches the NixOS
-generation only when the package file changes. It does not restart
+`codex-auto-update` runs the same package update in Homelab, commits the release
+and artifact pins, pushes origin/main, fast-forwards `/srv/ops`, and deploys the
+same commit through `tools/deploy`. It defers during uncommitted work and retries
+committed publication/activation failures. It does not restart
 `codex-remote-control.service`; restart that service manually when you want the
 running Codex process to move to the new package. The systemd timer
 `codex-auto-update.timer` runs it every morning at 04:30.

@@ -31,23 +31,28 @@ routes/       declarative routes and route-management commands
 lib/          shared implementation libraries
 tools/        repository-wide operator tooling
 docs/         cross-cutting architecture, bootstrap, recovery, and security docs
-agents/       the intentional agent-launch workspace and its policy files
+AGENTS.md     consolidated agent guidance and the development/deployment workflow
 ```
 
 Keep a service's package, module, helper commands, tests, configuration, and
 runbook together under `components/<name>/`. Host files compose those modules;
 they do not own reusable service implementation.
 
-`/srv/ops/agents` intentionally remains a simple directory from which agents
-can be launched with the repository's `AGENTS.md`, environment, and memory
-guidance immediately available. It is not a component and must not be moved
-under `components/` while that workflow is in use.
+Start infrastructure sessions in `/home/rishabh/Projects/Homelab`, the development
+clone of this repository. `/srv/ops` is the deployment checkout. All guidance from
+the retired `agents/` workspace is consolidated in [AGENTS.md](AGENTS.md), which
+Nix also installs as `/etc/agents/AGENTS.md`. The retired directory is removed.
+
+Edit and commit in Homelab, then run `just deploy`: validate the clean commit,
+push origin/main, fast-forward `/srv/ops` to the same commit, and activate it.
+Dirty or diverged checkouts are rejected. Codex, Pi, and T3 automatic updates
+use this same flow, defer while a checkout is dirty, and share its lock.
 
 ## Common commands
 
 ```bash
 just build
-just switch
+just deploy
 just routes
 just route-add demo public http://127.0.0.1:3000
 just route-add vault internal http://127.0.0.1:8222
@@ -91,12 +96,13 @@ can be bootstrapped in this order:
 - [Local models in Pi](components/local-models/README.md)
 - [Remote Phone microphone capture](components/remote-phone/README.md)
 - [UMD Canvas bridge](components/canvas-bridge/README.md)
-- [Agent environment](agents/RUNBOOK.md)
+- [Agent workflow and environment](AGENTS.md)
 - [Durable projects](components/projects/README.md)
 - [Syncthing](components/syncthing/README.md)
 
 ## Repository boundaries
 
-`/srv/ops` contains infrastructure code and operational documentation. Personal
-source material remains under `/home/rishabh`, outside this repository. Deploy
-commands copy only the required build output into `/srv/state`.
+Homelab contains infrastructure code and operational documentation; `/srv/ops`
+receives its committed deployment history. Personal source material remains in
+the appropriate other projects or Documents, outside this repository. Service
+runtime data stays under `/srv/state`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${CODEX_OPS_ROOT:-/srv/ops}"
+repo="${CODEX_OPS_ROOT:-/home/rishabh/Projects/Homelab}"
 host="${HOST:-nixos-pc}"
 package_file="${CODEX_PACKAGE_FILE:-$repo/components/codex/release.nix}"
 manifest_file="${CODEX_ARTIFACT_FILE:-$repo/components/darwin-deploy/artifacts.nix}"

@@ -397,7 +397,9 @@ in
         gawk
         git
         gnugrep
+        gh
         jq
+        just
         nix
         nixos-rebuild
         perl
@@ -406,12 +408,13 @@ in
         util-linux
       ];
       environment = {
-        PI_OPS_ROOT = homelab.paths.opsRoot;
+        HOMELAB_DEV_ROOT = homelab.paths.devRoot;
+        HOMELAB_DEPLOY_ROOT = homelab.paths.opsRoot;
         HOST = config.networking.hostName;
       };
       serviceConfig = {
         Type = "oneshot";
-        WorkingDirectory = homelab.paths.opsRoot;
+        WorkingDirectory = homelab.paths.devRoot;
         ExecStart = "${homelab.paths.opsRoot}/components/pi/bin/auto-update";
       };
     };

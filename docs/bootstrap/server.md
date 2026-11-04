@@ -2,14 +2,17 @@
 
 ## 1. Install The Ops Repo
 
-From the repo root:
+On a new server, create both Git checkouts (the targets must not already exist):
 
 ```bash
-sudo mkdir -p /srv/ops
-sudo rsync -a --delete --exclude .git ./ /srv/ops/
-sudo chown -R rishabh:users /srv/ops
-cd /srv/ops
+sudo install -d -m 0755 -o rishabh -g users /home/rishabh/Projects /srv/ops
+git clone https://github.com/rishabhgoel0213/Homelab.git /home/rishabh/Projects/Homelab
+git clone /home/rishabh/Projects/Homelab /srv/ops
+git -C /srv/ops remote set-url origin https://github.com/rishabhgoel0213/Homelab.git
+cd /home/rishabh/Projects/Homelab
 ```
+
+Set this clone's local Git `user.name` and `user.email` before committing.
 
 ## 2. Generate The sops Recipient
 
@@ -106,8 +109,9 @@ homelab = {
 Then:
 
 ```bash
-just build
-just switch
+git add .
+git commit -m "homelab: configure server bootstrap"
+just deploy
 ```
 
 ## 6. Configure Tailscale Split DNS

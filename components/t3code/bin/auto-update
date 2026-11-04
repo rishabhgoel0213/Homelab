@@ -1,55 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${T3CODE_OPS_ROOT:-/srv/ops}"
-host="${HOST:-nixos-pc}"
-package_file="${T3CODE_PACKAGE_FILE:-$repo/components/t3code/package.nix}"
-lock_file="${PACKAGE_UPDATE_LOCK_FILE:-/tmp/homelab-package-update.lock}"
-update_user="${T3CODE_UPDATE_USER:-rishabh}"
-sudo_cmd="${SUDO:-/run/wrappers/bin/sudo}"
-[[ -x "$sudo_cmd" ]] || sudo_cmd=sudo
-exec 9>"$lock_file"
-if ! flock -n 9; then
-  echo "Another managed package update is already running." >&2
-  exit 0
-fi
-if [[ "$(id -u)" -eq 0 ]]; then
-  runuser -u "$update_user" -- env \
-    T3CODE_OPS_ROOT="$repo" T3CODE_PACKAGE_FILE="$package_file" HOST="$host" \
-    "$repo/components/t3code/bin/update" "${1:-nightly}"
-else
-  "$repo/components/t3code/bin/update" "${1:-nightly}"
-fi
-version="$(perl -ne 'if (/version = "([^"]+)";/) { print $1; exit }' "$package_file")"
-apk_name="$(perl -ne 'if (/mobileApkName = "([^"]+)";/) { print $1; exit }' "$package_file")"
-installed="$(/run/current-system/sw/bin/t3 --version 2>/dev/null || true)"
-installed="${installed#t3 v}"
-healthy() {
-  systemctl is-active --quiet t3code.service \
-    && curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3773/ >/dev/null \
-    && curl --fail --silent --show-error --max-time 10 \
-      https://updates.internal.therealrishabh.com/release.json \
-      | jq -e --arg version "$version" --arg apk "$apk_name" \
-        '.serverVersion == $version and .apkName == $apk' >/dev/null \
-    && curl --fail --silent --show-error --head --max-time 10 \
-      https://updates.internal.therealrishabh.com/nightly.apk >/dev/null
-}
-# Compare with the deployed version, so a failed switch is retried next time.
-if [[ "$installed" == "$version" ]] && healthy; then
-  echo "T3 Code $version and matching Android APK are already deployed and healthy." >&2
-  exit 0
-fi
-if [[ "$(id -u)" -eq 0 ]]; then
-  runuser -u "$update_user" -- "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
-else
-  "$sudo_cmd" nixos-rebuild switch --impure --flake "$repo#$host"
-fi
-for _ in {1..30}; do
-  if healthy; then
-    echo "T3 Code nightly $version and matching Android download deployed and serving." >&2
-    exit 0
-  fi
-  sleep 2
-done
-echo "T3 Code switched but failed its health check; inspect journalctl -u t3code." >&2
-exit 1
+repo="${HOMELAB_DEV_ROOT:-${T3CODE_OPS_ROOT:-/home/rishabh/Projects/Homelab}}"
+export HOMELAB_DEV_ROOT="$repo"
+exec "$repo/tools/auto-update" t3code "${1:-nightly}"

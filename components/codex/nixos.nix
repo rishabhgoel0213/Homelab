@@ -162,7 +162,9 @@ in
       git
       gnugrep
       gnused
+      gh
       jq
+      just
       nix
       nixos-rebuild
       perl
@@ -171,12 +173,13 @@ in
       util-linux
     ];
     environment = {
-      CODEX_OPS_ROOT = cfg.paths.opsRoot;
+      HOMELAB_DEV_ROOT = cfg.paths.devRoot;
+      HOMELAB_DEPLOY_ROOT = cfg.paths.opsRoot;
       HOST = config.networking.hostName;
     };
     serviceConfig = {
       Type = "oneshot";
-      WorkingDirectory = cfg.paths.opsRoot;
+      WorkingDirectory = cfg.paths.devRoot;
       ExecStart = "${cfg.paths.opsRoot}/components/codex/bin/auto-update";
     };
   };

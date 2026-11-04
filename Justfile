@@ -15,7 +15,11 @@ build:
 test:
     sudo nixos-rebuild test --impure --flake .#{{host}}
 
+deploy:
+    tools/deploy
+
 switch:
+    @test "$PWD" = /srv/ops || { echo 'Use just deploy from ~/Projects/Homelab.' >&2; exit 1; }
     sudo nixos-rebuild switch --impure --flake .#{{host}}
 
 rollback:

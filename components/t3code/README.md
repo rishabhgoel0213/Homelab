@@ -17,9 +17,11 @@ release. Both pins advance together; a release without exactly one matching APK
 is rejected. A failed build restores both old pins. An exact nightly version can be supplied
 as an argument.
 
-`just t3code-auto-update` also deploys when the installed version differs from
-the pin, then checks the service and HTTP endpoint. Failed deployments remain
-eligible for retry. The systemd timer runs daily at 06:00 America/New_York with
+`just t3code-auto-update` runs in `/home/rishabh/Projects/Homelab`, commits both
+pins, pushes origin/main, fast-forwards `/srv/ops`, and deploys that same commit
+through the shared `tools/deploy` workflow. It checks the service and matching
+APK endpoint. Updates defer during uncommitted work; failed publications and
+deployments remain eligible for retry. The systemd timer runs daily at 06:00 America/New_York with
 up to ten minutes of randomized delay. It shares the Codex/Pi deployment lock.
 Updates restart T3 Code and can interrupt active T3 turns or terminals.
 

@@ -105,7 +105,10 @@ in
         curl
         gawk
         gnugrep
+        git
+        gh
         jq
+        just
         nix
         nixos-rebuild
         perl
@@ -114,12 +117,13 @@ in
         util-linux
       ];
       environment = {
-        T3CODE_OPS_ROOT = homelab.paths.opsRoot;
+        HOMELAB_DEV_ROOT = homelab.paths.devRoot;
+        HOMELAB_DEPLOY_ROOT = homelab.paths.opsRoot;
         HOST = config.networking.hostName;
       };
       serviceConfig = {
         Type = "oneshot";
-        WorkingDirectory = homelab.paths.opsRoot;
+        WorkingDirectory = homelab.paths.devRoot;
         ExecStart = "${homelab.paths.opsRoot}/components/t3code/bin/auto-update";
       };
     };

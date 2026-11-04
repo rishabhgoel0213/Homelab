@@ -176,6 +176,30 @@
     in
     {
       checks.${system} = {
+        homelab-workflow =
+          pkgs.runCommand "homelab-workflow-check"
+            {
+              nativeBuildInputs = with pkgs; [
+                bash
+                coreutils
+                findutils
+                gawk
+                git
+                gnused
+                perl
+                python3
+                shellcheck
+                util-linux
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              shellcheck ${./tools/deploy} ${./tools/auto-update} ${./components/pi/bin/auto-update}
+              HOMELAB_DEPLOY_SCRIPT=${./tools/deploy} \
+                HOMELAB_AUTO_UPDATE_SCRIPT=${./tools/auto-update} \
+                python3 ${./tools/tests/workflow.py}
+              touch "$out"
+            '';
         asmhelp = pkgs.callPackage ./components/asmhelp/package.nix { };
         micro = pkgs.callPackage ./components/micro/package.nix { };
 

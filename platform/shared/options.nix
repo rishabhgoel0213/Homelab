@@ -43,7 +43,12 @@ in
       opsRoot = mkOption {
         type = types.str;
         default = "/srv/ops";
-        description = "Infrastructure repository root.";
+        description = "Infrastructure deployment checkout (not the development workspace).";
+      };
+      devRoot = mkOption {
+        type = types.str;
+        default = "/home/rishabh/Projects/Homelab";
+        description = "Infrastructure development clone; all configuration edits happen here.";
       };
       stateRoot = mkOption {
         type = types.str;
