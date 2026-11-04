@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+t3_bin="${T3CODE_BIN:-/run/current-system/sw/bin/t3}"
+
 systemctl is-active --quiet t3code.service
 curl --fail --silent --show-error http://127.0.0.1:3773/ >/dev/null
 curl --fail --silent --show-error https://t3code.internal.therealrishabh.com/ >/dev/null
 
 systemctl is-active --quiet t3code-auto-update.timer
-version="$(t3 --version)"
+version="$("$t3_bin" --version)"
 version="${version#t3 v}"
 curl --fail --silent --show-error --max-time 10 \
   https://updates.internal.therealrishabh.com/release.json \
   | jq -e --arg version "$version" '.serverVersion == $version' >/dev/null
 curl --fail --silent --show-error --head --max-time 10 \
   https://updates.internal.therealrishabh.com/nightly.apk >/dev/null
-t3 --version
+"$t3_bin" --version
 printf 'Official T3 Code service, matching Android APK, private routes, and nightly timer are healthy.\n'
