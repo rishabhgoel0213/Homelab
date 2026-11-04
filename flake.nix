@@ -616,6 +616,7 @@
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
         macbook-firefox-cli = macbookFirefoxCli;
+        macbook-abstand = pkgs.callPackage ./components/workmode/archive.nix { };
       };
 
       packages.${darwinSystem} = {

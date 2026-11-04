@@ -2,7 +2,8 @@
 
 Portable focus profiles with a SwiftBar menu and CLI. Abstand
 0.1.35 is the initial backend; SwiftBar comes from the locked nixpkgs input.
-No server service, network endpoint, account, or custom enforcement daemon is used.
+Android Brick synchronization adds a private Tailscale relay and Mac controller,
+described below.
 
 ## Configuration
 
@@ -124,3 +125,54 @@ Upstream contracts used:
 - https://github.com/builder-group/abstand/blob/v0.1.35/apps/desktop/src-tauri/src/cli/README.md
 - https://github.com/builder-group/abstand/blob/v0.1.35/apps/desktop/src-tauri/src/modules/recovery_agent/README.md
 - https://github.com/swiftbar/SwiftBar/blob/v2.0.1/README.md
+
+## Android Brick synchronization
+
+The `workmode-brick` server service reads Sensor Server Extended's authenticated
+`ws://100.84.182.122:8080/brick/state` endpoint over Tailscale, including cellular.
+It uses the existing `remote-phone-token` SOPS secret as a systemd credential.
+Its private relay is `http://100.73.159.103:8127/state`; only the Mac and server
+Tailscale addresses are accepted. No phone token is distributed to the Mac.
+
+The Mac LaunchAgent polls every five seconds. A bricked observation starts an
+untimed strict session using the Study blocklist. Fresh unbricked state releases
+only Brick-owned sessions; independently started sessions keep their own timer.
+Unknown state, phone sleep/disconnection, stale data, and server restarts do not
+release an established lock. Both sides persist the last lock state. A machine
+that has never observed a lock does not invent one while offline. First detection
+requires connectivity; phone changes made entirely offline cannot reach the Mac.
+
+The patched Abstand backend independently checks fresh unbricked state before
+release. Its UI cannot manually complete or rename an active Brick session.
+Normal strict Stop/Delete protections and recovery remain enabled. Updates are
+managed by Homelab, with the vendor updater disabled in this build. This remains
+a self-control tool, not protection against an administrator changing code/data.
+
+Controller status is `~/Library/Application Support/Workmode/brick.json` (including
+errors); logs are `/tmp/workmode-brick.err`. Inspect the relay with
+`curl --noproxy '*' http://100.73.159.103:8127/state` from the Mac or server.
+An unknown state requires fixing phone/Tailscale/Sensor Server connectivity;
+it deliberately does not provide an automatic timeout unlock.
+
+`build-abstand-mac` builds and tests the pinned upstream source plus
+`patches/brick-release.patch` using the pinned toolchain. It produces a signed
+archive without installing or starting it. The local ad-hoc signature may require
+renewing Abstand's Accessibility permission after activation. Finish any manual
+strict session before upgrading the app; restart the old instance only when idle.
+After deployment, `workmode setup` and `workmode doctor` verify recovery; a real
+brick/unbrick and browser-blocking smoke test still requires the activated app.
+
+The build archive is imported with `nix-store --add-fixed sha256` on the server
+and Mac. Its source path and SHA-256 are pinned in `archive.nix`, and the packaged output
+path is pinned in `components/darwin-deploy/artifacts.nix`;
+`macbook-abstand` participates in the existing signed payload copy and GC-root
+workflow. To rebuild, run `components/workmode/build-abstand-mac` on the Mac,
+copy the resulting archive to the server, import it, update `archive.nix` and that manifest, and
+run the standard artifact preparation/check/deploy workflow. Keep the previous
+system generation for rollback. Builds do not change the running app.
+
+The build recipe works around macOS 27's Rust dylib stripping issue by disabling
+Rust release stripping. The small Swift interop libraries are built without
+optimization to retain swift-rs's C exports under Swift 6.3; the Rust application
+still uses its release profile. These compatibility adjustments are included in
+the source patch and build script.

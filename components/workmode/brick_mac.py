@@ -79,11 +79,11 @@ class Backend(w.Abstand):
         if not p['blocked_apps'] and not p['blocked_sites']:
             raise w.Error('Study has no blocklist')
         name = name_for(p)
-        found = [i for i in self.intentions() if i['name'] == name]
+        found = [i for i in self.intentions() if i['name'] == name and matches(i, p)]
         if found:
-            if not matches(found[0], p):
-                raise w.Error('Saved Brick intention differs from configured Study profile')
             return found[0]['id']
+        # Inactive saved intentions may be edited/paused in the UI. Preserve
+        # those records and create a valid replacement instead of losing sync.
         targets = [{'type': 'website', 'action': 'block', 'hostname': s} for s in sorted(set(p['blocked_sites']))]
         targets += [{'type': 'app', 'action': 'block', 'stableId': a, 'bundleId': a} for a in sorted(set(p['blocked_apps']))]
         item = control({'command': 'createIntention', 'params': {'name': name,
@@ -113,6 +113,15 @@ def reconcile(profile, backend, observation, latched):
     return desired
 
 
+def save_status(directory, result):
+    temp = directory / 'brick.json.tmp'
+    with temp.open('w') as handle:
+        json.dump(result, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temp, directory / 'brick.json')
+
+
 def main():
     config = w.load_config('/etc/workmode/profiles.json')
     backend = Backend()
@@ -131,14 +140,14 @@ def main():
                     latched = True
                 result = {'state': observation['state'], 'latchedBricked': latched,
                           'updatedAt': time.time(), 'error': None}
+                if latched and not previous.get('latchedBricked', False):
+                    save_status(directory, result)
                 try:
                     backend.brick_ready()
                     result['latchedBricked'] = reconcile(config['profiles']['study'], backend, observation, latched)
                 except Exception as exc:
                     result['error'] = str(exc)[:300]
-                temp = directory / 'brick.json.tmp'
-                temp.write_text(json.dumps(result))
-                os.replace(temp, path)
+                save_status(directory, result)
         except Exception as exc:
             print(f'Brick controller: {type(exc).__name__}', flush=True)
         time.sleep(5)

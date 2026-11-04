@@ -356,6 +356,8 @@ def menu(config, backend, command):
                 if len(parts) == 3 and parts[0] == "Workmode"
                 else session["name"]
             )
+            if session["name"].startswith("Workmode/brick-study/"):
+                label = "Study (Brick)"
             labels.append(clean(label))
         lines[0] = f"{labels[0]} {clock} {'🔒' if s['locked'] else ''}"
         lines.extend(labels)
@@ -377,6 +379,17 @@ def menu(config, backend, command):
                 lines.append(
                     f"{p['label']} — {p['minutes']}m{' 🔒' if p['locked'] else ''} | bash={command} param1=start param2={name} terminal=false refresh=true"
                 )
+    try:
+        state_path = Path(os.environ.get("WORKMODE_STATE", str(Path.home() / "Library/Application Support/Workmode"))) / "brick.json"
+        brick = json.loads(state_path.read_text())
+        if time.time() - brick["updatedAt"] > 30:
+            lines.append("Brick sync: controller unavailable | color=orange")
+        elif brick.get("error"):
+            lines.append("Brick sync: " + clean(brick["error"]) + " | color=orange")
+        else:
+            lines.append("Phone: " + clean(brick["state"]))
+    except (OSError, ValueError, KeyError, TypeError):
+        lines.append("Brick sync: waiting for controller | color=orange")
     lines.extend(
         [
             "---",

@@ -1,0 +1,37 @@
+#!/bin/bash
+# Build-only: never installs, starts, or stops Abstand.
+set -euo pipefail
+# rust-lang/rust#157750: macOS 27 rejects stripped proc-macro dylibs.
+export CARGO_PROFILE_RELEASE_STRIP=none
+root=$(cd "$(dirname "$0")" && pwd)
+build=$(mktemp -d /tmp/abstand-brick.XXXXXX)
+output=${1:-/tmp/Abstand-brick-0.1.35-1.tar.gz}
+curl -fL https://codeload.github.com/builder-group/abstand/tar.gz/refs/tags/v0.1.35 -o "$build/source.tar.gz"
+printf '%s  %s\n' a69d9a87b7c31bd436eb670a9c2b558d32aad8f7a2f10d515cfa9d4004b40ffe "$build/source.tar.gz" | shasum -a 256 -c -
+tar -xzf "$build/source.tar.gz" -C "$build" --strip-components=1
+cd "$build"
+patch -p1 < "$root/patches/brick-release.patch"
+printf '%s\n' '{"bundle":{"createUpdaterArtifacts":false}}' > brick-config.json
+export BRICK_BUILD_ROOT="$build"
+/nix/var/nix/profiles/default/bin/nix shell \
+ github:NixOS/nixpkgs/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436#rustc \
+ github:NixOS/nixpkgs/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436#cargo \
+ github:NixOS/nixpkgs/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436#nodejs_24 \
+ github:NixOS/nixpkgs/b7c2ada94fe99c15b0dbcf4d11fd7850b957a436#pnpm \
+ --command bash -eu -c '
+ pnpm install --frozen-lockfile
+ pnpm --filter @repo/desktop ui:build
+ cd apps/desktop/src-tauri
+ cargo test --locked -p abstand --lib
+ cd ..
+ pnpm exec tauri build --config src-tauri/tauri.prod.conf.json --config "$BRICK_BUILD_ROOT/brick-config.json" --bundles app
+ '
+printf '%s  %s\n' \
+  119aafcf8c619fbe7fa96a1789a99a3613cd8c7383bae9bd93bab35fedee1405 Cargo.lock \
+  a72b3ef25dcbfb7452bfa7837ca0dedbde9f2e40ea7132d83a9c079f36ad9a40 pnpm-lock.yaml | shasum -a 256 -c -
+app="$build/target/release/bundle/macos/Abstand.app"
+/usr/bin/codesign --force --deep --sign - "$app"
+/usr/bin/codesign --verify --deep --strict "$app"
+COPYFILE_DISABLE=1 tar -czf "$output" -C "$(dirname "$app")" Abstand.app
+shasum -a 256 "$output"
+printf 'Build-only archive: %s\n' "$output"

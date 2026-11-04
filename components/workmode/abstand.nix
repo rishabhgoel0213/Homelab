@@ -1,15 +1,12 @@
 {
   lib,
   stdenvNoCC,
-  fetchurl,
+  archive,
 }:
 stdenvNoCC.mkDerivation {
   pname = "abstand";
-  version = "0.1.35";
-  src = fetchurl {
-    url = "https://github.com/builder-group/abstand/releases/download/v0.1.35/Abstand_aarch64.app.tar.gz";
-    sha256 = "353e6f3e9c35590a512d2929efa2244ff9ce161d16b570803d422534f6ce3ffe";
-  };
+  version = "0.1.35-brick.1";
+  src = archive;
   dontUnpack = true;
   dontFixup = true;
   installPhase = ''

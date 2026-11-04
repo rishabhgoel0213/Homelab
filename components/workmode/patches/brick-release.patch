@@ -1,63 +1,14 @@
---- a/apps/desktop/src-tauri/src/cli/control/mod.rs
-+++ b/apps/desktop/src-tauri/src/cli/control/mod.rs
-@@ -1,5 +1,6 @@
- //! Connects CLI requests to the running app through a private Unix socket.
- 
-+mod brick;
- mod client;
- mod protocol;
- mod server;
---- a/apps/desktop/src-tauri/src/cli/control/protocol.rs
-+++ b/apps/desktop/src-tauri/src/cli/control/protocol.rs
-@@ -13,6 +13,7 @@
-     deny_unknown_fields
- )]
- pub enum ControlRequest {
-+    ReleaseBrick { intention_id: i64 },
-     Status,
-     ListIntentions,
-     GetIntention { intention_id: i64 },
-@@ -38,6 +39,8 @@
- pub struct ControlStatus {
-     pub version: String,
-     pub pid: u32,
-+    #[serde(default)]
-+    pub brick_control: bool,
-     pub sessions: Vec<IntentionSession>,
- }
- 
---- a/apps/desktop/src-tauri/src/cli/control/server.rs
-+++ b/apps/desktop/src-tauri/src/cli/control/server.rs
-@@ -109,9 +109,29 @@
-     let database_state = app.state::<DatabaseState>();
-     let runtime_state = app.state::<IntentionRuntimeState>();
-     return match request {
-+        ControlRequest::ReleaseBrick { intention_id } => {
-+            let intention = commands::get_intention(database_state, intention_id).await?
-+                .ok_or("Brick intention not found")?;
-+            if !intention.name.starts_with("Workmode/brick-study/") {
-+                return Err("Only Brick-owned sessions can be released".into());
-+            }
-+            let IntentionBehavior::Block(block) = &intention.behavior else {
-+                return Err("Expected a block intention".into());
-+            };
-+            if block.enforcement_mode != IntentionEnforcementMode::Strict {
-+                return Err("Expected strict Brick enforcement".into());
-+            }
-+            super::brick::require_unbricked()?;
-+            let session = crate::modules::intentions::session::stop_session(
-+                app, intention_id, crate::common::time::unix_ms_now()).await
-+                .map_err(|error| error.to_string())?;
-+            runtime_state.reevaluate(app).await?;
-+            Ok(ControlResult::Session(session))
-+        }
-         ControlRequest::Status => Ok(ControlResult::Status(ControlStatus {
-             version: AppConfig::display_version(),
-             pid: std::process::id(),
-+            brick_control: true,
-             sessions: commands::get_active_intention_sessions(database_state).await?,
-         })),
-         ControlRequest::ListIntentions => Ok(ControlResult::Intentions(
+--- a/apps/desktop/crates/macos/build.rs
++++ b/apps/desktop/crates/macos/build.rs
+@@ -4,0 +5,3 @@
++        // Swift 6.3 release optimization removes swift-rs 1.0.7's internal
++        // @_cdecl exports. Keep Swift unoptimized; Rust still builds in release.
++        std::env::set_var("DEBUG", "true");
+@@ -11,0 +15,4 @@
++        // Swift 6.3 uses the new build engine layout.
++        let out = std::env::var("OUT_DIR").unwrap();
++        let profile = "Debug";
++        println!("cargo:rustc-link-search=native={out}/swift-rs/abstand-macos/out/Products/{profile}");
 --- /dev/null
 +++ b/apps/desktop/src-tauri/src/cli/control/brick.rs
 @@ -0,0 +1,46 @@
@@ -107,3 +58,156 @@
 +        assert!(!permits_release(&json!({})));
 +    }
 +}
+--- a/apps/desktop/src-tauri/src/cli/control/mod.rs
++++ b/apps/desktop/src-tauri/src/cli/control/mod.rs
+@@ -2,0 +3 @@
++mod brick;
+--- a/apps/desktop/src-tauri/src/cli/control/protocol.rs
++++ b/apps/desktop/src-tauri/src/cli/control/protocol.rs
+@@ -15,0 +16 @@
++    ReleaseBrick { intention_id: i64 },
+@@ -40,0 +42,2 @@
++    #[serde(default)]
++    pub brick_control: bool,
+--- a/apps/desktop/src-tauri/src/cli/control/server.rs
++++ b/apps/desktop/src-tauri/src/cli/control/server.rs
+@@ -111,0 +112,19 @@
++        ControlRequest::ReleaseBrick { intention_id } => {
++            let intention = commands::get_intention(database_state, intention_id).await?
++                .ok_or("Brick intention not found")?;
++            if !intention.name.starts_with("Workmode/brick-study/") {
++                return Err("Only Brick-owned sessions can be released".into());
++            }
++            let IntentionBehavior::Block(block) = &intention.behavior else {
++                return Err("Expected a block intention".into());
++            };
++            if block.enforcement_mode != IntentionEnforcementMode::Strict {
++                return Err("Expected strict Brick enforcement".into());
++            }
++            super::brick::require_unbricked()?;
++            let session = crate::modules::intentions::session::stop_session(
++                app, intention_id, crate::common::time::unix_ms_now()).await
++                .map_err(|error| error.to_string())?;
++            runtime_state.reevaluate(app).await.map_err(|error| error.to_string())?;
++            Ok(ControlResult::Session(session))
++        }
+@@ -114,0 +134 @@
++            brick_control: true,
+--- a/apps/desktop/src-tauri/src/modules/intentions/commands.rs
++++ b/apps/desktop/src-tauri/src/modules/intentions/commands.rs
+@@ -208,0 +209,3 @@
++    if current.name.starts_with("Workmode/brick-study/") {
++        edit_policy::require_intention_stop_allowed(&database_state.pool, intention_id).await?;
++    }
+--- a/apps/desktop/src-tauri/src/modules/intentions/edit_policy.rs
++++ b/apps/desktop/src-tauri/src/modules/intentions/edit_policy.rs
+@@ -22,0 +23,5 @@
++    if let Some(current) = get_active_block_intention(pool, intention_id).await? {
++        if current.name.starts_with("Workmode/brick-study/") {
++            return Err("Unbrick your phone before editing this Intention".into());
++        }
++    }
+@@ -89,0 +95,3 @@
++    if intention.name.starts_with("Workmode/brick-study/") {
++        return Err("Unbrick your phone to end this Intention".into());
++    }
+--- a/apps/desktop/src-tauri/src/modules/updater/commands.rs
++++ b/apps/desktop/src-tauri/src/modules/updater/commands.rs
+@@ -1,7 +0,0 @@
+-#[cfg(all(desktop, not(debug_assertions), not(feature = "app-store")))]
+-use crate::modules::quit_policy::policy::request_restart;
+-#[cfg(all(target_os = "macos", not(debug_assertions), not(feature = "app-store")))]
+-use crate::modules::recovery_agent::agent::RecoveryAgent;
+-#[cfg(all(desktop, not(debug_assertions), not(feature = "app-store")))]
+-use tauri_plugin_updater::UpdaterExt;
+-
+@@ -10 +2,0 @@
+-
+@@ -13,27 +5,2 @@
+-pub async fn check_for_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
+-    #[cfg(all(desktop, not(debug_assertions), not(feature = "app-store")))]
+-    {
+-        let update = app
+-            .updater()
+-            .map_err(|error| error.to_string())?
+-            .check()
+-            .await
+-            .map_err(|error| error.to_string())?;
+-
+-        let Some(update) = update else {
+-            return Ok(UpdateCheckResult::UpToDate);
+-        };
+-
+-        return Ok(UpdateCheckResult::Available {
+-            update: UpdateInfo {
+-                version: update.version,
+-                current_version: update.current_version,
+-            },
+-        });
+-    }
+-
+-    #[cfg(not(all(desktop, not(debug_assertions), not(feature = "app-store"))))]
+-    {
+-        let _ = app;
+-        return Ok(UpdateCheckResult::Unsupported);
+-    }
++pub async fn check_for_update(_app: AppHandle) -> Result<UpdateCheckResult, String> {
++    Ok(UpdateCheckResult::Unsupported)
+@@ -41 +7,0 @@
+-
+@@ -44,37 +10,2 @@
+-pub async fn install_update(app: AppHandle) -> Result<(), String> {
+-    #[cfg(all(desktop, not(debug_assertions), not(feature = "app-store")))]
+-    {
+-        let update = app
+-            .updater()
+-            .map_err(|error| error.to_string())?
+-            .check()
+-            .await
+-            .map_err(|error| error.to_string())?
+-            .ok_or_else(|| "No update available".to_string())?;
+-
+-        update
+-            .download_and_install(|_, _| {}, || {})
+-            .await
+-            .map_err(|error| error.to_string())?;
+-
+-        #[cfg(target_os = "macos")]
+-        tauri::async_runtime::spawn_blocking(|| -> Result<(), String> {
+-            let agent = RecoveryAgent::for_current_app().map_err(|error| error.to_string())?;
+-            return agent
+-                .restart_if_enabled()
+-                .map_err(|error| error.to_string());
+-        })
+-        .await
+-        .map_err(|error| error.to_string())?
+-        .map_err(|error| {
+-            format!("Update installed, but the recovery agent could not restart: {error}")
+-        })?;
+-
+-        return request_restart(&app);
+-    }
+-
+-    #[cfg(not(all(desktop, not(debug_assertions), not(feature = "app-store"))))]
+-    {
+-        let _ = app;
+-        return Err(unsupported_updates_error());
+-    }
++pub async fn install_update(_app: AppHandle) -> Result<(), String> {
++    Err("This Brick-enabled build is managed by Homelab".into())
+@@ -99,4 +29,0 @@
+-#[cfg(not(all(desktop, not(debug_assertions), not(feature = "app-store"))))]
+-fn unsupported_updates_error() -> String {
+-    return "Updates are only supported in production direct-distribution builds".to_string();
+-}
+--- a/crates/mado/build.rs
++++ b/crates/mado/build.rs
+@@ -4,0 +5,3 @@
++        // Swift 6.3 release optimization removes swift-rs 1.0.7's internal
++        // @_cdecl exports. Keep Swift unoptimized; Rust still builds in release.
++        std::env::set_var("DEBUG", "true");
+@@ -5,0 +9,4 @@
++        // Swift 6.3 uses the new build engine layout.
++        let out = std::env::var("OUT_DIR").unwrap();
++        let profile = "Debug";
++        println!("cargo:rustc-link-search=native={out}/swift-rs/Mado/out/Products/{profile}");

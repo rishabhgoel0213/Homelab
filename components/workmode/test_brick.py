@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import brick_bridge as bridge
 import brick_mac as mac
 
@@ -31,6 +31,19 @@ class BridgeTests(unittest.TestCase):
             self.assertFalse(state.snapshot()['latchedBricked'])
             self.assertFalse(bridge.State(path).snapshot()['latchedBricked'])
 
+    def test_future_brick_version_keeps_using_recognized_signal(self):
+        with tempfile.TemporaryDirectory() as d:
+            state = bridge.State(Path(d) / 'state.json')
+            state.observe({'event': 'state', 'capability': 'brick', 'state': 'bricked',
+                'source': 'accessibility_service_configuration', 'versionTested': False})
+            self.assertEqual(state.snapshot()['state'], 'bricked')
+            self.assertTrue(state.snapshot()['latchedBricked'])
+            self.assertFalse(state.snapshot()['versionTested'])
+            state.observe({'event': 'state', 'capability': 'brick', 'state': 'unbricked',
+                'source': 'unrecognized'})
+            self.assertEqual(state.snapshot()['state'], 'unknown')
+            self.assertTrue(state.snapshot()['latchedBricked'])
+
     def test_non_tailnet_destinations(self):
         self.assertTrue(bridge.tailnet('100.84.182.122'))
         self.assertFalse(bridge.tailnet('127.0.0.1'))
@@ -44,6 +57,22 @@ class ControllerTests(unittest.TestCase):
         b.sessions.return_value = list(sessions)
         b.prepare_brick.return_value = 7
         return b
+
+    def test_paused_saved_intention_is_replaced_and_then_reused(self):
+        from test_workmode import intention, P
+        saved = intention()
+        saved['name'] = mac.name_for(P)
+        saved['conditions'][1]['rule'] = {'type': 'manual'}
+        paused = dict(saved, pausedAt=123, id=1)
+        backend = mac.Backend()
+        backend.intentions = Mock(return_value=[paused])
+        with patch.object(mac, 'control', return_value=saved) as create:
+            self.assertEqual(backend.prepare_brick(P), saved['id'])
+            create.assert_called_once()
+        backend.intentions.return_value = [paused, saved]
+        with patch.object(mac, 'control') as create:
+            self.assertEqual(backend.prepare_brick(P), saved['id'])
+            create.assert_not_called()
 
     def test_unknown_preserves_and_recovers_lock(self):
         b = self.backend()

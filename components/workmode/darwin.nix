@@ -2,11 +2,12 @@
   config,
   lib,
   pkgs,
+  macbookArtifacts,
   ...
 }:
 let
   cfg = config.homelab.workmode;
-  abstand = pkgs.callPackage ./abstand.nix { };
+  abstand = pkgs.callPackage ./abstand.nix { archive = macbookArtifacts.abstand; };
   cli = pkgs.writeShellScriptBin "workmode" ''
     export WORKMODE_CONFIG=/etc/workmode/profiles.json
     export WORKMODE_COMMAND=/run/current-system/sw/bin/workmode
@@ -38,7 +39,7 @@ let
     # Retire only the former managed SwiftBar path before opening the new one.
     /usr/bin/pkill -TERM -f '^/Applications/Nix Apps/SwiftBar[.]app/Contents/MacOS/SwiftBar$' || true
     /usr/bin/open -g '/Applications/Nix Background Apps/SwiftBar.app'
-    /run/current-system/sw/bin/workmode setup
+    ${pkgs.python3}/bin/python3 ${./.}/login.py
   '';
 in
 {
