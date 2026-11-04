@@ -1,0 +1,109 @@
+--- a/apps/desktop/src-tauri/src/cli/control/mod.rs
++++ b/apps/desktop/src-tauri/src/cli/control/mod.rs
+@@ -1,5 +1,6 @@
+ //! Connects CLI requests to the running app through a private Unix socket.
+ 
++mod brick;
+ mod client;
+ mod protocol;
+ mod server;
+--- a/apps/desktop/src-tauri/src/cli/control/protocol.rs
++++ b/apps/desktop/src-tauri/src/cli/control/protocol.rs
+@@ -13,6 +13,7 @@
+     deny_unknown_fields
+ )]
+ pub enum ControlRequest {
++    ReleaseBrick { intention_id: i64 },
+     Status,
+     ListIntentions,
+     GetIntention { intention_id: i64 },
+@@ -38,6 +39,8 @@
+ pub struct ControlStatus {
+     pub version: String,
+     pub pid: u32,
++    #[serde(default)]
++    pub brick_control: bool,
+     pub sessions: Vec<IntentionSession>,
+ }
+ 
+--- a/apps/desktop/src-tauri/src/cli/control/server.rs
++++ b/apps/desktop/src-tauri/src/cli/control/server.rs
+@@ -109,9 +109,29 @@
+     let database_state = app.state::<DatabaseState>();
+     let runtime_state = app.state::<IntentionRuntimeState>();
+     return match request {
++        ControlRequest::ReleaseBrick { intention_id } => {
++            let intention = commands::get_intention(database_state, intention_id).await?
++                .ok_or("Brick intention not found")?;
++            if !intention.name.starts_with("Workmode/brick-study/") {
++                return Err("Only Brick-owned sessions can be released".into());
++            }
++            let IntentionBehavior::Block(block) = &intention.behavior else {
++                return Err("Expected a block intention".into());
++            };
++            if block.enforcement_mode != IntentionEnforcementMode::Strict {
++                return Err("Expected strict Brick enforcement".into());
++            }
++            super::brick::require_unbricked()?;
++            let session = crate::modules::intentions::session::stop_session(
++                app, intention_id, crate::common::time::unix_ms_now()).await
++                .map_err(|error| error.to_string())?;
++            runtime_state.reevaluate(app).await?;
++            Ok(ControlResult::Session(session))
++        }
+         ControlRequest::Status => Ok(ControlResult::Status(ControlStatus {
+             version: AppConfig::display_version(),
+             pid: std::process::id(),
++            brick_control: true,
+             sessions: commands::get_active_intention_sessions(database_state).await?,
+         })),
+         ControlRequest::ListIntentions => Ok(ControlResult::Intentions(
+--- /dev/null
++++ b/apps/desktop/src-tauri/src/cli/control/brick.rs
+@@ -0,0 +1,46 @@
++//! Sole early-release path for Brick-owned strict sessions.
++use serde_json::Value;
++
++fn permits_release(value: &Value) -> bool {
++    value.get("schema").and_then(Value::as_u64) == Some(1)
++        && value.get("state").and_then(Value::as_str) == Some("unbricked")
++        && value.get("latchedBricked").and_then(Value::as_bool) == Some(false)
++        && value.get("ageSeconds").and_then(Value::as_f64)
++            .map(|age| age.is_finite() && (0.0..=10.0).contains(&age)).unwrap_or(false)
++}
++
++pub(super) fn require_unbricked() -> Result<(), String> {
++    // Fixed numeric tailnet destination, absolute system curl, no proxies or redirects.
++    let output = std::process::Command::new("/usr/bin/curl")
++        .args(["--silent", "--fail", "--noproxy", "*", "--connect-timeout", "2",
++            "--max-time", "3", "--max-filesize", "16384", "http://100.73.159.103:8127/state"])
++        .output().map_err(|_| "Brick bridge unavailable; lock retained")?;
++    if !output.status.success() || output.stdout.len() > 16384 {
++        return Err("Brick bridge unavailable; lock retained".into());
++    }
++    let value: Value = serde_json::from_slice(&output.stdout)
++        .map_err(|_| "Invalid Brick bridge response; lock retained")?;
++    if !permits_release(&value) {
++        return Err("Phone is bricked or its state is unknown; lock retained".into());
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use serde_json::json;
++    #[test]
++    fn release_requires_explicit_fresh_unbrick() {
++        let good = json!({"schema":1,"state":"unbricked","latchedBricked":false,"ageSeconds":1.0});
++        assert!(permits_release(&good));
++        for state in ["bricked", "unknown"] {
++            let mut bad = good.clone(); bad["state"] = json!(state); assert!(!permits_release(&bad));
++        }
++        for age in [json!(11), json!(-1), Value::Null, json!("0")] {
++            let mut bad = good.clone(); bad["ageSeconds"] = age; assert!(!permits_release(&bad));
++        }
++        let mut bad = good.clone(); bad["latchedBricked"] = json!(true); assert!(!permits_release(&bad));
++        assert!(!permits_release(&json!({})));
++    }
++}

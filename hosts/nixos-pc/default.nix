@@ -24,6 +24,7 @@
     ../../components/darwin-deploy/nixos.nix
     ../../platform/nixos/gpu.nix
     ../../components/remote-phone/nixos.nix
+    ../../components/workmode/nixos.nix
     ../../platform/nixos/secrets.nix
     ../../components/tailscale/dns.nix
     ../../components/cloudflare/nixos.nix

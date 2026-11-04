@@ -62,6 +62,18 @@ in
         Type = "number";
       };
 
+    launchd.user.agents.workmode-brick = {
+      serviceConfig = {
+        Label = "com.therealrishabh.workmode.brick";
+        ProgramArguments = [ "${pkgs.python3}/bin/python3" "${./.}/brick_mac.py" ];
+        RunAtLoad = true;
+        KeepAlive = true;
+        ThrottleInterval = 10;
+        ProcessType = "Background";
+        StandardOutPath = "/tmp/workmode-brick.log";
+        StandardErrorPath = "/tmp/workmode-brick.err";
+      };
+    };
     launchd.user.agents.workmode = {
       serviceConfig = {
         Label = "com.therealrishabh.workmode";

@@ -368,7 +368,7 @@ def menu(config, backend, command):
                 f"End session | bash={command} param1=stop terminal=false refresh=true"
             )
         else:
-            lines.append("Locked until the session ends")
+            lines.append("Locked until the phone is unbricked" if s["name"].startswith("Workmode/brick-study/") else "Locked until the session ends")
     else:
         for name, p in config["profiles"].items():
             if not p["blocked_apps"] and not p["blocked_sites"]:

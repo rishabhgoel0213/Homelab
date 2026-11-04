@@ -255,8 +255,9 @@
               touch "$out"
             '';
 
-        workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+        workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ (pkgs.python3.withPackages (p: [ p.websocket-client ])) ]; } ''
           export PYTHONDONTWRITEBYTECODE=1
+          python3 ${./components/workmode}/test_brick.py
           python3 ${./components/workmode}/test_workmode.py
           python3 ${./components/workmode}/workmode.py --config ${./components/workmode/profiles.json} validate
           touch "$out"
