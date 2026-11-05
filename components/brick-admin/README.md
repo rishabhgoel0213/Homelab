@@ -21,7 +21,8 @@ Unbrick your phone first. Enrollment displays a random 256-bit secret once,
 directly on `/dev/tty`, and asks you to retype it with echo disabled. Write it on
 paper and label it with the machine name. Nothing should generate or capture
 this secret through an agent, terminal recording, chat, or redirected output.
-Only the SHA-256 verifier is saved, with root-only permissions. Confirmation and
+Sudo I/O recording is explicitly disabled for the broker, including before
+enrollment. Only the SHA-256 verifier is saved, with root-only permissions. Confirmation and
 a second fresh-unbrick check precede replacement of the verifier.
 
 After enrollment:

@@ -87,7 +87,7 @@ def rotate(enroll=False):
         directory.mkdir(mode=0o700, exist_ok=True)
         candidate = directory / 'policy.candidate'
         tag = 'PASSWD' if sys.platform == 'darwin' else 'NOPASSWD'
-        rules = f'{USER} ALL=(ALL:ALL) !ALL\n{USER} ALL=(root) {tag}: NOSETENV: {HELPER}\n'
+        rules = f'{USER} ALL=(ALL:ALL) !ALL\n{USER} ALL=(root) {tag}: NOSETENV: NOLOG_INPUT: NOLOG_OUTPUT: {HELPER}\n'
         atomic(candidate, rules, 0o440)
         subprocess.run(['@visudo@', '-cf', str(candidate)], check=True, stdout=subprocess.DEVNULL)
     # Never emit the secret on stdout/stderr, into arguments, or into a file.

@@ -7,6 +7,7 @@ in {
   environment.etc."brick-admin-root".source = "${package.gate}/libexec/brick-admin-root";
   # The directory is initially empty; enrollment installs the restriction last.
   security.sudo.extraConfig = lib.mkAfter ''
+    rishabh ALL=(root) NOPASSWD: NOSETENV: NOLOG_INPUT: NOLOG_OUTPUT: /etc/brick-admin-root
     @includedir /var/lib/brick-admin/sudoers.d
   '';
   systemd.tmpfiles.rules = [

@@ -9,8 +9,8 @@ described below.
 
 Edit `components/workmode/profiles.json`, validate with `workmode validate`, and
 redeploy the Mac. The only configured profile is Study: a locked 90-minute
-session blocking reddit.com, x.com, instagram.com, youtube.com, gmail.com, and mail.google.com
-(the normal Gmail inbox hostname), including subdomains. There are no app blocks
+session blocking reddit.com, x.com, instagram.com, and youtube.com, including
+subdomains. Gmail is allowed. There are no app blocks
 or automatic app/page launches. Empty blocklists are deliberately disabled.
 
 Each profile has a label, `minutes` (1–1440), `locked`, `blocked_apps` (bundle IDs),

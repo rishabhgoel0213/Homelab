@@ -5,6 +5,7 @@ in {
   environment.etc."brick-admin-root".source = "${package.gate}/libexec/brick-admin-root";
   environment.etc."ssh/sshd_config.d/000-brick-admin.conf".text = "PermitRootLogin no\n";
   security.sudo.extraConfig = lib.mkAfter ''
+    rishabhgoel ALL=(root) PASSWD: NOSETENV: NOLOG_INPUT: NOLOG_OUTPUT: /etc/brick-admin-root
     @includedir /var/db/brick-admin/sudoers.d
   '';
   system.activationScripts.postActivation.text = ''
