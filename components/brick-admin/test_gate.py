@@ -29,24 +29,25 @@ class GateTests(unittest.TestCase):
                 random.assert_not_called()
 
     def test_successful_rotation_persists_only_verifier(self):
-        sample = bytes(range(32))
+        sample = bytes(range(8))
         fresh = {'schema':1, 'state':'unbricked', 'latchedBricked':False, 'ageSeconds':0}
         with tempfile.TemporaryDirectory() as directory, patch.object(gate, 'STATE', pathlib.Path(directory)):
             path = pathlib.Path(directory) / 'verifier'
             gate.atomic(path, gate.verifier(bytes(32)))
-            with patch.object(gate, 'observation', return_value=fresh), patch.object(gate.secrets, 'token_bytes', return_value=sample), patch('builtins.open', return_value=io.StringIO()), patch.object(gate.getpass, 'getpass', return_value=sample.hex()), contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(gate, 'observation', return_value=fresh), patch.object(gate.secrets, 'token_bytes', return_value=sample) as random, patch('builtins.open', return_value=io.StringIO()), patch.object(gate.getpass, 'getpass', return_value=sample.hex()), contextlib.redirect_stdout(io.StringIO()):
                 gate.rotate()
+            random.assert_called_once_with(8)
             self.assertEqual(path.read_text().strip(), gate.verifier(sample))
             self.assertNotIn(sample.hex(), path.read_text())
             self.assertEqual(list(pathlib.Path(directory).iterdir()), [path])
 
     def test_bricking_during_confirmation_preserves_old_verifier(self):
-        sample = bytes(range(32))
+        sample = bytes(range(8))
         fresh = {'schema':1, 'state':'unbricked', 'latchedBricked':False, 'ageSeconds':0}
         with tempfile.TemporaryDirectory() as directory, patch.object(gate, 'STATE', pathlib.Path(directory)):
             path = pathlib.Path(directory) / 'verifier'
             gate.atomic(path, 'old-verifier')
-            with patch.object(gate, 'observation', side_effect=[fresh, None]), patch.object(gate.secrets, 'token_bytes', return_value=sample), patch('builtins.open', return_value=io.StringIO()), patch.object(gate.getpass, 'getpass', return_value=sample.hex()):
+            with patch.object(gate, 'observation', side_effect=[fresh, None]), patch.object(gate.secrets, 'token_bytes', return_value=sample) as random, patch('builtins.open', return_value=io.StringIO()), patch.object(gate.getpass, 'getpass', return_value=sample.hex()):
                 with self.assertRaises(RuntimeError):
                     gate.rotate()
             self.assertEqual(path.read_text(), 'old-verifier')

@@ -16,14 +16,14 @@ def fresh_unbricked(observation):
 
 
 def verifier(secret):
-    if len(secret) != 32:
-        raise ValueError('Recovery secrets must contain exactly 256 bits')
+    if len(secret) not in (8, 32):
+        raise ValueError('Recovery secrets must contain 64 bits (or legacy 256 bits)')
     return hashlib.sha256(b'homelab-brick-admin-v1\0' + secret).hexdigest()
 
 
 def accepts(secret_hex, stored_verifier):
     try:
-        if len(secret_hex) != 64:
+        if len(secret_hex) not in (16, 64):
             return False
         value = bytes.fromhex(secret_hex)
         return hmac.compare_digest(verifier(value), stored_verifier)

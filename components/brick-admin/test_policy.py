@@ -16,7 +16,8 @@ class PolicyTests(unittest.TestCase):
             self.assertFalse(fresh_unbricked(value))
 
     def test_rotation_revokes_old_secret(self):
-        old, new = bytes(range(32)), bytes(reversed(range(32)))
+        old, new = bytes(range(32)), bytes(range(8))
+        self.assertTrue(accepts(old.hex(), verifier(old)))
         stored = verifier(new)
         self.assertFalse(accepts(old.hex(), stored))
         self.assertTrue(accepts(new.hex(), stored))

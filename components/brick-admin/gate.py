@@ -91,7 +91,7 @@ def rotate(enroll=False):
         atomic(candidate, rules, 0o440)
         subprocess.run(['@visudo@', '-cf', str(candidate)], check=True, stdout=subprocess.DEVNULL)
     # Never emit the secret on stdout/stderr, into arguments, or into a file.
-    value = bytearray(secrets.token_bytes(32))
+    value = bytearray(secrets.token_bytes(8))
     encoded = value.hex()
     digest = verifier(value)
     with open('/dev/tty', 'w') as terminal:
