@@ -35,8 +35,8 @@ brick-admin rotate
 
 Direct sudo is restricted to the fixed `/etc/brick-admin-root` broker. Cached
 sudo credentials do not bypass its check. The deployment recipes use
-`tools/admin`, which selects the broker when installed and retains a bootstrap
-sudo fallback on machines where it is absent. A direct sudo call from an older
+`tools/admin`, which selects the broker after enrollment and retains the original sudo
+path during bootstrap. A direct sudo call from an older
 script will be denied after enrollment; use `brick-admin run` instead.
 
 Each machine has an independent recovery secret for offline recovery. `rotate`

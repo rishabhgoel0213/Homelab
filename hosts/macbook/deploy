@@ -63,7 +63,7 @@ ssh -t "$ssh_host" "
   set -euo pipefail
 
   admin() {
-    if command -v brick-admin >/dev/null 2>&1; then
+    if [ -e /etc/brick-admin.enrolled ] && command -v brick-admin >/dev/null 2>&1; then
       brick-admin run \"\$@\"
     else
       sudo -H \"\$@\"

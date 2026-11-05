@@ -148,6 +148,11 @@ def main():
     # No user-controlled Python startup, loader, shell init, or root HOME.
     env = {'PATH': '@path@', 'HOME': '/var/root' if sys.platform == 'darwin' else '/root',
            'USER': 'root', 'LOGNAME': 'root', 'LANG': 'en_US.UTF-8'}
+    # Native sudo supplies these fields; Nix/libgit2 uses SUDO_UID to
+    # recognize the invoking user's checkout during a root build.
+    for key in ('SUDO_UID', 'SUDO_GID', 'SUDO_USER'):
+        if key in os.environ:
+            env[key] = os.environ[key]
     if os.environ.get('TERM'):
         env['TERM'] = os.environ['TERM']
     os.setgid(0)
