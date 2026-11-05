@@ -67,7 +67,7 @@ def authorize():
         expected = stored()
     except FileNotFoundError:
         raise RuntimeError('Unbrick the phone before using or enrolling this broker')
-    with open('/dev/tty', 'r+') as terminal:
+    with open('/dev/tty', 'w') as terminal:
         secret = getpass.getpass('Brick locked/unknown. Recovery secret: ', stream=terminal)
     if not accepts(secret.strip(), stored()):
         raise RuntimeError('Recovery secret rejected')
@@ -94,7 +94,7 @@ def rotate(enroll=False):
     value = bytearray(secrets.token_bytes(32))
     encoded = value.hex()
     digest = verifier(value)
-    with open('/dev/tty', 'r+') as terminal:
+    with open('/dev/tty', 'w') as terminal:
         terminal.write('Write down this device recovery secret. It will not be displayed again:\n')
         terminal.write(encoded + '\n')
         terminal.flush()
