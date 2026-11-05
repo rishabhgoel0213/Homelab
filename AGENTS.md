@@ -1,5 +1,27 @@
 # Homelab agent guidance
 
+## Brick gate for system changes
+
+- Before starting a request to change server or Mac system configuration, first
+  read `http://100.73.159.103:1022/state` over Tailscale (for example,
+  `curl --noproxy '*' --fail --silent --max-time 3 http://100.73.159.103:1022/state`).
+  This applies before editing desired system configuration and before changing
+  deployed Nix state, services, privileges, routes, or managed agent settings.
+- Proceed only with a valid response containing `schema: 1`, `state: "unbricked"`,
+  `latchedBricked: false`, and a finite numeric `ageSeconds` between 0 and 3.
+  Recheck immediately before deployment or any privileged system mutation;
+  an earlier observation is not continuing authorization.
+- If Brick is enabled, tell the user: "Brick is enabled, so I cannot proceed
+  with system changes or update the deployed server/Mac state. Unbrick your
+  phone and I can check again." Stop the system-changing work.
+- If the endpoint is unreachable, stale, malformed, or reports unknown state,
+  explain that the Brick state cannot be verified and system changes are paused.
+  Do not treat a failed check as unbricked. Do not bypass the guard, use an
+  existing root session to evade it, or ask for the paper recovery secret.
+- This rule applies even before the administrative broker is enrolled. It does
+  not restrict ordinary project-file reading/writing, unprivileged execution,
+  or read-only diagnostics. Do not claim those activities are blocked.
+
 ## Edit, commit, publish, deploy
 
 - Start infrastructure and agent sessions in `/home/rishabh/Projects/Homelab`,
