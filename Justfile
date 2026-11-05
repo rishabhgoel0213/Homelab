@@ -10,20 +10,20 @@ check:
     nix flake check --impure
 
 build:
-    sudo nixos-rebuild build --no-link --impure --flake .#{{host}}
+    tools/admin nixos-rebuild build --no-link --impure --flake .#{{host}}
 
 test:
-    sudo nixos-rebuild test --impure --flake .#{{host}}
+    tools/admin nixos-rebuild test --impure --flake .#{{host}}
 
 deploy:
     tools/deploy
 
 switch:
     @test "$PWD" = /srv/ops || { echo 'Use just deploy from ~/Projects/Homelab.' >&2; exit 1; }
-    sudo nixos-rebuild switch --impure --flake .#{{host}}
+    tools/admin nixos-rebuild switch --impure --flake .#{{host}}
 
 rollback:
-    sudo nixos-rebuild switch --rollback
+    tools/admin nixos-rebuild switch --rollback
 
 darwin-eval:
     nix eval --impure --raw '.#darwinConfigurations.{{darwin_host}}.system.drvPath'
@@ -97,7 +97,7 @@ backup-now:
     @echo "Backrest owns backup runs now. Open https://backups.internal.therealrishabh.com and run the plan from the UI."
 
 recovery-kit:
-    sudo tools/recovery/create-vps-recovery-kit
+    tools/admin tools/recovery/create-vps-recovery-kit
 
 blog-list:
     blogctl list
@@ -124,17 +124,17 @@ codex-update:
     nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/codex/bin/update
 
 codex-auto-update:
-    sudo components/codex/bin/auto-update
+    tools/admin components/codex/bin/auto-update
 
 # Publish the already-pinned signed Mac CLI; does not contact the Mac.
 codex-publish-mac:
-    sudo components/codex/bin/publish-mac
+    tools/admin components/codex/bin/publish-mac
 
 pi-update:
     nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/pi/bin/update
 
 pi-auto-update:
-    sudo components/pi/bin/auto-update
+    tools/admin components/pi/bin/auto-update
 
 codex-store-auth:
     components/codex/bin/store-auth
@@ -227,7 +227,7 @@ matrix-doctor:
     components/matrix/bin/doctor
 
 matrix-user-add username="rishabh":
-    sudo matrix-synapse-register_new_matrix_user --user "{{username}}" --no-admin
+    tools/admin matrix-synapse-register_new_matrix_user --user "{{username}}" --no-admin
 
 matrix-gmessages-store-secrets:
     nix shell --inputs-from . nixpkgs#openssl --command components/matrix/bin/store-gmessages-secrets
@@ -246,7 +246,7 @@ matrix-imessage-proxy-logs:
 
 matrix-imessage-export-config:
     @echo "This writes a secret-bearing Mac config to stdout; redirect it to a mode-0600 file." >&2
-    sudo matrix-imessage-export-config
+    tools/admin matrix-imessage-export-config
 
 matrix-pi-logs:
     journalctl -u pi-courier.service -f
@@ -270,10 +270,10 @@ t3code-auto-update:
     components/t3code/bin/auto-update
 
 local-model-fetch model:
-    sudo systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"
+    tools/admin systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"
 
 local-model-use model:
-    sudo systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".serviceUnit')"
+    tools/admin systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".serviceUnit')"
     curl --fail --silent --show-error --retry 600 --retry-delay 1 --retry-all-errors "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".healthUrl')" >/dev/null
     local-model-doctor "{{model}}"
 
@@ -281,14 +281,14 @@ local-model-doctor model="":
     local-model-doctor "{{model}}"
 
 qwen-image-fetch:
-    sudo systemctl start qwen-image-2.1-download.service
+    tools/admin systemctl start qwen-image-2.1-download.service
 
 qwen-image-use:
-    sudo systemctl start qwen-image-2.1.service
+    tools/admin systemctl start qwen-image-2.1.service
     curl --fail --silent --show-error --retry 120 --retry-delay 1 --retry-all-errors http://127.0.0.1:8188/system_stats >/dev/null
 
 qwen-image-stop:
-    sudo systemctl stop qwen-image-2.1.service
+    tools/admin systemctl stop qwen-image-2.1.service
 
 github-profile-sync:
     tools/sync-github-profile

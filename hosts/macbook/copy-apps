@@ -25,7 +25,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-if ! sudo -n test -r "$signing_key"; then
+if ! "$repo/tools/admin" test -r "$signing_key"; then
   echo "Missing readable root-only signing key: $signing_key" >&2
   exit 1
 fi
@@ -66,8 +66,8 @@ for index in "${!outputs[@]}"; do
 done
 
 echo "Signing ${#outputs[@]} application payloads on nixos-pc" >&2
-sudo -n nix store sign --recursive --key-file "$signing_key" "${outputs[@]}"
-sudo -n nix store verify --trusted-public-keys "$public_key" "${outputs[@]}"
+"$repo/tools/admin" nix store sign --recursive --key-file "$signing_key" "${outputs[@]}"
+"$repo/tools/admin" nix store verify --trusted-public-keys "$public_key" "${outputs[@]}"
 
 echo "Copying signed payloads to $store without activation" >&2
 nix copy --to "$store" "${outputs[@]}"

@@ -25,6 +25,7 @@
     ../../platform/nixos/gpu.nix
     ../../components/remote-phone/nixos.nix
     ../../components/workmode/nixos.nix
+    ../../components/brick-admin/nixos.nix
     ../../platform/nixos/secrets.nix
     ../../components/tailscale/dns.nix
     ../../components/cloudflare/nixos.nix

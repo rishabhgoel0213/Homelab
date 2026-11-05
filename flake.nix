@@ -255,6 +255,12 @@
               touch "$out"
             '';
 
+        brick-admin = pkgs.runCommand "brick-admin-check" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+          export PYTHONDONTWRITEBYTECODE=1
+          python3 ${./components/brick-admin}/test_policy.py
+          python3 ${./components/brick-admin}/test_gate.py
+          touch $out
+        '';
         workmode = pkgs.runCommand "workmode-check" { nativeBuildInputs = [ (pkgs.python3.withPackages (p: [ p.websocket-client ])) ]; } ''
           export PYTHONDONTWRITEBYTECODE=1
           python3 ${./components/workmode}/test_brick.py

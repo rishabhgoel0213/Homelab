@@ -62,6 +62,14 @@ echo "Activating $system_path on $ssh_host" >&2
 ssh -t "$ssh_host" "
   set -euo pipefail
 
+  admin() {
+    if command -v brick-admin >/dev/null 2>&1; then
+      brick-admin run \"\$@\"
+    else
+      sudo -H \"\$@\"
+    fi
+  }
+
   custom_conf=/etc/nix/nix.custom.conf
   saved_custom_conf=/etc/nix/nix.custom.conf.before-nix-darwin
   migrated_custom_conf=0
@@ -83,19 +91,19 @@ ssh -t "$ssh_host" "
     fi
   fi
 
-  sudo -H /nix/var/nix/profiles/default/bin/nix-env \
+  admin /nix/var/nix/profiles/default/bin/nix-env \
     -p /nix/var/nix/profiles/system --set '$system_path'
 
   if [[ -e \"\$custom_conf\" ]]; then
-    sudo -H /bin/mv \"\$custom_conf\" \"\$saved_custom_conf\"
+    admin /bin/mv \"\$custom_conf\" \"\$saved_custom_conf\"
     migrated_custom_conf=1
   fi
 
-  if ! sudo -H '$system_path/activate'; then
+  if ! admin '$system_path/activate'; then
     if [[ \"\$migrated_custom_conf\" -eq 1 ]] &&
        /usr/bin/grep -Eq '^[[:space:]]*!include[[:space:]]+nix\\.custom\\.conf([[:space:]]|$)' /etc/nix/nix.conf; then
       echo \"Activation failed before nix-darwin replaced nix.conf; restoring \$custom_conf\" >&2
-      sudo -H /bin/mv \"\$saved_custom_conf\" \"\$custom_conf\"
+      admin /bin/mv \"\$saved_custom_conf\" \"\$custom_conf\"
     fi
     exit 1
   fi

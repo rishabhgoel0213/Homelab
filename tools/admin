@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Bootstrap-compatible administrative entrypoint for deployment tools.
+set -euo pipefail
+if command -v brick-admin >/dev/null 2>&1; then
+  exec brick-admin run "$@"
+fi
+exec sudo "$@"

@@ -19,6 +19,7 @@ in
     ../../profiles/darwin/coursework.nix
     ../../profiles/darwin/workstation.nix
     ../../components/darwin-deploy/darwin.nix
+    ../../components/brick-admin/darwin.nix
   ];
 
   homelab.workmode.enable = true;
