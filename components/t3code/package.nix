@@ -8,16 +8,16 @@
 }:
 
 let
-  version = "0.1.8-nightly.20261104.4192";
-  mobileApkName = "t3code-android-internal-2.2.0-742.apk";
-  mobileApkHash = "sha256-NEL7iX9+FeYDm2MERuwGl8oZR95REgvc0wvzeYkLqBM=";
+  version = "0.1.8-nightly.20261105.4218";
+  mobileApkName = "t3code-android-internal-2.2.0-743.apk";
+  mobileApkHash = "sha256-9DxUOUlgP8a2nMjcu+5/0g/tLP097WtmT/TKjmBO4CY=";
 in
 stdenv.mkDerivation {
   pname = "t3code";
   inherit version;
   src = fetchurl {
     url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/t3-${version}-linux-x64.tar.gz";
-    hash = "sha256-JCavWwBXWAL4JdMIsCydySikI45XUf8D93CdsOeok5g=";
+    hash = "sha256-sgZfU1I/dzNMTg7qr7mw0iPEsC7DuRbF+z6eHHeMzMw=";
   };
   nativeBuildInputs = [
     autoPatchelfHook
