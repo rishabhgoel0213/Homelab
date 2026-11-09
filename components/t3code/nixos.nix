@@ -10,6 +10,14 @@ let
   cfg = config.homelab.t3code;
   stateDir = homelab.paths.t3codeState;
   package = pkgs.callPackage ./package.nix { };
+  androidSdk = (pkgs.androidenv.composeAndroidPackages {
+    platformVersions = [ "35" ];
+    buildToolsVersions = [ "35.0.0" ];
+    includeEmulator = true;
+    includeSystemImages = true;
+    systemImageTypes = [ "google_apis" ];
+    abiVersions = [ "x86_64" ];
+  }).androidsdk;
   mobileIndex = pkgs.writeText "t3code-nightly-download.html" ''
     <!doctype html>
     <html lang="en"><meta charset="utf-8">
@@ -53,7 +61,16 @@ in
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ package ];
+    environment.systemPackages = [ package androidSdk ];
+    nixpkgs.config.android_sdk.accept_license = true;
+    # Upstream downloads version-matched Chrome and device helper binaries.
+    programs.nix-ld.enable = true;
+    programs.nix-ld.libraries = with pkgs; [
+      nss nspr glib atk at-spi2-atk at-spi2-core dbus
+      libX11 libxcb libXcomposite libXdamage libXext libXfixes
+      libXrandr libxkbcommon mesa alsa-lib expat cups pango cairo
+      libdrm libGL zlib fontconfig freetype
+    ];
     systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ];
     systemd.services.t3code = {
       description = "Official T3 Code nightly server";
@@ -64,6 +81,14 @@ in
       after = [ "network-online.target" ];
       path = with pkgs; [
         bash
+        ffmpeg
+        poppler-utils
+        nodejs
+        jdk
+        android-tools
+        procps
+        unzip
+        curl
         coreutils
         fd
         findutils
@@ -78,6 +103,8 @@ in
         ripgrep
       ];
       environment = {
+        ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
+        JAVA_HOME = "${pkgs.jdk}";
         CODEX_HOME = homelab.paths.codexHome;
         HOME = homelab.paths.userHome;
         SHELL = "${pkgs.bash}/bin/bash";

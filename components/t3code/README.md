@@ -87,3 +87,15 @@ As with Codex remote control, `restartIfChanged = false` defers package and
 service changes until a manual `sudo systemctl restart t3code.service` or a
 reboot. Restart manually when sessions can safely be interrupted. Automatic
 recovery after a process failure remains enabled.
+
+## Linux web and device dependencies
+
+The service provides nix-ld libraries for upstream's version-matched downloaded
+Chrome headless shell, keeping its sandbox enabled. PDF preview is supplied by
+upstream's client; Poppler utilities are also available for PDF processing.
+FFmpeg (including H.264), Node.js, Java, adb, and an Android SDK with API 35,
+build tools, emulator and x86_64 Google APIs image support Android workflows.
+Android SDK licenses are accepted declaratively. No iOS tooling is installed.
+The SDK is exposed through ANDROID_HOME and Java through JAVA_HOME.
+After deployment, finish active turns and run
+`sudo systemctl restart t3code.service` to pick up the new service environment.
