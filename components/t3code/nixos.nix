@@ -68,7 +68,7 @@ in
     programs.nix-ld.libraries = with pkgs; [
       nss nspr glib atk at-spi2-atk at-spi2-core dbus
       libX11 libxcb libXcomposite libXdamage libXext libXfixes
-      libXrandr libxkbcommon mesa alsa-lib expat cups pango cairo
+      libXrandr libxkbcommon mesa libgbm alsa-lib expat cups pango cairo
       libdrm libGL zlib fontconfig freetype
     ];
     systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ];
