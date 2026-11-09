@@ -57,6 +57,8 @@ in
     systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ];
     systemd.services.t3code = {
       description = "Official T3 Code nightly server";
+      # Keep active sessions alive across deployments, as with Codex.
+      restartIfChanged = false;
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];

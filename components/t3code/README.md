@@ -81,3 +81,9 @@ upstream's mobile update channel independently of the server pin. Native changes
 require downloading and installing a new APK. A signature mismatch with an old
 custom build may require uninstalling that phone app first; save any local drafts
 before uninstalling. Server conversations and project files stay on the server.
+
+Deployments preserve the running T3 Code service and its active sessions.
+As with Codex remote control, `restartIfChanged = false` defers package and
+service changes until a manual `sudo systemctl restart t3code.service` or a
+reboot. Restart manually when sessions can safely be interrupted. Automatic
+recovery after a process failure remains enabled.
