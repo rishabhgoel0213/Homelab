@@ -330,3 +330,17 @@ existing state when checking its Nix-managed app.
 Tailscale remains outside this configuration after the application cutover.
 Any future Tailscale package or Serve/Funnel migration must be designed,
 backed up, reviewed, and deployed as a separate project.
+
+### Remote Login after Brick enrollment
+
+The Mac deployment explicitly adds `rishabhgoel` to `com.apple.access_ssh`.
+macOS checks this service ACL independently of SSH keys and `AllowUsers`;
+removing admin membership during Brick enrollment can otherwise deny login.
+If already locked out, run locally while unbricked:
+
+```sh
+brick-admin run /usr/sbin/dseditgroup -o edit -a rishabhgoel -t user com.apple.access_ssh
+/usr/sbin/dseditgroup -o checkmember -m rishabhgoel com.apple.access_ssh
+```
+
+This restores Remote Login access without restoring admin-group membership.
