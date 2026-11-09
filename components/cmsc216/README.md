@@ -121,3 +121,8 @@ requires those files to finish before the remote command starts.
 
 Once CVMFS recovers, set `remoteEnvironment = "course"` in
 `hosts/macbook/default.nix` and redeploy. No Zaratan startup files are modified.
+
+Downloads are saved under `labs/` and `projects/` in the course workspace.
+Discovery checks both these folders and legacy root-level assignments to avoid
+re-downloading existing work. Sync preserves this layout on Zaratan; run and
+test preserve the current directory relative to the course workspace.

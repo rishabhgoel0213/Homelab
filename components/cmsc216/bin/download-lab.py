@@ -46,8 +46,11 @@ def download(root, kind="lab"):
         raise ValueError(f"Unsupported coursework kind: {kind}")
     prefix, label, plural = KINDS[kind]
     existing = set()
-    if root.exists():
-        for entry in root.iterdir():
+    destination_root = root / plural
+    for directory in (root, destination_root):
+        if not directory.exists():
+            continue
+        for entry in directory.iterdir():
             match = re.fullmatch(
                 re.escape(prefix) + r"0*(\d+)(?:-code)?(?:\.zip)?",
                 entry.name,
@@ -81,9 +84,9 @@ def download(root, kind="lab"):
     if not archives:
         raise ValueError(f"{label} {number} has no published code ZIP yet")
     url = archives[0]
-    destination = root / Path(urllib.parse.urlsplit(url).path).name
-    root.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".cmsc216-download-", dir=root) as staging:
+    destination = destination_root / Path(urllib.parse.urlsplit(url).path).name
+    destination_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".cmsc216-download-", dir=destination_root) as staging:
         archive = Path(staging) / f"{prefix}.zip"
         with urllib.request.urlopen(url, timeout=30) as response, archive.open("wb") as output:
             shutil.copyfileobj(response, output)
