@@ -63,7 +63,7 @@ def main():
     os.environ['DEVELOPER_DIR'] = str(developer)
     run('/usr/bin/xcodebuild', '-license', 'accept', admin=True)
     run('/usr/bin/xcodebuild', '-runFirstLaunch', admin=True)
-    run('/usr/bin/xcodebuild', '-downloadPlatform', 'iOS')
+    run('/usr/bin/xcodebuild', '-downloadPlatform', 'iOS', admin=True)
     data = json.loads(run('/usr/bin/xcrun', 'simctl', 'list', '--json', capture=True))
     runtime, device_type = choose_device(data['runtimes'], data['devicetypes'])
     if not any(d['name'] == 'Hackathon iPhone' and d.get('isAvailable')
