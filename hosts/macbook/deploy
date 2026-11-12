@@ -108,3 +108,8 @@ ssh -t "$ssh_host" "
     exit 1
   fi
 "
+
+# Apple downloads and licenses are intentionally outside the Nix build/activation.
+# This runs only on an explicitly authorized Mac deployment, never a build.
+echo "Provisioning Xcode and the iOS Simulator runtime on $ssh_host" >&2
+ssh -t "$ssh_host" /run/current-system/sw/bin/mobile-ios-setup

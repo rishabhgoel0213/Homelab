@@ -18,6 +18,7 @@ in
     ../../platform/darwin/base.nix
     ../../profiles/darwin/coursework.nix
     ../../profiles/darwin/workstation.nix
+    ../../components/mobile-dev/darwin.nix
     ../../components/darwin-deploy/darwin.nix
     ../../components/brick-admin/darwin.nix
   ];

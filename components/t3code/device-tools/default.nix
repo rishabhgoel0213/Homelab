@@ -1,4 +1,4 @@
-{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, t3Package, fetchurl }:
+{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, t3Package ? null, fetchurl }:
 let
   manifest = builtins.fromJSON (builtins.readFile ./package.json);
   scrcpyServer = fetchurl {
@@ -12,8 +12,10 @@ buildNpmPackage {
   src = lib.cleanSource ./.;
   npmDepsHash = "sha256-dhwLXJaDfPPS0js6y66SwNAvNnirt4q4zx/J59nX+fU=";
   dontNpmBuild = true;
-  nativeBuildInputs = [ autoPatchelfHook makeWrapper ];
+  nativeBuildInputs = [ makeWrapper ] ++ lib.optional stdenv.hostPlatform.isLinux autoPatchelfHook;
   buildInputs = [ stdenv.cc.cc.lib ];
+  # Preserve upstream signatures on the bundled Apple helpers.
+  dontStrip = stdenv.hostPlatform.isDarwin;
   installPhase = ''
     runHook preInstall
     mkdir -p "$out/lib" "$out/bin"
@@ -28,7 +30,9 @@ buildNpmPackage {
       name="''${spec%:*}"
       version="''${spec#*:}"
       # Fail an upstream nightly update rather than silently install mismatched helpers.
-      grep -aF '"'"$name"'": "'"$version"'"' ${t3Package}/libexec/t3code/t3 >/dev/null
+      ${lib.optionalString (t3Package != null) ''
+        grep -aF '"'"$name"'": "'"$version"'"' ${t3Package}/libexec/t3code/t3 >/dev/null
+      ''}
       mkdir -p "$out/tools/$name/$version"
       ln -s "$out/lib/node_modules" "$out/tools/$name/$version/node_modules"
       printf '%s\n' "$version" > "$out/tools/$name/$version/.install-complete"

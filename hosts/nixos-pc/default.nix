@@ -43,6 +43,7 @@
     ../../components/local-models/nemotron-lightning/nixos.nix
     ../../components/local-models/qwen-image-2.1/nixos.nix
     ../../components/jupyterlab/nixos.nix
+    ../../components/mobile-dev/nixos.nix
     ../../components/t3code/nixos.nix
     ../../components/blog/nixos.nix
     ../../components/vscodium/remote-server.nix
