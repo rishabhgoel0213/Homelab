@@ -45,8 +45,10 @@ then runs `mobile-ios-setup` as the logged-in Mac user. Setup:
 2. Gets Xcode (App Store ID 497799835) if `/Applications/Xcode.app` is absent.
 3. Selects Xcode, accepts the license, and runs Apple's first-launch installer.
 4. Downloads/installs the current iOS runtime via `xcodebuild -downloadPlatform iOS`.
-5. Creates an available `Hackathon iPhone` on the newest available iOS runtime,
-   without erasing other simulators or starting a GUI session.
+5. Creates an available `Hackathon iPhone` using the runtime's explicit supported
+   device list. At the same iOS version, it prefers the general runtime over a
+   hardware-specific variant, and selects a recent compatible iPhone. Existing
+   simulators are preserved; setup does not start a GUI session.
 
 Privileged actions use `brick-admin run`. The setup does not change sleep settings.
 Keep the Mac logged in, awake, on power and connected to Tailscale during testing.

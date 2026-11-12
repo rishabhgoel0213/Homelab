@@ -33,17 +33,32 @@ def choose_device(runtimes, device_types):
     available = [r for r in runtimes if r.get('isAvailable') and '.iOS-' in r['identifier']]
     if not available:
         raise RuntimeError('No available iOS runtime after download; inspect Xcode Settings > Components.')
-    runtime = max(available, key=lambda r: tuple(map(int, r['version'].split('.'))))
     phones = [d for d in device_types if d.get('productFamily') == 'iPhone']
     if not phones:
         raise RuntimeError('Xcode reports no iPhone device types.')
-    parts = [int(part) for part in runtime['version'].split('.')] + [0, 0]
-    version_code = (parts[0] << 16) | (parts[1] << 8) | parts[2]
-    supported = [d for d in phones if d.get('minRuntimeVersion', 0) <= version_code
-                 <= d.get('maxRuntimeVersion', 0x7fffffff)]
-    if not supported:
+    candidates = []
+    for runtime in available:
+        version = tuple(map(int, runtime['version'].split('.')))
+        parts = list(version) + [0, 0]
+        version_code = (parts[0] << 16) | (parts[1] << 8) | parts[2]
+        # Same-version runtimes can target different hardware. Loose min/max
+        # bounds on a device type do not establish runtime compatibility.
+        identifiers = None
+        if 'supportedDeviceTypes' in runtime:
+            identifiers = {d['identifier'] for d in runtime['supportedDeviceTypes']}
+        supported = [d for d in phones
+                     if (identifiers is None or d['identifier'] in identifiers)
+                     and d.get('minRuntimeVersion', 0) <= version_code
+                     <= d.get('maxRuntimeVersion', 0xffffffff)]
+        if supported:
+            candidates.append((version, runtime, supported))
+    if not candidates:
         raise RuntimeError('No iPhone type supports the installed iOS runtime.')
-    return runtime['identifier'], supported[-1]['identifier']
+    # Prefer the general runtime over a hardware-specific variant at the same
+    # version. Within it, choose a recent iPhone rather than the last/oldest entry.
+    _, runtime, supported = max(candidates, key=lambda c: (c[0], len(c[2]), c[1]['identifier']))
+    phone = max(supported, key=lambda d: d.get('minRuntimeVersion', 0))
+    return runtime['identifier'], phone['identifier']
 
 
 def main():
@@ -66,6 +81,7 @@ def main():
     run('/usr/bin/xcodebuild', '-downloadPlatform', 'iOS', admin=True)
     data = json.loads(run('/usr/bin/xcrun', 'simctl', 'list', '--json', capture=True))
     runtime, device_type = choose_device(data['runtimes'], data['devicetypes'])
+    print(f'Selected compatible simulator pair: {device_type} / {runtime}', flush=True)
     if not any(d['name'] == 'Hackathon iPhone' and d.get('isAvailable')
                for d in data['devices'].get(runtime, [])):
         run('/usr/bin/xcrun', 'simctl', 'create', 'Hackathon iPhone', device_type, runtime)

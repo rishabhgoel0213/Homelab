@@ -25,6 +25,28 @@ class SetupTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'No available iOS'):
             setup.choose_device([], [])
 
+    def test_same_version_hardware_runtime_does_not_win_over_general_runtime(self):
+        phones = [
+            {'identifier': 'iphone-18-pro', 'productFamily': 'iPhone', 'minRuntimeVersion': 27 << 16},
+            {'identifier': 'iphone-duo', 'productFamily': 'iPhone', 'minRuntimeVersion': 27 << 16},
+            {'identifier': 'iphone-11', 'productFamily': 'iPhone', 'minRuntimeVersion': 13 << 16},
+        ]
+        specialized = {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4',
+                       'version': '27.2', 'isAvailable': True,
+                       'supportedDeviceTypes': [{'identifier': 'iphone-duo'}]}
+        general = {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-27-2',
+                   'version': '27.2', 'isAvailable': True,
+                   'supportedDeviceTypes': [{'identifier': 'iphone-18-pro'}, {'identifier': 'iphone-duo'}]}
+        for runtimes in ([specialized, general], [general, specialized]):
+            self.assertEqual(setup.choose_device(runtimes, phones), (general['identifier'], 'iphone-18-pro'))
+        self.assertEqual(setup.choose_device([specialized], phones), (specialized['identifier'], 'iphone-duo'))
+
+    def test_explicit_empty_supported_list_is_not_treated_as_unrestricted(self):
+        runtime = {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-27-2', 'version': '27.2',
+                   'isAvailable': True, 'supportedDeviceTypes': []}
+        with self.assertRaisesRegex(RuntimeError, 'No iPhone type supports'):
+            setup.choose_device([runtime], [{'identifier': 'phone', 'productFamily': 'iPhone'}])
+
     def test_gate_failure_prevents_command(self):
         with patch.object(setup, 'gate', side_effect=RuntimeError('bricked')), patch.object(setup.subprocess, 'run') as run:
             with self.assertRaises(RuntimeError): setup.run('command', admin=True)
