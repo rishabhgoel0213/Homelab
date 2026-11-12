@@ -22,10 +22,13 @@ in {
       /usr/bin/install -d -m 0700 -o rishabhgoel -g staff /Users/rishabhgoel/.t3/device/tools
       target=/Users/rishabhgoel/.t3/device/tools/${name}@${version}
       if [ -e "$target" ] && [ ! -L "$target" ]; then
-        echo "Preserving existing T3 tool directory $target; remove/move it before adopting the Nix package." >&2
-      else
-        /bin/ln -sfn ${tools}/tools/${name}/${version} "$target"
+        if [ -e "$target.before-nix" ]; then
+          echo "Refusing to overwrite T3 helper backup $target.before-nix" >&2
+          exit 1
+        fi
+        /bin/mv "$target" "$target.before-nix"
       fi
+      /bin/ln -sfn ${tools}/tools/${name}/${version} "$target"
     '') [ "agent-device" "expo-device-hub" ]}
   '';
 }

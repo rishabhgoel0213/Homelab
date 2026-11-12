@@ -34,8 +34,9 @@ prepared. This setting is intentionally runtime state derived from Nix config.
 
 The Darwin module installs Node 24, CocoaPods, Watchman, rsync, mas, and the
 version-matched T3 helpers. It links the helpers into T3's **remote** installation
-layout (`~/.t3/device/tools/name@version`), preserving an existing real directory
-with a warning. Native Apple helper signatures must remain intact.
+layout (`~/.t3/device/tools/name@version`), moving an existing npm-installed real
+directory to a `.before-nix` backup before adopting it. Native Apple helper
+signatures must remain intact.
 
 `MACBOOK_DEPLOY_CONFIRM=deploy just darwin-deploy` activates the configuration,
 then runs `mobile-ios-setup` as the logged-in Mac user. Setup:
