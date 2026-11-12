@@ -5,7 +5,7 @@ let
     buildToolsVersions = [ "35.0.0" "36.0.0" "37.0.0" ];
     includeNDK = true;
     ndkVersions = [ "27.1.12297006" ];
-    cmakeVersions = [ "3.30.5" ];
+    cmakeVersions = [ "3.22.1" "3.30.5" ];
   }).androidsdk.overrideAttrs (old: {
     postInstall = (old.postInstall or "") + ''
       # Android's API 37 archive is published under a fractional package name.

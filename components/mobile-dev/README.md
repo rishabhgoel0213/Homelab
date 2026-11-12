@@ -19,7 +19,7 @@ The existing `t3code.internal.therealrishabh.com` Device panel is independent of
 Metro; its video connection does not carry the app's JavaScript bundle.
 
 The separate build SDK in `/etc/mobile-dev/android-sdk` includes Android platform
-and build tools through API 37, NDK 27.1.12297006, and CMake 3.30.5. The existing
+and build tools through API 37, NDK 27.1.12297006, and CMake 3.22.1/3.30.5. The existing
 API 35 virtual device remains suitable for running the app. SDK packages stay
 immutable and Nix-managed; native builds and Gradle caches live in the project
 and the user's home. Never run sdkmanager updates against the Nix store.
