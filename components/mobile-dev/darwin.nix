@@ -1,6 +1,6 @@
 { lib, pkgs, ... }:
 let
-  tools = pkgs.callPackage ../t3code/device-tools { };
+  tools = pkgs.callPackage ../t3code/device-tools { iosOnly = true; };
   versions = (builtins.fromJSON (builtins.readFile ../t3code/device-tools/package.json)).dependencies;
   setup = pkgs.writeShellApplication {
     name = "mobile-ios-setup";

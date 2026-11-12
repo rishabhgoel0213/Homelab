@@ -38,6 +38,22 @@ layout (`~/.t3/device/tools/name@version`), moving an existing npm-installed rea
 directory to a `.before-nix` backup before adopting it. Native Apple helper
 signatures must remain intact.
 
+The Mac's packaged hub defaults to iOS-only discovery. T3 starts the Node
+entrypoint directly, so an executable wrapper or shell environment variable
+cannot apply this setting. A checked packaging substitution sets the CLI default
+and includes available iOS simulators without prior usage timestamps. This keeps
+a standalone Homebrew `adb` from triggering missing Android SDK commands and
+makes the newly created `Hackathon iPhone` selectable before its first boot.
+The Linux host's Android discovery is unchanged. T3's capability probe may still
+advertise Android on the Mac when `adb` exists; the Mac hub lists only iOS devices.
+The packaging check exercises the real hub HTTP endpoint with a fresh simulator
+and Android commands that fail if invoked.
+
+After adopting an updated helper package, refresh/reconnect the Mac device host
+in T3 so its running hub loads the new store path. Existing helper processes do
+not change when their installation symlink changes. Do not restart the T3 chat
+service or terminate an unrelated device session.
+
 `MACBOOK_DEPLOY_CONFIRM=deploy just darwin-deploy` activates the configuration,
 then runs `mobile-ios-setup` as the logged-in Mac user. Setup:
 

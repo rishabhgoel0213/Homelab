@@ -1,4 +1,4 @@
-{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, t3Package ? null, fetchurl }:
+{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, python3, t3Package ? null, fetchurl, iosOnly ? false }:
 let
   manifest = builtins.fromJSON (builtins.readFile ./package.json);
   scrcpyServer = fetchurl {
@@ -20,6 +20,17 @@ buildNpmPackage {
     runHook preInstall
     mkdir -p "$out/lib" "$out/bin"
     cp -R node_modules "$out/lib/"
+    ${lib.optionalString iosOnly ''
+      # T3 invokes this entrypoint directly, bypassing our executable wrapper.
+      # The dedicated Mac host must not infer a complete Android SDK from adb.
+      hub="$out/lib/node_modules/expo-device-hub"
+      substituteInPlace "$hub/dist/server/cli.mjs" \
+        --replace-fail 'platform: { type: "string" },' 'platform: { type: "string", default: "ios" },'
+      # T3 cannot open a device absent from discovery. Include newly provisioned
+      # simulators before their first boot instead of requiring usage history.
+      substituteInPlace "$hub/dist/server/index.mjs" \
+        --replace-fail '    }).filter((device) => device.lastUsedAt !== undefined),' '    }),'
+    ''}
     # The gRPC capture backend also starts scrcpy for input. Its lazy download
     # targets the package directory, which is immutable after installation.
     emu="$out/lib/node_modules/expo-device-hub/vendor/serve-emu"
@@ -49,5 +60,8 @@ buildNpmPackage {
     "$out/bin/expo-device-hub" --help
     ${nodejs}/bin/node --input-type=module -e "await import('$out/lib/node_modules/node-datachannel/dist/esm/lib/index.mjs')"
     ${nodejs}/bin/node --input-type=module -e "globalThis.fetch = () => { throw Error('unexpected runtime download'); }; const m = await import('$out/lib/node_modules/expo-device-hub/vendor/serve-emu/dist/scrcpy-server.js'); await m.ensureScrcpyServer();"
+    ${lib.optionalString iosOnly ''
+      ${python3}/bin/python ${./test-ios-discovery.py} ${nodejs}/bin/node "$out/lib/node_modules/expo-device-hub/dist/server/cli.mjs"
+    ''}
   '';
 }
