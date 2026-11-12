@@ -1,6 +1,10 @@
-{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, t3Package }:
+{ buildNpmPackage, lib, autoPatchelfHook, stdenv, nodejs, makeWrapper, t3Package, fetchurl }:
 let
   manifest = builtins.fromJSON (builtins.readFile ./package.json);
+  scrcpyServer = fetchurl {
+    url = "https://github.com/Genymobile/scrcpy/releases/download/v4.0/scrcpy-server-v4.0";
+    hash = "sha256-hJJL1WSh62CJyHLHUh+WgFiXf5H1/wJRSox0r/MhDzo=";
+  };
 in
 buildNpmPackage {
   pname = "t3code-device-tools";
@@ -14,6 +18,12 @@ buildNpmPackage {
     runHook preInstall
     mkdir -p "$out/lib" "$out/bin"
     cp -R node_modules "$out/lib/"
+    # The gRPC capture backend also starts scrcpy for input. Its lazy download
+    # targets the package directory, which is immutable after installation.
+    emu="$out/lib/node_modules/expo-device-hub/vendor/serve-emu"
+    grep -F 'SCRCPY_VERSION = "4.0"' "$emu/dist/scrcpy-server.js"
+    mkdir -p "$emu/vendor"
+    ln -s ${scrcpyServer} "$emu/vendor/scrcpy-server-v4.0"
     for spec in agent-device:${manifest.dependencies.agent-device} expo-device-hub:${manifest.dependencies.expo-device-hub}; do
       name="''${spec%:*}"
       version="''${spec#*:}"
@@ -34,5 +44,6 @@ buildNpmPackage {
     "$out/bin/agent-device" --version
     "$out/bin/expo-device-hub" --help
     ${nodejs}/bin/node --input-type=module -e "await import('$out/lib/node_modules/node-datachannel/dist/esm/lib/index.mjs')"
+    ${nodejs}/bin/node --input-type=module -e "globalThis.fetch = () => { throw Error('unexpected runtime download'); }; const m = await import('$out/lib/node_modules/expo-device-hub/vendor/serve-emu/dist/scrcpy-server.js'); await m.ensureScrcpyServer();"
   '';
 }

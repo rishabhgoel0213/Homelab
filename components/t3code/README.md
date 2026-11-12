@@ -127,7 +127,11 @@ For a headless boot check, use `emulator @t3code_pixel_9_api35 -no-window
 then shut down the test instance before opening the device in T3.
 
 The `device-tools` Nix package supplies locked `agent-device` and
-`expo-device-hub` dependencies, including the patched native WebRTC module.
+`expo-device-hub` dependencies, including the patched native WebRTC module and the exact scrcpy server required
+by its capture/input backend. The latter must be present at build time: the
+upstream lazy download otherwise tries to write into the immutable Nix store
+and fails when a stream starts. The package check disables fetch and verifies
+that the scrcpy server resolves locally.
 Tmpfiles links them into T3’s versioned tool directories with its completion
 markers; no runtime npm install is needed. The build checks that their versions
 match the pinned T3 binary. When a future nightly changes those versions, update

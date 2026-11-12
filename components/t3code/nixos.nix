@@ -84,7 +84,7 @@ in
     systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ]
       ++ lib.concatMap (name: let version = deviceVersions.${name}; in [
         "d ${stateDir}/tools/${name} 0700 rishabh users - -"
-        "L ${stateDir}/tools/${name}/${version} - - - - ${deviceTools}/tools/${name}/${version}"
+        "L+ ${stateDir}/tools/${name}/${version} - - - - ${deviceTools}/tools/${name}/${version}"
       ]) [ "agent-device" "expo-device-hub" ];
     systemd.services.t3code-android-avd = {
       description = "Provision the T3 Code Android virtual device";
