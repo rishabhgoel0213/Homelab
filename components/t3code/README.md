@@ -84,7 +84,7 @@ before uninstalling. Server conversations and project files stay on the server.
 
 Deployments preserve the running T3 Code service and its active sessions.
 As with Codex remote control, `restartIfChanged = false` defers package and
-service changes until a manual `sudo systemctl restart t3code.service` or a
+service changes until a manual `brick-admin run systemctl restart t3code.service` or a
 reboot. Restart manually when sessions can safely be interrupted. Automatic
 recovery after a process failure remains enabled.
 
@@ -97,5 +97,43 @@ FFmpeg (including H.264), Node.js, Java, adb, and an Android SDK with API 35,
 build tools, emulator and x86_64 Google APIs image support Android workflows.
 Android SDK licenses are accepted declaratively. No iOS tooling is installed.
 The SDK is exposed through ANDROID_HOME and Java through JAVA_HOME.
+The SDK also provides `cmdline-tools/latest` as an alias to Nix's versioned
+command-line tools. T3 probes that exact path; without the alias it incorrectly
+reports the installed tools as an older, unsupported SDK.
 After deployment, finish active turns and run
-`sudo systemctl restart t3code.service` to pick up the new service environment.
+`brick-admin run systemctl restart t3code.service` to pick up the new service
+environment (with the phone unbricked).
+
+### Android virtual device
+
+The server user's `t3code_pixel_9_api35` AVD uses the Pixel 9 profile and the
+packaged Android 15 / API 35 Google APIs x86_64 image. AVD data lives in the
+standard `~/.android/avd` directory, separately from the immutable SDK. The
+`t3code-android-avd` oneshot service creates it if absent and preserves existing
+data. T3 starts emulators headlessly with SwiftShader software graphics.
+The equivalent manual provisioning commands (as `rishabh`) are:
+
+```bash
+printf 'no\n' | avdmanager create avd --name t3code_pixel_9_api35 \
+  --package 'system-images;android-35;google_apis;x86_64' --device pixel_9
+emulator -accel-check
+emulator -list-avds
+```
+
+Nix's `latest` alias can produce a harmless duplicate-package warning from
+avdmanager. SDK packages remain managed through Nix, not sdkmanager updates.
+For a headless boot check, use `emulator @t3code_pixel_9_api35 -no-window
+-no-audio -no-snapshot -gpu swiftshader`; check `sys.boot_completed` with adb,
+then shut down the test instance before opening the device in T3.
+
+The `device-tools` Nix package supplies locked `agent-device` and
+`expo-device-hub` dependencies, including the patched native WebRTC module.
+Tmpfiles links them into T3’s versioned tool directories with its completion
+markers; no runtime npm install is needed. The build checks that their versions
+match the pinned T3 binary. When a future nightly changes those versions, update
+`device-tools/package.json`, regenerate its npm lockfile, and update
+`npmDepsHash` alongside the nightly pin; the build rejects mismatched helpers.
+
+In T3 Settings → Integrations → Devices, enable the local Android host. Agent device access
+is a separate setting that takes effect in a new agent session. The existing
+private T3 HTTPS route carries the device panel; do not expose adb publicly.

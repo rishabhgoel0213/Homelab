@@ -10,6 +10,8 @@ let
   cfg = config.homelab.t3code;
   stateDir = homelab.paths.t3codeState;
   package = pkgs.callPackage ./package.nix { };
+  deviceTools = pkgs.callPackage ./device-tools { t3Package = package; };
+  deviceVersions = (builtins.fromJSON (builtins.readFile ./device-tools/package.json)).dependencies;
   androidSdk = (pkgs.androidenv.composeAndroidPackages {
     platformVersions = [ "35" ];
     buildToolsVersions = [ "35.0.0" ];
@@ -17,7 +19,15 @@ let
     includeSystemImages = true;
     systemImageTypes = [ "google_apis" ];
     abiVersions = [ "x86_64" ];
-  }).androidsdk;
+  }).androidsdk.overrideAttrs (old: {
+    # T3 probes this literal path; androidenv installs a versioned directory.
+    postInstall = (old.postInstall or "") + ''
+      toolsDir=("$out"/libexec/android-sdk/cmdline-tools/*)
+      test "''${#toolsDir[@]}" -eq 1
+      ln -s "$(basename "''${toolsDir[0]}")" "$out/libexec/android-sdk/cmdline-tools/latest"
+      test -x "$out/libexec/android-sdk/cmdline-tools/latest/bin/avdmanager"
+    '';
+  });
   mobileIndex = pkgs.writeText "t3code-nightly-download.html" ''
     <!doctype html>
     <html lang="en"><meta charset="utf-8">
@@ -61,7 +71,7 @@ in
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ package androidSdk ];
+    environment.systemPackages = [ package androidSdk deviceTools ];
     nixpkgs.config.android_sdk.accept_license = true;
     # Upstream downloads version-matched Chrome and device helper binaries.
     programs.nix-ld.enable = true;
@@ -71,7 +81,35 @@ in
       libXrandr libxkbcommon mesa libgbm alsa-lib expat cups pango cairo
       libdrm libGL zlib fontconfig freetype
     ];
-    systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ];
+    systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ]
+      ++ lib.concatMap (name: let version = deviceVersions.${name}; in [
+        "d ${stateDir}/tools/${name} 0700 rishabh users - -"
+        "L ${stateDir}/tools/${name}/${version} - - - - ${deviceTools}/tools/${name}/${version}"
+      ]) [ "agent-device" "expo-device-hub" ];
+    systemd.services.t3code-android-avd = {
+      description = "Provision the T3 Code Android virtual device";
+      wantedBy = [ "multi-user.target" ];
+      before = [ "t3code.service" ];
+      environment = {
+        HOME = homelab.paths.userHome;
+        ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
+        JAVA_HOME = "${pkgs.jdk}";
+      };
+      serviceConfig = {
+        Type = "oneshot";
+        User = "rishabh";
+        Group = "users";
+        RemainAfterExit = true;
+        UMask = "0077";
+      };
+      script = ''
+        if [ ! -e "$HOME/.android/avd/t3code_pixel_9_api35.ini" ]; then
+          printf 'no\n' | ${androidSdk}/bin/avdmanager create avd \
+            --name t3code_pixel_9_api35 \
+            --package 'system-images;android-35;google_apis;x86_64' --device pixel_9
+        fi
+      '';
+    };
     systemd.services.t3code = {
       description = "Official T3 Code nightly server";
       # Keep active sessions alive across deployments, as with Codex.
@@ -106,6 +144,7 @@ in
         ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
         JAVA_HOME = "${pkgs.jdk}";
         CODEX_HOME = homelab.paths.codexHome;
+        EXPO_DEVICE_HUB_EMULATOR_EXTRA_ARGS = "-gpu swiftshader";
         HOME = homelab.paths.userHome;
         SHELL = "${pkgs.bash}/bin/bash";
         T3CODE_HOME = stateDir;
