@@ -12,6 +12,30 @@ setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
 
 class SetupTests(unittest.TestCase):
+    def inventory(self, devices):
+        return {'runtimes': [], 'devicetypes': [], 'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-27-2': devices}}
+
+    def test_consolidation_preserves_current_device_and_removes_other_simulators(self):
+        devices = [{'udid': 'keep', 'name': 'Hackathon iPhone', 'isAvailable': True, 'state': 'Booted'},
+                   {'udid': 'extra', 'name': 'iPhone Pro Max', 'isAvailable': True, 'state': 'Shutdown'}]
+        with patch.object(setup, 'choose_device', return_value=('com.apple.CoreSimulator.SimRuntime.iOS-27-2', 'phone')), patch.object(setup, 'run') as run:
+            setup.configure_devices(self.inventory(devices))
+            self.assertEqual(run.call_args_list, [unittest.mock.call('/usr/bin/xcrun', 'simctl', 'rename', 'keep', 'iPhone'),
+                                                  unittest.mock.call('/usr/bin/xcrun', 'simctl', 'delete', 'extra')])
+
+    def test_consolidation_is_idempotent(self):
+        devices = [{'udid': 'keep', 'name': 'iPhone', 'isAvailable': True, 'state': 'Booted'}]
+        with patch.object(setup, 'choose_device', return_value=('com.apple.CoreSimulator.SimRuntime.iOS-27-2', 'phone')), patch.object(setup, 'run') as run:
+            setup.configure_devices(self.inventory(devices))
+            run.assert_not_called()
+
+    def test_consolidation_refuses_another_running_device_before_changes(self):
+        devices = [{'udid': 'other', 'name': 'iPhone Pro Max', 'isAvailable': True, 'state': 'Booted'}]
+        with patch.object(setup, 'choose_device', return_value=('com.apple.CoreSimulator.SimRuntime.iOS-27-2', 'phone')), patch.object(setup, 'run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'Close other running'):
+                setup.configure_devices(self.inventory(devices))
+            run.assert_not_called()
+
     def test_runtime_selection_ignores_unavailable_and_other_platforms(self):
         runtimes = [
             {'identifier': 'com.apple.CoreSimulator.SimRuntime.iOS-27-0', 'version': '27.0', 'isAvailable': True},

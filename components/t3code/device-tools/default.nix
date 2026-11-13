@@ -25,7 +25,10 @@ buildNpmPackage {
       # The dedicated Mac host must not infer a complete Android SDK from adb.
       hub="$out/lib/node_modules/expo-device-hub"
       substituteInPlace "$hub/dist/server/cli.mjs" \
-        --replace-fail 'platform: { type: "string" },' 'platform: { type: "string", default: "ios" },'
+        --replace-fail 'platform: { type: "string" },' 'platform: { type: "string", default: "ios" },' \
+        --replace-fail '"max-dimension": { type: "string" },' '"max-dimension": { type: "string", default: "1280" },' \
+        --replace-fail '"video-fps": { type: "string" },' '"video-fps": { type: "string", default: "30" },' \
+        --replace-fail '"video-bitrate": { type: "string" },' '"video-bitrate": { type: "string", default: "3000000" },'
       # T3 cannot open a device absent from discovery. Include newly provisioned
       # simulators before their first boot instead of requiring usage history.
       substituteInPlace "$hub/dist/server/index.mjs" \

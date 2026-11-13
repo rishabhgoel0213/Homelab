@@ -44,8 +44,14 @@ cannot apply this setting. A checked packaging substitution sets the CLI default
 and includes available iOS simulators without prior usage timestamps. This keeps
 a standalone Homebrew `adb` from triggering missing Android SDK commands and
 makes the newly created `Hackathon iPhone` selectable before its first boot.
-The Linux host's Android discovery is unchanged. T3's capability probe may still
-advertise Android on the Mac when `adb` exists; the Mac hub lists only iOS devices.
+The Linux host's Android discovery is unchanged. The server's `mobile-ios` SSH
+alias sends `T3_DEVICE_IOS_ONLY=1`, accepted explicitly by the Mac's sshd. A managed
+`~/.local/bin/node` shim selects Node 24 and, only for that alias, removes Homebrew
+and Android SDK paths before executing T3's remote script. This also disables
+T3's independent `adb version` capability probe and `emulator -list-avds` fallback.
+Ordinary Mac shells retain their Android tools. The hub defaults to a 1280-pixel
+maximum dimension, 30 fps, and 3 Mbps rather than streaming native resolution at
+60 fps. Explicit CLI flags can override these defaults.
 The packaging check exercises the real hub HTTP endpoint with a fresh simulator
 and Android commands that fail if invoked.
 
@@ -61,10 +67,14 @@ then runs `mobile-ios-setup` as the logged-in Mac user. Setup:
 2. Gets Xcode (App Store ID 497799835) if `/Applications/Xcode.app` is absent.
 3. Selects Xcode, accepts the license, and runs Apple's first-launch installer.
 4. Downloads/installs the current iOS runtime via `xcodebuild -downloadPlatform iOS`.
-5. Creates an available `Hackathon iPhone` using the runtime's explicit supported
+5. Creates an available `iPhone` using the runtime's explicit supported
    device list. At the same iOS version, it prefers the general runtime over a
    hardware-specific variant, and selects a recent compatible iPhone. Existing
-   simulators are preserved; setup does not start a GUI session.
+   `Hackathon iPhone` is renamed in place, retaining its apps and data. All other
+   inactive iOS simulator instances are deleted; another running instance causes
+   setup to stop before modifying inventory. Setup does not start a GUI session.
+   `mobile-ios-setup --devices-only` applies just this inventory policy without
+   reinstalling Xcode assets or requiring admin authentication.
 
 Privileged actions use `brick-admin run`. The setup does not change sleep settings.
 Keep the Mac logged in, awake, on power and connected to Tailscale during testing.

@@ -6,6 +6,7 @@ import subprocess
 import sys
 import urllib.request
 import math
+import argparse
 
 
 def gate():
@@ -61,10 +62,34 @@ def choose_device(runtimes, device_types):
     return runtime['identifier'], phone['identifier']
 
 
+def configure_devices(data):
+    runtime, device_type = choose_device(data['runtimes'], data['devicetypes'])
+    candidates = [d for d in data['devices'].get(runtime, []) if d.get('isAvailable')]
+    keep = next((d for name in ('iPhone', 'Hackathon iPhone') for d in candidates if d['name'] == name), None)
+    others = [d for key, devices in data['devices'].items() if '.iOS-' in key
+              for d in devices if keep is None or d['udid'] != keep['udid']]
+    if any(d['state'] != 'Shutdown' for d in others):
+        raise RuntimeError('Close other running iOS simulators through T3 before consolidating devices.')
+    if keep is None:
+        run('/usr/bin/xcrun', 'simctl', 'create', 'iPhone', device_type, runtime)
+    elif keep['name'] != 'iPhone':
+        run('/usr/bin/xcrun', 'simctl', 'rename', keep['udid'], 'iPhone')
+    for device in others:
+        run('/usr/bin/xcrun', 'simctl', 'delete', device['udid'])
+    print('One reusable iPhone configured. Other inactive iOS simulators removed.', flush=True)
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--devices-only', action='store_true', help='Reconcile devices without reinstalling Apple assets')
+    options = parser.parse_args()
     if sys.platform != 'darwin' or os.geteuid() == 0:
         raise RuntimeError('Run mobile-ios-setup as the logged-in Mac user, not root.')
     developer = Path('/Applications/Xcode.app/Contents/Developer')
+    if options.devices_only:
+        os.environ['DEVELOPER_DIR'] = str(developer)
+        configure_devices(json.loads(run('/usr/bin/xcrun', 'simctl', 'list', '--json', capture=True)))
+        return
     if not developer.exists():
         print('Installing Xcode from the App Store. Apple may request authentication on the Mac.', flush=True)
         try:
@@ -80,13 +105,9 @@ def main():
     run('/usr/bin/xcodebuild', '-runFirstLaunch', admin=True)
     run('/usr/bin/xcodebuild', '-downloadPlatform', 'iOS', admin=True)
     data = json.loads(run('/usr/bin/xcrun', 'simctl', 'list', '--json', capture=True))
-    runtime, device_type = choose_device(data['runtimes'], data['devicetypes'])
-    print(f'Selected compatible simulator pair: {device_type} / {runtime}', flush=True)
-    if not any(d['name'] == 'Hackathon iPhone' and d.get('isAvailable')
-               for d in data['devices'].get(runtime, [])):
-        run('/usr/bin/xcrun', 'simctl', 'create', 'Hackathon iPhone', device_type, runtime)
+    configure_devices(data)
     run('/usr/bin/xcodebuild', '-version')
-    print('Xcode and Hackathon iPhone are ready. Add SSH host mobile-mac in T3 Devices.')
+    print('Xcode and iPhone are ready. Add SSH host mobile-mac in T3 Devices.')
 
 
 if __name__ == '__main__':

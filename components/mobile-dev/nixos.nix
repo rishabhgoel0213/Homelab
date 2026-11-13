@@ -13,7 +13,7 @@ let
     '';
   });
   host = pkgs.writeText "mobile-device-host.json" (builtins.toJSON {
-    kind = "ssh"; id = "mobile-mac"; label = "MacBook iOS"; target = "mobile-mac";
+    kind = "ssh"; id = "mobile-mac"; label = "MacBook iOS"; target = "mobile-ios";
   });
 in {
   systemd.services.t3code-mobile-host = {
@@ -59,7 +59,9 @@ in {
     description = "Hackathon Mobile Expo Metro and web preview";
   };
   programs.ssh.extraConfig = ''
-    Host mobile-mac
+    Host mobile-ios
+      SetEnv T3_DEVICE_IOS_ONLY=1
+    Host mobile-mac mobile-ios
       HostName 100.105.159.13
       User rishabhgoel
       BatchMode yes
