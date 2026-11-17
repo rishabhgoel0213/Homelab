@@ -1,9 +1,16 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.homelab;
 in
 {
+  imports = [ ./mobile.nix ];
+
   config = lib.mkIf cfg.samba.enable {
     services.samba = {
       enable = true;
@@ -38,6 +45,16 @@ in
           "printing" = "bsd";
           "printcap name" = "/dev/null";
           "disable spoolss" = "yes";
+        };
+
+        Downloads = {
+          path = "/home/rishabh/Downloads";
+          comment = "Server Downloads (read only)";
+          "valid users" = "rishabh";
+          "read only" = "yes";
+          browseable = "yes";
+          "guest ok" = "no";
+          "follow symlinks" = "no";
         };
 
         Remote = {

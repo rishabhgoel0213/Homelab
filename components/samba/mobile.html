@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homelab files on Android</title>
+<style>
+body{font:17px/1.6 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:0 1.2rem;color:#182332;background:#f5f7fa}a{color:#154db4}li{margin:1rem 0}.download{display:inline-block;padding:.6rem 1rem;background:#154db4;color:white;border-radius:.5rem;text-decoration:none}
+</style>
+<h1>Homelab files on Android</h1>
+<p>Access server files over Tailscale from Android’s document picker.</p>
+<p><a class="download" href="cifs-documents-provider.apk">Download Android app</a></p>
+<p><a class="download" href="homelab.cifs">Download Homelab profile</a></p>
+<ol>
+<li>Connect Tailscale on your phone. Download and install the app above, allowing your browser to install it if Android asks.</li>
+<li>Download the Homelab profile. Open <strong>CIFS Documents Provider → Settings → Import settings</strong>.</li>
+<li>Enter the import password <strong>homelab</strong>, choose <strong>Append</strong>, and select <strong>homelab.cifs</strong>. This password only opens the credential-free profile.</li>
+<li>Edit each imported connection and enter your existing <strong>Samba password</strong>, then save. The server, username, share and SMB settings are already filled in.</li>
+<li>Open Android’s system file picker and select <strong>CIFS Documents Provider</strong> in the sidebar. Choose <strong>Homelab Downloads</strong> or <strong>Homelab Remote</strong>. You can open files directly or copy them to your phone using a file manager that supports document providers.</li>
+</ol>
+<p><strong>Downloads</strong> provides read-only access to the server’s <code>/home/rishabh/Downloads</code>. <strong>Remote</strong> is the existing read/write share.</p>
+<p>The app is the unmodified, upstream-signed <a href="https://github.com/wa2c/cifs-documents-provider/releases/tag/Ver.2.4.0">CIFS Documents Provider 2.4.0</a>. Importing the separate profile is a one-time setup. No account password is included in either download.</p>
+</html>
