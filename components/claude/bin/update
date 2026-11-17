@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
+exec python3 "$repo/components/claude/update.py" "${1:-latest}"

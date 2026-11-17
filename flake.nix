@@ -176,6 +176,22 @@
     in
     {
       checks.${system} = {
+        claude =
+          pkgs.runCommand "claude-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              ruff check ${./components/claude}
+              shellcheck ${./components/claude/bin/auto-update} ${./components/claude/bin/update} ${./components/claude/bin/publish-mac}
+              python3 ${./components/claude}/tests.py
+              touch "$out"
+            '';
+
         homelab-workflow =
           pkgs.runCommand "homelab-workflow-check"
             {
@@ -618,6 +634,7 @@
       packages.${system} = {
         codex = pkgs.callPackage ./components/codex/package.nix { };
         macbook-codex = macbookCodex;
+        macbook-claude = pkgs.callPackage ./components/claude/package.nix { target = "darwin-arm64"; };
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;

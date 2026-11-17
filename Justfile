@@ -292,3 +292,12 @@ qwen-image-stop:
 
 github-profile-sync:
     tools/sync-github-profile
+
+claude-update:
+    components/claude/bin/update
+
+claude-auto-update:
+    tools/admin components/claude/bin/auto-update
+
+claude-publish-mac:
+    tools/admin components/claude/bin/publish-mac

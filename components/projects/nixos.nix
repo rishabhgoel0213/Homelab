@@ -50,6 +50,7 @@ let
               "-C"
               "{project}"
             ];
+            claude = [ "/run/current-system/sw/bin/claude" ];
             pi = [ "/run/current-system/sw/bin/pi" ];
           }
         )

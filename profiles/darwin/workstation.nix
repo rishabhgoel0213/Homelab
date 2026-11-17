@@ -3,6 +3,7 @@
 {
   imports = [
     ../../components/codex/darwin.nix
+    ../../components/claude/darwin.nix
     ../../components/projects/darwin.nix
     ../../components/tabby/darwin.nix
     ../../components/vscodium/darwin.nix

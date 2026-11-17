@@ -6,6 +6,7 @@ root_dir="/srv/state/macbook-deploy/gcroots"
 cd "$repo"
 
 installables=(
+  .#packages.x86_64-linux.macbook-claude
   .#packages.x86_64-linux.macbook-codex
   .#packages.x86_64-linux.macbook-tabby-plugins
   .#packages.x86_64-linux.macbook-tabby
@@ -13,7 +14,7 @@ installables=(
   .#packages.x86_64-linux.macbook-firefox-cli
   .#packages.x86_64-linux.macbook-abstand
 )
-keys=(codex tabbyPlugins tabby zen firefoxCli abstand)
+keys=(claude codex tabbyPlugins tabby zen firefoxCli abstand)
 
 manifest_json="$(nix eval --impure --json --file "$repo/components/darwin-deploy/artifacts.nix")"
 "$repo/tools/admin" install -d -m 0755 -o "$(id -un)" -g "$(id -gn)" "$root_dir"

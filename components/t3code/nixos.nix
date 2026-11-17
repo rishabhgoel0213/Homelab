@@ -144,6 +144,8 @@ in
         ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
         JAVA_HOME = "${pkgs.jdk}";
         CODEX_HOME = homelab.paths.codexHome;
+        CLAUDE_CONFIG_DIR = "/srv/state/claude";
+        DISABLE_AUTOUPDATER = "1";
         EXPO_DEVICE_HUB_EMULATOR_EXTRA_ARGS = "-gpu swiftshader";
         HOME = homelab.paths.userHome;
         SHELL = "${pkgs.bash}/bin/bash";

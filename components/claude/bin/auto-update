@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
+exec "$repo/tools/auto-update" claude "${1:-latest}"

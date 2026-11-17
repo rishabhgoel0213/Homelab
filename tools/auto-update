@@ -5,7 +5,7 @@ if [[ -x /run/wrappers/bin/sudo ]]; then
   export PATH="/run/wrappers/bin:$PATH"
 fi
 
-component="${1:?Expected codex, pi, or t3code}"
+component="${1:?Expected codex, claude, pi, or t3code}"
 repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
 deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"
 update_user="${HOMELAB_UPDATE_USER:-rishabh}"
@@ -13,6 +13,7 @@ target="${2:-latest}"
 if [[ "$component" == t3code && $# -lt 2 ]]; then target=nightly; fi
 case "$component" in
   codex) files=(components/codex/release.nix components/darwin-deploy/artifacts.nix) ;;
+  claude) files=(components/claude/release.nix components/darwin-deploy/artifacts.nix) ;;
   pi) files=(components/pi/package.nix) ;;
   t3code) files=(components/t3code/package.nix) ;;
   *) echo "Unknown updater: $component" >&2; exit 1 ;;
@@ -68,6 +69,8 @@ fi
 if [[ "$component" == codex ]]; then
   sudo env CODEX_OPS_ROOT="$deployment" "$deployment/components/codex/bin/publish-mac"
   echo 'Mac output published; running Codex processes are not restarted.' >&2
+elif [[ "$component" == claude ]]; then
+  "$deployment/tools/admin" env CLAUDE_OPS_ROOT="$deployment" "$deployment/components/claude/bin/publish-mac"
 elif [[ "$component" == t3code ]]; then
   "$deployment/components/t3code/bin/doctor"
 fi
