@@ -33,9 +33,20 @@ defaults and the normal upstream Settings UI.
 
 The custom projectctl adapter, Pi provider, task UI, Jupyter editor integration,
 and private Android/Expo update service are removed from the deployment.
-Use upstream mobile clients. Add project paths in the standard T3 UI; projectctl
-continues independently. The old fork checkout is retained for recovery but is
-not a package input. Initial migration backups are under
+Use upstream mobile clients. Add project paths in the standard T3 UI or import
+an existing project from the server shell:
+
+```bash
+t3-project-import rdx-run2-analysis-v2
+```
+
+The command accepts a `projectctl` name, ID, or path and passes the resolved
+title and workspace root to upstream `t3 project add`. It registers one
+project per invocation. T3 reports an error if the workspace is already
+registered.
+
+The old fork checkout is retained for recovery but is not a package input.
+Initial migration backups are under
 `/srv/state/t3code-backups`.
 
 The initial fork conversion uses `bin/migrate-private-fork.py` with the service

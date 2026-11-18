@@ -10,6 +10,29 @@ let
   cfg = config.homelab.t3code;
   stateDir = homelab.paths.t3codeState;
   package = pkgs.callPackage ./package.nix { };
+  projectImport = pkgs.writeShellApplication {
+    name = "t3-project-import";
+    runtimeInputs = [ package pkgs.jq ];
+    text = ''
+      usage() {
+        echo "Usage: t3-project-import <project-name|id|path>"
+      }
+
+      if [[ $# -eq 1 && ( $1 == --help || $1 == -h ) ]]; then
+        usage
+        exit 0
+      fi
+      if [[ $# -ne 1 ]]; then
+        usage >&2
+        exit 2
+      fi
+
+      project="$(projectctl show --json -- "$1")"
+      title="$(jq -er '.title' <<< "$project")"
+      workspace="$(jq -er '.root' <<< "$project")"
+      exec t3 project add --base-dir ${lib.escapeShellArg stateDir} --title="$title" "$workspace"
+    '';
+  };
   deviceTools = pkgs.callPackage ./device-tools { t3Package = package; };
   deviceVersions = (builtins.fromJSON (builtins.readFile ./device-tools/package.json)).dependencies;
   androidSdk = (pkgs.androidenv.composeAndroidPackages {
@@ -71,7 +94,7 @@ in
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ package androidSdk deviceTools ];
+    environment.systemPackages = [ package androidSdk deviceTools projectImport ];
     nixpkgs.config.android_sdk.accept_license = true;
     # Upstream downloads version-matched Chrome and device helper binaries.
     programs.nix-ld.enable = true;
