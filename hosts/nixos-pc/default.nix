@@ -21,7 +21,6 @@
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
     ../../components/projects/nixos.nix
-    ../../components/umd-gradplan/nixos.nix
     ../../components/darwin-deploy/nixos.nix
     ../../platform/nixos/gpu.nix
     ../../components/remote-phone/nixos.nix
@@ -97,7 +96,6 @@
     jupyterlab.enable = true;
     blogSite.enable = true;
     projectPages.enable = true;
-    umdGradplan.enable = true;
     t3code.enable = true;
     syncthing.enable = true;
     singlemail.enable = true;
