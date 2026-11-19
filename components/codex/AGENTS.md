@@ -45,6 +45,11 @@ This Codex home is managed by Homelab. Edit this file in
   `singlemail code` or `singlemail links`. Promote the inbox before relying on
   it for account recovery. Never use Singlemail to evade bans, account limits,
   identity checks, or site terms.
+- The user's weekly to-do board is at https://tasks.internal.therealrishabh.com
+  (weeks run Sunday-Saturday). Use the `tasks` MCP tools, or the `tasks` CLI
+  (`tasks list`, `tasks add "fri: call dentist"`, `tasks call add_tasks
+  --arguments -`). Check the week first and do not change the user's tasks
+  unless asked.
 
 ## Codex Configuration
 

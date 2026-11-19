@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weekly Tasks</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='4' fill='%23f5d76e'/%3E%3Cpath d='M9 16l5 5 9-10' stroke='%23574a1c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --surface: #fbfaf6;
+  --lane: #ebe6da;
+  --ink: #26231d;
+  --muted: #736b5c;
+  --line: #d8d1c1;
+  --accent: #b7791f;
+  --accent-ink: #ffffff;
+  --note: #fff3b8;
+  --note-edge: #ecd97f;
+  --agent: #dff0ea;
+  --agent-edge: #a9d2c4;
+  --agent-ink: #2b6a58;
+  --done: #ece8de;
+  --shadow: 0 1px 1px rgb(60 50 20 / .08), 0 2px 6px rgb(60 50 20 / .07);
+  --today: #b7791f;
+  --danger: #b4412f;
+  --focus: #2f6fdb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #171613;
+    --surface: #211f1b;
+    --lane: #1e1c18;
+    --ink: #ece6d8;
+    --muted: #a39a88;
+    --line: #36322a;
+    --accent: #e0a64a;
+    --accent-ink: #1b1710;
+    --note: #3b3420;
+    --note-edge: #574c2a;
+    --agent: #1f3530;
+    --agent-edge: #2f5249;
+    --agent-ink: #8fd3bf;
+    --done: #24221d;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4);
+    --today: #e0a64a;
+    --danger: #e27a68;
+    --focus: #79a6ff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.wrap { max-width: 1600px; margin: 0 auto; padding: 20px 16px 48px; }
+
+header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px 20px; margin-bottom: 16px;
+}
+.heading h1 { font-size: 24px; line-height: 1.2; margin: 0; letter-spacing: -.01em; font-weight: 650; }
+.heading .sub { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; align-items: center; gap: 10px; }
+.meter { width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+nav { display: flex; gap: 6px; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 8px;
+  padding: 6px 12px; min-height: 36px; line-height: 1;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.icon { width: 36px; padding: 0; font-size: 18px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn[disabled] { opacity: .45; cursor: default; }
+
+.quick { display: flex; gap: 8px; margin-bottom: 14px; }
+.quick input {
+  flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 10px; padding: 10px 14px; font-size: 16px;
+}
+.quick input::placeholder { color: var(--muted); }
+
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; justify-content: space-between;
+  border: 1px dashed var(--accent); border-radius: 10px; padding: 8px 8px 8px 14px; margin-bottom: 14px;
+  color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.banner[hidden] { display: none; }
+
+.board { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .board { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); } }
+@media (min-width: 1200px) {
+  .board { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .lane.anytime { grid-column: 1 / -1; }
+  .lane.anytime ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+}
+.lane {
+  background: var(--lane); border-radius: 12px; padding: 10px; display: flex; flex-direction: column;
+  min-width: 0; border: 1px solid transparent; transition: border-color .15s, background .15s;
+}
+.lane.today { border-color: var(--today); }
+.lane.over { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 8%, var(--lane)); }
+.lane h2 {
+  margin: 2px 4px 10px; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+}
+.lane h2 .date { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.lane.today h2 .date { color: var(--today); font-weight: 650; }
+.lane ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-height: 8px; }
+.lane .add {
+  margin-top: 8px; border: 0; background: none; color: var(--muted); text-align: left; border-radius: 8px;
+  padding: 7px 6px; font-size: 14px;
+}
+.lane .add:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.lane .inline {
+  margin-top: 8px; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  padding: 8px 10px; font-size: 15px;
+}
+
+.note {
+  position: relative; display: flex; gap: 8px; align-items: flex-start;
+  background: var(--note); border: 1px solid var(--note-edge); border-radius: 6px 6px 10px 6px;
+  padding: 9px 10px; box-shadow: var(--shadow); cursor: grab; min-width: 0;
+}
+.note.agent { background: var(--agent); border-color: var(--agent-edge); }
+.note.done { background: var(--done); border-color: var(--line); box-shadow: none; }
+.note.done .title { text-decoration: line-through; color: var(--muted); }
+.note.dragging { opacity: .4; }
+.check {
+  flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%;
+  border: 1.5px solid currentColor; background: transparent; opacity: .55; padding: 0;
+  display: grid; place-items: center;
+}
+.check:hover { opacity: 1; }
+.note.done .check { background: var(--muted); border-color: var(--muted); opacity: 1; }
+.note.done .check::after {
+  content: ""; width: 9px; height: 5px; border: 2px solid var(--bg); border-top: 0; border-right: 0;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.note .body { flex: 1; min-width: 0; cursor: pointer; border: 0; background: none; padding: 0; text-align: left; }
+.note .title { overflow-wrap: anywhere; }
+.note .notes {
+  margin-top: 3px; font-size: 13px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.badge {
+  display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--agent-ink);
+  border: 1px solid var(--agent-edge); border-radius: 999px; padding: 0 6px; vertical-align: 1px;
+}
+.empty { color: var(--muted); font-size: 13px; padding: 2px 6px; }
+
+dialog {
+  border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--surface); color: var(--ink);
+  width: min(520px, calc(100vw - 32px)); box-shadow: 0 20px 50px rgb(0 0 0 / .25);
+}
+dialog::backdrop { background: rgb(20 18 12 / .45); }
+dialog form { padding: 18px; display: grid; gap: 12px; }
+dialog h3 { margin: 0; font-size: 16px; }
+dialog label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
+dialog input, dialog textarea, dialog select {
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 9px 10px; font-size: 15px;
+  color: var(--ink);
+}
+dialog textarea { min-height: 110px; resize: vertical; }
+dialog .row { display: flex; gap: 8px; flex-wrap: wrap; }
+dialog .row > label { flex: 1; min-width: 150px; }
+dialog .meta { font-size: 12px; color: var(--muted); }
+dialog .actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+dialog .actions div { display: flex; gap: 8px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+  padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 18px; text-align: center; }
+.hint kbd {
+  font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+  padding: 0 4px; background: var(--surface);
+}
+@media (max-width: 699px) { .hint { display: none; } .heading h1 { font-size: 21px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="heading">
+      <h1 id="title">This week</h1>
+      <div class="sub"><span id="progress">Loading…</span><span class="meter" aria-hidden="true"><i id="meter"></i></span></div>
+    </div>
+    <nav aria-label="Week">
+      <button class="btn icon" id="prev" title="Previous week ([)" aria-label="Previous week">‹</button>
+      <button class="btn" id="now" title="This week (t)">This week</button>
+      <button class="btn icon" id="next" title="Next week (])" aria-label="Next week">›</button>
+    </nav>
+  </header>
+
+  <form class="quick" id="quick" autocomplete="off">
+    <input id="quick-input" aria-label="Add a task" placeholder="Add a task — try “fri: call dentist” or “today: groceries”" maxlength="500">
+    <button class="btn primary" type="submit">Add</button>
+  </form>
+
+  <div class="banner" id="carry" hidden>
+    <span id="carry-text"></span>
+    <button class="btn" id="carry-btn" type="button">Bring them over</button>
+  </div>
+
+  <main class="board" id="board" aria-live="polite"></main>
+  <p class="hint"><kbd>/</kbd> add · <kbd>[</kbd> <kbd>]</kbd> change week · <kbd>t</kbd> this week · drag notes between days</p>
+</div>
+
+<dialog id="editor">
+  <form method="dialog" id="edit-form">
+    <h3>Edit task</h3>
+    <label>Task <input id="edit-title" required maxlength="500"></label>
+    <label>Notes <textarea id="edit-notes" maxlength="10000" placeholder="Details, links, context…"></textarea></label>
+    <div class="row">
+      <label>Day <select id="edit-day"></select></label>
+      <label>Week <select id="edit-week"></select></label>
+    </div>
+    <div class="meta" id="edit-meta"></div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="edit-delete">Delete</button>
+      <div>
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="save" id="edit-save">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const state = { week: null, board: null, rev: null, dragging: null, editing: null, busy: 0 };
+
+function fromISO(value) { const [y, m, d] = value.split("-").map(Number); return new Date(y, m - 1, d); }
+function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function addDays(value, n) { const d = fromISO(value); d.setDate(d.getDate() + n); return toISO(d); }
+const fmt = (value, opts) => fromISO(value).toLocaleDateString(undefined, opts);
+
+function toast(message) {
+  const el = $("toast"); el.textContent = message; el.classList.add("show");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+async function api(method, path, body) {
+  state.busy++;
+  try {
+    const res = await fetch(path, {
+      method, headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  } finally { state.busy--; }
+}
+
+async function load(week) {
+  try {
+    const board = await api("GET", `/api/week${week ? `?week=${encodeURIComponent(week)}` : ""}`);
+    state.board = board; state.week = board.week; state.rev = board.rev;
+    const url = new URL(location.href);
+    const current = board.week === weekOf(board.today);
+    if (current) url.searchParams.delete("week"); else url.searchParams.set("week", board.week);
+    history.replaceState(null, "", url);
+    render();
+  } catch (err) { toast(err.message); }
+}
+
+function weekOf(iso) { const d = fromISO(iso); return addDays(iso, -d.getDay()); }
+
+function render() {
+  const b = state.board;
+  const current = b.week === weekOf(b.today);
+  const span = `${fmt(b.week, { month: "short", day: "numeric" })} – ${fmt(b.week_end, { month: "short", day: "numeric", year: "numeric" })}`;
+  $("title").textContent = current ? `This week · ${span}` : `Week of ${span}`;
+  document.title = current ? "Weekly Tasks" : `Tasks · ${fmt(b.week, { month: "short", day: "numeric" })}`;
+  $("now").disabled = current;
+  const { total, done } = b.summary;
+  $("progress").textContent = total ? `${done} of ${total} done` : "Nothing planned yet";
+  $("meter").style.width = total ? `${(100 * done) / total}%` : "0";
+
+  const carry = b.previous_unfinished;
+  $("carry").hidden = !carry;
+  $("carry-text").textContent = `${carry} unfinished task${carry === 1 ? "" : "s"} from the week before.`;
+
+  const board = $("board");
+  board.replaceChildren();
+  board.append(lane(null, "This week", "Anytime", false));
+  for (const d of b.days) {
+    const label = fmt(d.date, { month: "short", day: "numeric" });
+    board.append(lane(d.day, d.name, d.date === b.today ? `Today · ${label}` : label, d.date === b.today));
+  }
+}
+
+function lane(day, name, dateLabel, isToday) {
+  const section = document.createElement("section");
+  section.className = `lane${day ? "" : " anytime"}${isToday ? " today" : ""}`;
+  section.dataset.day = day || "";
+  const h = document.createElement("h2");
+  const n = document.createElement("span"); n.textContent = name;
+  const dt = document.createElement("span"); dt.className = "date"; dt.textContent = dateLabel;
+  h.append(n, dt);
+  const list = document.createElement("ul");
+  const tasks = state.board.tasks.filter((t) => (t.day || null) === day)
+    .sort((a, b) => a.done - b.done || a.position - b.position);
+  for (const t of tasks) list.append(card(t));
+  if (!tasks.length) {
+    const e = document.createElement("li"); e.className = "empty";
+    e.textContent = day ? "—" : "Tasks without a set day go here";
+    list.append(e);
+  }
+  const add = document.createElement("button");
+  add.className = "add"; add.type = "button"; add.textContent = "+ Add";
+  add.addEventListener("click", () => inlineAdd(section, add, day));
+  section.append(h, list, add);
+  wireDrop(section, list, day);
+  return section;
+}
+
+function card(t) {
+  const li = document.createElement("li");
+  li.className = `note${t.source === "agent" ? " agent" : ""}${t.done ? " done" : ""}`;
+  li.dataset.id = t.id; li.draggable = true;
+  const check = document.createElement("button");
+  check.className = "check"; check.type = "button";
+  check.setAttribute("aria-label", t.done ? `Mark “${t.title}” not done` : `Mark “${t.title}” done`);
+  check.addEventListener("click", () => toggle(t));
+  const body = document.createElement("button");
+  body.className = "body"; body.type = "button";
+  const title = document.createElement("div"); title.className = "title"; title.textContent = t.title;
+  if (t.source === "agent") {
+    const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "agent";
+    badge.title = "Added by an agent"; title.append(badge);
+  }
+  body.append(title);
+  if (t.notes) { const n = document.createElement("div"); n.className = "notes"; n.textContent = t.notes; body.append(n); }
+  body.addEventListener("click", () => openEditor(t));
+  li.append(check, body);
+  li.addEventListener("dragstart", (e) => {
+    state.dragging = t.id; li.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", t.id);
+  });
+  li.addEventListener("dragend", () => { state.dragging = null; li.classList.remove("dragging"); clearOver(); });
+  return li;
+}
+
+function clearOver() { document.querySelectorAll(".lane.over").forEach((el) => el.classList.remove("over")); }
+
+function insertBefore(list, x, y) {
+  for (const el of list.querySelectorAll(".note:not(.dragging)")) {
+    const r = el.getBoundingClientRect();
+    if (y < r.top) return el;
+    if (y <= r.bottom && x < r.left + r.width / 2) return el;
+  }
+  return null;
+}
+
+function wireDrop(section, list, day) {
+  section.addEventListener("dragover", (e) => {
+    if (!state.dragging) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+    if (!section.classList.contains("over")) { clearOver(); section.classList.add("over"); }
+    const dragged = document.querySelector(`.note[data-id="${state.dragging}"]`);
+    const before = insertBefore(list, e.clientX, e.clientY);
+    list.querySelector(".empty")?.remove();
+    if (dragged && (dragged.parentElement !== list || dragged.nextSibling !== before)) list.insertBefore(dragged, before);
+  });
+  section.addEventListener("drop", async (e) => {
+    e.preventDefault(); clearOver();
+    if (!state.dragging) return;
+    const ids = [...list.querySelectorAll(".note")].map((el) => el.dataset.id);
+    state.dragging = null;
+    try {
+      const board = await api("POST", "/api/reorder", { week: state.week, day, ids });
+      state.board = board; state.rev = board.rev; render();
+    } catch (err) { toast(err.message); load(state.week); }
+  });
+}
+
+function inlineAdd(section, button, day) {
+  const input = document.createElement("input");
+  input.className = "inline"; input.maxLength = 500;
+  input.placeholder = day ? "New task — Enter to add" : "New task for this week";
+  button.replaceWith(input); input.focus();
+  let closing = false;
+  const close = () => { if (closing) return; closing = true; input.replaceWith(button); };
+  input.addEventListener("keydown", async (e) => {
+    if (e.key === "Escape") return close();
+    if (e.key !== "Enter" || !input.value.trim()) return;
+    e.preventDefault();
+    const title = input.value.trim(); input.value = "";
+    try {
+      await api("POST", "/api/tasks", { title, day, week: state.week });
+      await load(state.week);
+      const fresh = document.querySelector(`.lane[data-day="${day || ""}"] .add`);
+      fresh?.click();
+    } catch (err) { toast(err.message); }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 120));
+}
+
+async function toggle(t) {
+  try { await api("PATCH", `/api/tasks/${t.id}`, { done: !t.done }); await load(state.week); }
+  catch (err) { toast(err.message); }
+}
+
+function openEditor(t) {
+  state.editing = t;
+  $("edit-title").value = t.title;
+  $("edit-notes").value = t.notes;
+  const daySel = $("edit-day"); daySel.replaceChildren();
+  daySel.append(new Option("Anytime this week", ""));
+  state.board.days.forEach((d) => daySel.append(new Option(d.name, d.day)));
+  daySel.value = t.day || "";
+  const weekSel = $("edit-week"); weekSel.replaceChildren();
+  for (const offset of [-1, 0, 1, 2]) {
+    const w = addDays(state.week, 7 * offset);
+    const label = offset === 0 ? "This board's week" : offset === 1 ? "Next week" : offset === -1 ? "Previous week" : `Week of ${fmt(w, { month: "short", day: "numeric" })}`;
+    weekSel.append(new Option(label, w));
+  }
+  weekSel.value = t.week;
+  const who = t.source === "agent" ? "an agent" : "you";
+  const made = new Date(t.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  $("edit-meta").textContent = `Added by ${who} · ${made} · id ${t.id}`;
+  $("editor").showModal();
+  $("edit-title").focus();
+}
+
+$("editor").addEventListener("close", async () => {
+  const t = state.editing; state.editing = null;
+  if (!t || $("editor").returnValue !== "save") return;
+  const changes = {};
+  const title = $("edit-title").value.trim(), notes = $("edit-notes").value.trim();
+  const day = $("edit-day").value || null, week = $("edit-week").value;
+  if (title && title !== t.title) changes.title = title;
+  if (notes !== t.notes) changes.notes = notes;
+  if (day !== t.day || week !== t.week) { changes.day = day; changes.week = week; }
+  if (!Object.keys(changes).length) return;
+  try {
+    await api("PATCH", `/api/tasks/${t.id}`, changes);
+    if (week !== state.week) toast(`Moved to the week of ${fmt(week, { month: "short", day: "numeric" })}`);
+    await load(state.week);
+  } catch (err) { toast(err.message); }
+});
+
+$("edit-delete").addEventListener("click", async () => {
+  const t = state.editing;
+  if (!t || !confirm(`Delete “${t.title}”?`)) return;
+  state.editing = null; $("editor").close();
+  try { await api("DELETE", `/api/tasks/${t.id}`); toast("Task deleted"); await load(state.week); }
+  catch (err) { toast(err.message); }
+});
+
+$("quick").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("quick-input"), text = input.value.trim();
+  if (!text) return;
+  try {
+    const task = await api("POST", "/api/tasks", { text, week: state.week });
+    input.value = "";
+    if (task.week !== state.week) toast(`Added to the week of ${fmt(task.week, { month: "short", day: "numeric" })}`);
+    await load(state.week);
+  } catch (err) { toast(err.message); }
+});
+
+$("carry-btn").addEventListener("click", async () => {
+  try {
+    const r = await api("POST", "/api/carry", { from_week: addDays(state.week, -7), to_week: state.week });
+    toast(`Moved ${r.moved} task${r.moved === 1 ? "" : "s"} into this week`);
+    await load(state.week);
+  } catch (err) { toast(err.message); }
+});
+
+$("prev").addEventListener("click", () => load(addDays(state.week, -7)));
+$("next").addEventListener("click", () => load(addDays(state.week, 7)));
+$("now").addEventListener("click", () => load(null));
+
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || $("editor").open) return;
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  if (e.key === "/" || e.key === "n") { e.preventDefault(); $("quick-input").focus(); }
+  else if (e.key === "[") load(addDays(state.week, -7));
+  else if (e.key === "]") load(addDays(state.week, 7));
+  else if (e.key === "t") load(null);
+});
+
+async function poll() {
+  if (document.hidden || state.dragging || state.editing || state.busy || !state.week) return;
+  if (document.activeElement?.classList.contains("inline")) return;
+  try {
+    const { rev } = await api("GET", "/api/rev");
+    if (rev !== state.rev) await load(state.week);
+  } catch { /* offline; try again next tick */ }
+}
+setInterval(poll, 4000);
+document.addEventListener("visibilitychange", poll);
+
+load(new URLSearchParams(location.search).get("week"));
+</script>
+</body>
+</html>

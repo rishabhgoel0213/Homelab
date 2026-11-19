@@ -26,6 +26,14 @@ tool_timeout_sec = 30
 required = false
 default_tools_approval_mode = "auto"
 
+[mcp_servers.tasks]
+command = "/run/current-system/sw/bin/tasks"
+args = ["mcp"]
+startup_timeout_sec = 10
+tool_timeout_sec = 30
+required = false
+default_tools_approval_mode = "auto"
+
 [mcp_servers.zen-live]
 command = "/run/current-system/sw/bin/zen-live-devtools-mcp-remote"
 startup_timeout_sec = 60

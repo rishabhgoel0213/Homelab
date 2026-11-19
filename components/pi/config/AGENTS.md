@@ -15,6 +15,11 @@ home directory.
   `/home/rishabh/Projects`, and durable documents to `/home/rishabh/Documents`.
 - Edit and commit configuration in Homelab, then `just deploy` to push,
   fast-forward `/srv/ops`, and activate it. `/srv/state` remains runtime state.
+- The user's weekly to-do board is at https://tasks.internal.therealrishabh.com
+  (weeks run Sunday-Saturday). Use the `tasks` CLI
+  (`tasks list`, `tasks add "fri: call dentist"`, `tasks call add_tasks
+  --arguments -`). Check the week first and do not change the user's tasks
+  unless asked.
 
 ## Pi Configuration
 

@@ -17,6 +17,7 @@
     ../../components/codex/nixos.nix
     ../../components/claude/nixos.nix
     ../../components/codex-scheduler/nixos.nix
+    ../../components/tasks/nixos.nix
     ../../components/pi/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
@@ -100,6 +101,7 @@
     syncthing.enable = true;
     singlemail.enable = true;
     samba.enable = true;
+    tasks.enable = true;
   };
 
   system.stateVersion = "26.05";

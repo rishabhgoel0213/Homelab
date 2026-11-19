@@ -236,6 +236,24 @@
               touch "$out"
             '';
 
+        tasks =
+          pkgs.runCommand "tasks-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
+              ruff check ${./components/tasks/bin/tasks.py} ${./components/tasks/tests/test-tasks.py}
+              TASKS_SCRIPT=${./components/tasks/bin/tasks.py} \
+                TASKS_WEB_DIR=${./components/tasks/web} \
+                python3 ${./components/tasks/tests/test-tasks.py}
+              touch "$out"
+            '';
+
         codex-update =
           pkgs.runCommand "codex-update-check"
             {
