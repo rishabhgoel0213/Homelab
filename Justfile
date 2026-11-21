@@ -301,3 +301,12 @@ claude-auto-update:
 
 claude-publish-mac:
     tools/admin components/claude/bin/publish-mac
+
+antigravity-update:
+    components/antigravity/bin/update
+
+antigravity-auto-update:
+    tools/admin components/antigravity/bin/auto-update
+
+antigravity-publish-mac:
+    tools/admin components/antigravity/bin/publish-mac

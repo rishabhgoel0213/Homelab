@@ -192,6 +192,22 @@
               touch "$out"
             '';
 
+        antigravity =
+          pkgs.runCommand "antigravity-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              ruff check ${./components/antigravity}
+              shellcheck ${./components/antigravity/bin/auto-update} ${./components/antigravity/bin/update} ${./components/antigravity/bin/publish-mac}
+              python3 ${./components/antigravity}/tests.py
+              touch "$out"
+            '';
+
         homelab-workflow =
           pkgs.runCommand "homelab-workflow-check"
             {
@@ -653,6 +669,9 @@
         codex = pkgs.callPackage ./components/codex/package.nix { };
         macbook-codex = macbookCodex;
         macbook-claude = pkgs.callPackage ./components/claude/package.nix { target = "darwin-arm64"; };
+        macbook-antigravity = pkgs.callPackage ./components/antigravity/package.nix { target = "darwin-arm64"; };
+        antigravity-acp = pkgs.callPackage ./components/antigravity/acp-package.nix { };
+        t3code = pkgs.callPackage ./components/t3code/package.nix { };
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
