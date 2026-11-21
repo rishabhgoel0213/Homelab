@@ -40,7 +40,7 @@ in
     ];
     text = ''
       if [ -d ${paths.t3codeState}/userdata ]; then
-        ${runuser} ${pkgs.python3}/bin/python3 ${./t3-settings.py} ${paths.t3codeState}/userdata/settings.json
+        ${runuser} ${pkgs.python3}/bin/python3 ${./t3-settings.py} ${paths.t3codeState}/userdata/settings.json ${acp}/bin/agy-acp-server
       fi
     '';
   };

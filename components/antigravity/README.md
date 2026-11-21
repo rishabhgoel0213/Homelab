@@ -28,8 +28,9 @@ agy
 
 Follow the Google sign-in prompt in that terminal. In T3, open Settings →
 Providers → Antigravity and choose **Sign in with Google**. Activation enables
-the provider once and points it at `/run/current-system/sw/bin/agy-acp-server`;
-if you disable it in T3 later, activation leaves it disabled. No T3 restart is
+the provider once and points it at the ACP runtime's Nix store path, so T3
+re-probes after every runtime update; if you disable it in T3 later,
+activation leaves it disabled. No T3 restart is
 required.
 
 On the Mac, run `agy` and sign in separately. Credentials are not copied between

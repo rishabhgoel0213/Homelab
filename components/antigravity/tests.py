@@ -74,15 +74,15 @@ with tempfile.TemporaryDirectory() as temporary:
     settings = Path(temporary) / "settings.json"
     settings.write_text(json.dumps({"idleCompaction": True, "providerInstances": {
         "claudeAgent": {"driver": "claudeAgent", "config": {"binaryPath": "/bin/claude"}},
-        "antigravity": {"driver": "antigravity", "config": {"enabled": False, "authMethod": "gemini-api-key"}},
+        "antigravity": {"driver": "antigravity", "enabled": False, "config": {"authMethod": "gemini-api-key"}},
     }}))
-    subprocess.run(["python3", str(root / "t3-settings.py"), str(settings)], check=True)
+    subprocess.run(["python3", str(root / "t3-settings.py"), str(settings), "/nix/store/acp/bin/agy-acp-server"], check=True)
     merged = json.loads(settings.read_text())
     assert merged["idleCompaction"] is True
     assert merged["providerInstances"]["claudeAgent"]["config"] == {"binaryPath": "/bin/claude"}
-    assert merged["providerInstances"]["antigravity"]["config"] == {
-        "enabled": False, "authMethod": "gemini-api-key", "binaryPath": "/run/current-system/sw/bin/agy-acp-server"}
+    assert merged["providerInstances"]["antigravity"] == {"driver": "antigravity", "enabled": False, "config": {
+        "authMethod": "gemini-api-key", "binaryPath": "/nix/store/acp/bin/agy-acp-server"}}
     settings.write_text("{}")
-    subprocess.run(["python3", str(root / "t3-settings.py"), str(settings)], check=True)
+    subprocess.run(["python3", str(root / "t3-settings.py"), str(settings), "/nix/store/acp/bin/agy-acp-server"], check=True)
     assert json.loads(settings.read_text())["providerInstances"]["antigravity"] == {
-        "driver": "antigravity", "config": {"enabled": True, "binaryPath": "/run/current-system/sw/bin/agy-acp-server"}}
+        "driver": "antigravity", "enabled": True, "config": {"binaryPath": "/nix/store/acp/bin/agy-acp-server"}}
