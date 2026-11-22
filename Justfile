@@ -238,9 +238,6 @@ matrix-whatsapp-logs:
 matrix-gmessages-logs:
     journalctl -u mautrix-gmessages.service -f
 
-matrix-instagram-logs:
-    journalctl -u mautrix-instagram.service -f
-
 matrix-imessage-proxy-logs:
     journalctl -u mautrix-wsproxy.service -f
 

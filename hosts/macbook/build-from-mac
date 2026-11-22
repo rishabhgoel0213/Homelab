@@ -90,7 +90,6 @@ trap 'rm -rf "$empty_source"' EXIT
 
 flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}&shallow=1"
 tabby="path:${empty_source}"
-mautrix="path:${empty_source}"
 
 case "$target" in
   tabby-source)
@@ -107,5 +106,4 @@ echo "Building committed $installable locally without activation" >&2
   --no-link \
   --print-out-paths \
   --override-input tabby-terminal "$tabby" \
-  --override-input mautrix-meta-homelab "$mautrix" \
   "$installable"
