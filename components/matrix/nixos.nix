@@ -50,7 +50,7 @@ let
 
   yaml = pkgs.formats.yaml { };
   whatsappPackage = pkgs.mautrix-whatsapp.override { withGoolm = true; };
-  gmessagesPackage = pkgs.mautrix-gmessages.override { withGoolm = true; };
+  gmessagesPackage = pkgs.callPackage ./mautrix-gmessages-package.nix { withGoolm = true; };
   imessageWsproxyPackage = pkgs.callPackage ./mautrix-wsproxy-package.nix { };
   whatsappConfig = yaml.generate "mautrix-whatsapp.yaml" {
     network = {
