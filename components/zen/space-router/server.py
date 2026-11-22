@@ -340,7 +340,6 @@ class JevRouter:
             url=url,
             title=title,
             opener_url=opener_url,
-            current_space_name=current_space_name,
             criteria=criteria,
         )
 
@@ -365,10 +364,17 @@ class JevRouter:
                 started=started,
             )
 
-        ttl = self.page_cache_ttl if is_page_key else self.host_cache_ttl
-        self.cache.set(cache_key, parsed_decision, ttl_seconds=ttl)
+        is_confident = (
+            parsed_decision["confidence"] >= self.min_confidence
+            and parsed_decision["shouldMove"] >= self.min_should_move
+        )
+        if is_confident or title:
+            ttl = self.page_cache_ttl if is_page_key else self.host_cache_ttl
+            if not is_confident:
+                ttl = min(ttl, 60.0)
+            self.cache.set(cache_key, parsed_decision, ttl_seconds=ttl)
 
-        return self._finalize_decision(
+        result = self._finalize_decision(
             decision=parsed_decision,
             by_name=by_name,
             current_space_id=current_space_id,
@@ -377,6 +383,18 @@ class JevRouter:
             started=started,
             payload=payload,
         )
+        LOG.info(
+            "route host=%s from=%s target=%s action=%s reason=%s conf=%.2f move=%.2f ms=%.1f",
+            normalize_host(urlparse(url).hostname or ""),
+            current_space_name or "-",
+            result.get("targetSpaceName") or "-",
+            result["action"],
+            result["reason"],
+            result["confidence"],
+            result["shouldMove"],
+            result["latencyMs"],
+        )
+        return result
 
     @staticmethod
     def _normalize_spaces(raw_spaces: Any) -> list[dict[str, str]]:
@@ -401,7 +419,6 @@ class JevRouter:
         url: str,
         title: str,
         opener_url: str,
-        current_space_name: str,
         criteria: dict[str, str],
     ) -> dict[str, Any]:
         parsed = urlparse(url)
@@ -409,14 +426,13 @@ class JevRouter:
             "url": url[:512],
             "host": normalize_host(parsed.hostname or ""),
             "path": (parsed.path or "/")[:256],
-            "title": title[:256],
         }
+        if title:
+            state["title"] = title[:256]
         if opener_url:
             opener_parsed = urlparse(opener_url)
             state["opener_host"] = normalize_host(opener_parsed.hostname or "")
             state["opener_url"] = opener_url[:256]
-        if current_space_name:
-            state["current_space"] = current_space_name
 
         return {
             "model": self.model,
@@ -426,24 +442,30 @@ class JevRouter:
                     "type": "choice",
                     "instructions": (
                         "Which browser Space best organizes this newly opened tab "
-                        "based on its URL, host, path, and page title?"
+                        "based on its URL, host, path, and optional page title?"
                     ),
                     "criteria": criteria,
                 },
                 "should_move": {
                     "type": "noul",
                     "instructions": (
-                        "Is this a substantive destination page that clearly belongs "
-                        "to a specific Space rather than a transient/auth/helper page?"
+                        "Should this tab be organized into its target browser Space? "
+                        "Answer true for any normal website, homepage, portal, dashboard, "
+                        "web app, internal homelab service, document, video, or repository, "
+                        "even when the path is '/' or the page title is absent. "
+                        "Answer false ONLY for temporary login/SSO/OAuth/2FA interstitials, "
+                        "captchas, payment checkout popups, or browser error redirects."
                     ),
                     "criteria": {
                         "true": (
-                            "A real webpage, app, document, video, repo, or portal "
-                            "whose topic clearly identifies which Space it belongs in."
+                            "A normal website, homepage, portal, dashboard, web app, "
+                            "internal/self-hosted service, article, search, video, or repo "
+                            "that a user opens to visit or use (including root '/' URLs "
+                            "and tabs whose title has not loaded yet)."
                         ),
                         "false": (
-                            "A login/SSO/2FA/OAuth page, payment/checkout popup, "
-                            "blank or loading stub, or completely ambiguous page."
+                            "ONLY a transient authentication/SSO/2FA/OAuth redirect, "
+                            "login-only gate, captcha challenge, or payment checkout popup."
                         ),
                     },
                 },

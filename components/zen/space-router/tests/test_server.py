@@ -268,6 +268,45 @@ class TestZenSpaceRouter(unittest.TestCase):
             httpd.server_close()
             thread.join(timeout=2.0)
 
+    def test_empty_title_omitted_and_uncertain_not_cached(self) -> None:
+        client = FakeHTTPClient(
+            [
+                make_jev_answer("School", 0.99, 0.40),
+                make_jev_answer("School", 0.99, 0.96),
+            ]
+        )
+        router = MOD.JevRouter("test-key", http_client=client)
+
+        first = router.route(
+            {
+                "url": "https://umd.instructure.com/",
+                "title": "",
+                "currentSpaceId": "{apps}",
+                "currentSpaceName": "Apps",
+                "spaces": SPACES,
+            }
+        )
+        self.assertEqual(first["action"], "stay")
+        self.assertEqual(first["reason"], "low_should_move")
+        sent_state = client.calls[0]["json"]["state"]
+        self.assertNotIn("title", sent_state)
+        self.assertNotIn("current_space", sent_state)
+        self.assertEqual(len(router.cache), 0)
+
+        second = router.route(
+            {
+                "url": "https://umd.instructure.com/",
+                "title": "Dashboard",
+                "currentSpaceId": "{apps}",
+                "currentSpaceName": "Apps",
+                "spaces": SPACES,
+            }
+        )
+        self.assertEqual(second["action"], "move")
+        self.assertEqual(second["targetSpaceId"], "{school}")
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(len(router.cache), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
