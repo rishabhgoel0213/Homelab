@@ -98,6 +98,13 @@ in
           group = "root";
           mode = "0444";
         };
+      }
+      // lib.optionalAttrs cfg.zenSpaceRouter.enable {
+        "jev-api-key" = {
+          owner = "root";
+          group = "root";
+          mode = "0400";
+        };
       };
     };
   };

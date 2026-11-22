@@ -52,6 +52,7 @@
     ../../components/syncthing/nixos.nix
     ../../components/singlemail/nixos.nix
     ../../components/samba/nixos.nix
+    ../../components/zen/space-router/nixos.nix
 
     ../../routes
   ];
@@ -103,6 +104,7 @@
     singlemail.enable = true;
     samba.enable = true;
     tasks.enable = true;
+    zenSpaceRouter.enable = true;
   };
 
   system.stateVersion = "26.05";

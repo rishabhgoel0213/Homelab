@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Zen Space Router</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Zen Space Router</h1>
+      <span id="health-pill" class="pill pill-muted">Checking…</span>
+    </div>
+    <label class="switch" title="Enable automatic Space routing">
+      <input type="checkbox" id="toggle-enabled">
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <section class="controls">
+    <label class="checkbox-row">
+      <input type="checkbox" id="toggle-follow">
+      <span>Follow active tab into target Space</span>
+    </label>
+    <div class="button-row">
+      <button id="btn-route-now" class="primary">Route Current Tab</button>
+      <button id="btn-clear-cache" class="secondary">Clear Cache</button>
+    </div>
+    <div id="action-status" class="status-line"></div>
+  </section>
+
+  <section class="card" id="pin-section" hidden>
+    <div class="section-head">
+      <span>Pin Current Host</span>
+      <code id="active-host"></code>
+    </div>
+    <div class="pin-row">
+      <select id="pin-space-select"></select>
+      <button id="btn-pin-host" class="secondary">Save</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <span>Recent Decisions</span>
+      <button id="btn-clear-history" class="link-btn">Clear</button>
+    </div>
+    <ul id="history-list" class="history-list"></ul>
+  </section>
+
+  <details class="card">
+    <summary>Space Criteria &amp; Thresholds</summary>
+    <div class="thresholds">
+      <label>
+        <span>Min confidence</span>
+        <input id="input-min-confidence" type="number" min="0.1" max="0.99" step="0.05">
+      </label>
+      <label>
+        <span>Min should-move</span>
+        <input id="input-min-should-move" type="number" min="0.1" max="0.99" step="0.05">
+      </label>
+    </div>
+    <div id="criteria-container" class="criteria-list"></div>
+    <div class="button-row">
+      <button id="btn-save-criteria" class="primary">Save Criteria</button>
+    </div>
+  </details>
+
+  <script src="popup.js"></script>
+</body>
+</html>

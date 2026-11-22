@@ -658,6 +658,38 @@
                 python3 ${./components/remote-phone/tests/test-remote-phone-mic.py}
               touch "$out"
             '';
+
+        zen-space-router =
+          let
+            pythonWithHttpx = pkgs.python3.withPackages (ps: [
+              ps.httpx
+              ps.h2
+            ]);
+            xpiPkg = pkgs.callPackage ./components/zen/space-router/package.nix { };
+          in
+          pkgs.runCommand "zen-space-router-check"
+            {
+              nativeBuildInputs = [
+                pkgs.jq
+                pkgs.nodejs_24
+                pkgs.ruff
+                pkgs.unzip
+                pythonWithHttpx
+              ];
+            }
+            ''
+              ruff check ${./components/zen/space-router/server.py} ${./components/zen/space-router/tests/test_server.py}
+              python3 -m py_compile ${./components/zen/space-router/server.py}
+              ZEN_SPACE_ROUTER_SCRIPT=${./components/zen/space-router/server.py} \
+                python3 ${./components/zen/space-router/tests/test_server.py}
+              jq empty ${./components/zen/space-router/extension/manifest.json}
+              jq empty ${./components/zen/space-router/extension/experiment/schema.json}
+              node --check ${./components/zen/space-router/extension/experiment/api.js}
+              node --check ${./components/zen/space-router/extension/background.js}
+              node --check ${./components/zen/space-router/extension/popup.js}
+              unzip -t "${xpiPkg}/share/zen-space-router/zen-space-router.xpi" >/dev/null
+              touch "$out"
+            '';
       };
 
       packages.${system} = {

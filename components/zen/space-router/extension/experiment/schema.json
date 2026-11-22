@@ -1,0 +1,59 @@
+[
+  {
+    "namespace": "zenSpaces",
+    "description": "Internal bridge to Zen Browser workspace management.",
+    "functions": [
+      {
+        "name": "getSpaces",
+        "type": "function",
+        "async": true,
+        "description": "Return all Zen Spaces for a browser window.",
+        "parameters": [
+          {
+            "name": "windowId",
+            "type": "integer",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "getTabContext",
+        "type": "function",
+        "async": true,
+        "description": "Inspect Zen workspace metadata for a given tab.",
+        "parameters": [
+          {
+            "name": "tabId",
+            "type": "integer"
+          },
+          {
+            "name": "url",
+            "type": "string",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "moveTabToSpace",
+        "type": "function",
+        "async": true,
+        "description": "Move a tab into the target Zen Space.",
+        "parameters": [
+          {
+            "name": "tabId",
+            "type": "integer"
+          },
+          {
+            "name": "targetWorkspaceId",
+            "type": "string"
+          },
+          {
+            "name": "followIfSelected",
+            "type": "boolean",
+            "optional": true
+          }
+        ]
+      }
+    ]
+  }
+]

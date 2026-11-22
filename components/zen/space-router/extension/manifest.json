@@ -1,0 +1,39 @@
+{
+  "manifest_version": 2,
+  "name": "Zen Space Router",
+  "version": "1.0.0",
+  "description": "Automatically organizes new tabs into Zen Spaces using Jev.",
+  "icons": {
+    "48": "icon.svg",
+    "96": "icon.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "zen-space-router@homelab.internal",
+      "strict_min_version": "128.0"
+    }
+  },
+  "permissions": [
+    "tabs",
+    "storage",
+    "https://zen-router.internal.therealrishabh.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_title": "Zen Space Router",
+    "default_icon": "icon.svg",
+    "default_popup": "popup.html"
+  },
+  "experiment_apis": {
+    "zenSpaces": {
+      "schema": "experiment/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["zenSpaces"]],
+        "script": "experiment/api.js"
+      }
+    }
+  }
+}
