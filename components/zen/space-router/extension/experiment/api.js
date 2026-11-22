@@ -41,6 +41,15 @@ function resolveNativeTab(extension, tabId) {
   return null;
 }
 
+function resolveTabWindow(tab) {
+  return (
+    tab?.documentGlobal ||
+    tab?.ownerDocument?.defaultView ||
+    tab?.ownerGlobal ||
+    null
+  );
+}
+
 this.zenSpaces = class extends ExtensionAPI {
   getAPI(context) {
     const { extension } = context;
@@ -69,7 +78,7 @@ this.zenSpaces = class extends ExtensionAPI {
           if (!tab || !tab.isConnected) {
             return { found: false };
           }
-          const win = tab.ownerGlobal;
+          const win = resolveTabWindow(tab);
           const zw = win?.gZenWorkspaces;
           const workspaceId =
             tab.getAttribute("zen-workspace-id") || zw?.activeWorkspace || "";
@@ -110,7 +119,7 @@ this.zenSpaces = class extends ExtensionAPI {
             return { moved: false, reason: "tab_not_found" };
           }
 
-          const win = tab.ownerGlobal;
+          const win = resolveTabWindow(tab);
           const zw = win?.gZenWorkspaces;
           const gBrowser = win?.gBrowser;
           if (!zw || !gBrowser || typeof zw.moveTabToWorkspace !== "function") {
@@ -149,16 +158,26 @@ this.zenSpaces = class extends ExtensionAPI {
           }
 
           const wasSelected = Boolean(tab.selected);
+          const fallbackOriginTab = wasSelected
+            ? (tab.owner &&
+              tab.owner.isConnected &&
+              tab.owner.getAttribute("zen-workspace-id") === currentWorkspaceId
+                ? tab.owner
+                : Array.from(zw.allStoredTabs || []).find(
+                    candidate =>
+                      candidate !== tab &&
+                      candidate.isConnected &&
+                      candidate.getAttribute("zen-workspace-id") ===
+                        currentWorkspaceId &&
+                      !candidate.hasAttribute("zen-empty-tab") &&
+                      !candidate.hasAttribute("zen-essential")
+                  )) || null
+            : null;
 
           // Mirror Zen's own ZenSpaceRoutingNavigation handoff so moving the
           // selected tab leaves a valid tab selected in the origin Space.
-          if (
-            wasSelected &&
-            tab.owner &&
-            tab.owner.isConnected &&
-            tab.owner.getAttribute("zen-workspace-id") === currentWorkspaceId
-          ) {
-            gBrowser.selectedTab = tab.owner;
+          if (wasSelected && fallbackOriginTab) {
+            gBrowser.selectedTab = fallbackOriginTab;
           }
 
           zw.moveTabToWorkspace(tab, targetWorkspaceId);
@@ -176,16 +195,8 @@ this.zenSpaces = class extends ExtensionAPI {
               gBrowser.selectedTab = tab;
             }
           } else if (wasSelected && !followIfSelected) {
-            const remaining = Array.from(zw.allStoredTabs || []).find(
-              candidate =>
-                candidate !== tab &&
-                candidate.isConnected &&
-                candidate.getAttribute("zen-workspace-id") === currentWorkspaceId &&
-                !candidate.hasAttribute("zen-empty-tab") &&
-                !candidate.hasAttribute("zen-essential")
-            );
-            if (remaining) {
-              gBrowser.selectedTab = remaining;
+            if (fallbackOriginTab && fallbackOriginTab.isConnected) {
+              gBrowser.selectedTab = fallbackOriginTab;
             } else if (typeof zw.selectEmptyTab === "function") {
               zw.selectEmptyTab();
             }

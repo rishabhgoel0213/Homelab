@@ -2,9 +2,39 @@
 
 const ROUTER_BASE_URL = "https://zen-router.internal.therealrishabh.com";
 const STARTUP_GRACE_MS = 4000;
-const TITLE_DEBOUNCE_MS = 300;
+const TITLE_DEBOUNCE_MS = 150;
+const MULTI_TOPIC_TITLE_DEBOUNCE_MS = 1200;
 const REQUEST_TIMEOUT_MS = 2500;
 const MAX_HISTORY_ENTRIES = 25;
+
+const MULTI_TOPIC_HOSTS = new Set([
+  "youtube.com",
+  "youtu.be",
+  "m.youtube.com",
+  "docs.google.com",
+  "drive.google.com",
+  "sheets.google.com",
+  "slides.google.com",
+  "github.com",
+  "gitlab.com",
+  "reddit.com",
+  "old.reddit.com",
+  "notion.so",
+  "chatgpt.com",
+  "claude.ai",
+  "gemini.google.com",
+  "google.com",
+  "bing.com",
+  "duckduckgo.com",
+  "wikipedia.org",
+  "en.wikipedia.org",
+  "arxiv.org",
+  "medium.com",
+  "substack.com",
+  "x.com",
+  "twitter.com",
+  "linkedin.com",
+]);
 
 const DEFAULT_SETTINGS = {
   enabled: true,
@@ -340,7 +370,25 @@ function clearPendingTimer(entry) {
   }
 }
 
-function scheduleRoutingForPendingTab(tabId, entry, immediate) {
+function isMultiTopicHost(host) {
+  if (!host) {
+    return false;
+  }
+  if (MULTI_TOPIC_HOSTS.has(host)) {
+    return true;
+  }
+  if (host.endsWith(".internal.therealrishabh.com")) {
+    return false;
+  }
+  for (const item of MULTI_TOPIC_HOSTS) {
+    if (host.endsWith(`.${item}`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function scheduleRoutingForPendingTab(tabId, entry, immediate, host = "") {
   clearPendingTimer(entry);
   const run = () => {
     const latest = pendingTabs.get(tabId);
@@ -355,7 +403,10 @@ function scheduleRoutingForPendingTab(tabId, entry, immediate) {
   if (immediate) {
     run();
   } else {
-    entry.timer = setTimeout(run, TITLE_DEBOUNCE_MS);
+    const delayMs = isMultiTopicHost(host)
+      ? MULTI_TOPIC_TITLE_DEBOUNCE_MS
+      : TITLE_DEBOUNCE_MS;
+    entry.timer = setTimeout(run, delayMs);
   }
 }
 
@@ -390,9 +441,15 @@ browser.tabs.onCreated.addListener(async tab => {
 
   // If the tab already has a routable HTTP(S) URL at creation (e.g., external link
   // or middle-click), arm the short debounce timer right away.
-  if (tab.url && normalizeHost(tab.url)) {
+  const host = tab.url ? normalizeHost(tab.url) : null;
+  if (host) {
     const hasTitle = isInformativeTitle(tab.title, tab.url);
-    scheduleRoutingForPendingTab(tab.id, entry, hasTitle || tab.status === "complete");
+    scheduleRoutingForPendingTab(
+      tab.id,
+      entry,
+      hasTitle || tab.status === "complete",
+      host
+    );
   }
 });
 
@@ -406,7 +463,8 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 
   const url = changeInfo.url || tab.url;
-  if (!url || !normalizeHost(url)) {
+  const host = url ? normalizeHost(url) : null;
+  if (!host) {
     return;
   }
 
@@ -415,9 +473,9 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const isComplete = changeInfo.status === "complete" || tab.status === "complete";
 
   if (hasGoodTitle || isComplete) {
-    scheduleRoutingForPendingTab(tabId, entry, true);
+    scheduleRoutingForPendingTab(tabId, entry, true, host);
   } else if (!entry.timer) {
-    scheduleRoutingForPendingTab(tabId, entry, false);
+    scheduleRoutingForPendingTab(tabId, entry, false, host);
   }
 });
 
