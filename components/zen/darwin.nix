@@ -73,9 +73,10 @@ in
       chown -h rishabhgoel:staff "$native_host_manifest"
     '';
 
-    # Mozilla supports macOS enterprise policy through this system preference
-    # domain. Keeping policy outside Zen.app preserves the vendor signature.
-    system.defaults.CustomSystemPreferences."/Library/Preferences/org.mozilla.firefox" = {
+    # Gecko's macOS enterprise policy reader queries NSUserDefaults for the
+    # app's own CFBundleIdentifier (app.zen-browser.zen), keeping policy
+    # outside Zen.app so the vendor signature remains intact.
+    system.defaults.CustomSystemPreferences."/Library/Preferences/app.zen-browser.zen" = {
       EnterprisePoliciesEnabled = true;
       DisableAppUpdate = true;
       Preferences = {
@@ -99,6 +100,7 @@ in
         "zen-space-router@homelab.internal" = {
           installation_mode = "force_installed";
           install_url = "file://${zenSpaceRouterExtension}/share/zen-space-router/zen-space-router.xpi";
+          default_area = "navbar";
         };
       };
     };

@@ -56,7 +56,7 @@ in
     # Gecko can leave web-content accessibility inactive after a browser launch.
     # Abstand reads that tree to identify sites; macOS Accessibility permission
     # alone does not ensure it is available. Keep it enabled while Workmode is on.
-    system.defaults.CustomSystemPreferences."/Library/Preferences/org.mozilla.firefox".Preferences."accessibility.force_disabled" =
+    system.defaults.CustomSystemPreferences."/Library/Preferences/app.zen-browser.zen".Preferences."accessibility.force_disabled" =
       {
         Value = -1;
         Status = "locked";
