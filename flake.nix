@@ -630,6 +630,7 @@
               nativeBuildInputs = [
                 pkgs.shellcheck
                 pkgs.python3
+                pkgs.ruff
                 pkgs.bash
                 pkgs.coreutils
                 pkgs.jq
@@ -637,9 +638,13 @@
               ];
             }
             ''
-              shellcheck ${./components/t3code/bin/update} ${./components/t3code/bin/auto-update} ${./components/t3code/bin/doctor}
+              export PYTHONDONTWRITEBYTECODE=1
+              shellcheck ${./components/t3code/bin/update} ${./components/t3code/bin/auto-update} ${./components/t3code/bin/doctor} ${./components/t3code/bin/publish-mac}
+              ruff check ${./components/t3code/mac-client.py} ${./components/t3code/tests/mac_client.py}
               T3CODE_UPDATE_SCRIPT=${./components/t3code/bin/update} \
                 python3 ${./components/t3code/tests/update.py}
+              T3CODE_MAC_CLIENT=${./components/t3code/mac-client.py} \
+                python3 ${./components/t3code/tests/mac_client.py}
               touch "$out"
             '';
 
@@ -699,6 +704,7 @@
         macbook-antigravity = pkgs.callPackage ./components/antigravity/package.nix { target = "darwin-arm64"; };
         antigravity-acp = pkgs.callPackage ./components/antigravity/acp-package.nix { };
         t3code = pkgs.callPackage ./components/t3code/package.nix { };
+        macbook-t3code = pkgs.callPackage ./components/t3code/package.nix { target = "darwin-arm64"; };
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;

@@ -4,6 +4,7 @@ set -euo pipefail
 repo="${T3CODE_OPS_ROOT:-/home/rishabh/Projects/Homelab}"
 host="${HOST:-nixos-pc}"
 package_file="${T3CODE_PACKAGE_FILE:-$repo/components/t3code/package.nix}"
+manifest_file="${T3CODE_ARTIFACT_FILE:-$repo/components/darwin-deploy/artifacts.nix}"
 target="${1:-nightly}"
 
 if [[ "$target" == nightly ]]; then
@@ -29,30 +30,45 @@ apk_name="$(jq -er '[.assets[] | select(.name | test("^t3code-android-[A-Za-z0-9
 apk_url="https://github.com/pingdotgg/t3code/releases/download/v$version/$apk_name"
 apk_hash="$(nix store prefetch-file --json "$apk_url" | jq -er .hash)"
 [[ "$apk_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
-url="https://github.com/pingdotgg/t3code/releases/download/v$version/t3-$version-linux-x64.tar.gz"
-src_hash="$(nix store prefetch-file --json "$url" | jq -er .hash)"
-[[ "$src_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
-backup="$(mktemp)"
-cp -- "$package_file" "$backup"
+linux_url="https://github.com/pingdotgg/t3code/releases/download/v$version/t3-$version-linux-x64.tar.gz"
+linux_hash="$(nix store prefetch-file --json "$linux_url" | jq -er .hash)"
+[[ "$linux_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
+mac_url="https://github.com/pingdotgg/t3code/releases/download/v$version/t3-$version-darwin-arm64.tar.gz"
+mac_hash="$(nix store prefetch-file --json "$mac_url" | jq -er .hash)"
+[[ "$mac_hash" =~ ^sha256-[A-Za-z0-9+/]{43}=$ ]] || exit 1
+
+backup_pkg="$(mktemp)"
+backup_manifest="$(mktemp)"
+cp -- "$package_file" "$backup_pkg"
+cp -- "$manifest_file" "$backup_manifest"
 succeeded=0
 restore_on_failure() {
   status=$?
   if [[ "$succeeded" -ne 1 ]]; then
-    cp -- "$backup" "$package_file"
-    echo "T3 Code build failed; restored previous pin." >&2
+    cp -- "$backup_pkg" "$package_file"
+    cp -- "$backup_manifest" "$manifest_file"
+    echo "T3 Code build failed; restored previous pins." >&2
   fi
-  rm -f -- "$backup"
+  rm -f -- "$backup_pkg" "$backup_manifest"
   exit "$status"
 }
 trap restore_on_failure EXIT
 perl -0pi -e \
   "s{version = \"[^\"]+\";}{version = \"$version\";};
-   s{hash = \"sha256-[^\"]+\";}{hash = \"$src_hash\";};
+   s{linuxHash = \"sha256-[^\"]+\";}{linuxHash = \"$linux_hash\";};
+   s{macHash = \"sha256-[^\"]+\";}{macHash = \"$mac_hash\";};
    s{mobileApkName = \"[^\"]+\";}{mobileApkName = \"$apk_name\";};
    s{mobileApkHash = \"sha256-[^\"]+\";}{mobileApkHash = \"$apk_hash\";}" "$package_file"
+mac_output="$(cd "$repo" && nix build --impure --no-link --print-out-paths .#macbook-t3code)"
+if [[ ! "$mac_output" =~ ^/nix/store/[a-z0-9]{32}-t3code-darwin-[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}\.[0-9]+$ ]]; then
+  echo "Unexpected Mac T3 Code package output: $mac_output" >&2
+  exit 1
+fi
+T3CODE_MAC_OUTPUT="$mac_output" perl -0pi -e \
+  's{t3code = "[^"]+";}{t3code = "$ENV{T3CODE_MAC_OUTPUT}";};' "$manifest_file"
 (
   cd "$repo"
   nix build --impure --no-link ".#nixosConfigurations.$host.config.system.build.toplevel"
 )
 succeeded=1
-echo "T3 Code server and Android APK pins updated to nightly $version." >&2
+echo "T3 Code Linux, Mac, and Android APK pins updated to nightly $version." >&2

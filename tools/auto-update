@@ -16,7 +16,7 @@ case "$component" in
   claude) files=(components/claude/release.nix components/darwin-deploy/artifacts.nix) ;;
   antigravity) files=(components/antigravity/release.nix components/darwin-deploy/artifacts.nix) ;;
   pi) files=(components/pi/package.nix) ;;
-  t3code) files=(components/t3code/package.nix) ;;
+  t3code) files=(components/t3code/package.nix components/darwin-deploy/artifacts.nix) ;;
   *) echo "Unknown updater: $component" >&2; exit 1 ;;
 esac
 # Run Git and release edits as the checkout owner, including from systemd.
@@ -75,5 +75,6 @@ elif [[ "$component" == claude ]]; then
 elif [[ "$component" == antigravity ]]; then
   "$deployment/tools/admin" env ANTIGRAVITY_OPS_ROOT="$deployment" "$deployment/components/antigravity/bin/publish-mac"
 elif [[ "$component" == t3code ]]; then
+  "$deployment/tools/admin" env T3CODE_OPS_ROOT="$deployment" "$deployment/components/t3code/bin/publish-mac"
   "$deployment/components/t3code/bin/doctor"
 fi

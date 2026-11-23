@@ -266,6 +266,9 @@ t3code-update target="nightly":
 t3code-auto-update:
     components/t3code/bin/auto-update
 
+t3code-publish-mac:
+    tools/admin components/t3code/bin/publish-mac
+
 local-model-fetch model:
     tools/admin systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"
 

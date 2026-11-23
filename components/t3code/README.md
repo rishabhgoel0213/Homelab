@@ -152,3 +152,43 @@ match the pinned T3 binary. When a future nightly changes those versions, update
 In T3 Settings → Integrations → Devices, enable the local Android host. Agent device access
 is a separate setting that takes effect in a new agent session. The existing
 private T3 HTTPS route carries the device panel; do not expose adb publicly.
+
+## MacBook backend server and multidevice linking
+
+`components/t3code/darwin.nix` (imported by `profiles/darwin/workstation.nix` and enabled via
+`homelab.t3code.enable = true` in `hosts/macbook/default.nix`) deploys the official `darwin-arm64`
+T3 Code server and CLI on the MacBook so T3 Code's multidevice and linked-environment features
+work directly without relying on SSH.
+
+- **Packaging and signed updates:** `package.nix` builds `.#macbook-t3code` on `nixos-pc` with
+  `dontFixup = true` to preserve upstream's macOS code signature and pins the store path in
+  `components/darwin-deploy/artifacts.nix`. `just t3code-update` advances the Linux, Mac, and
+  Android APK pins together. `just t3code-auto-update` (and `just t3code-publish-mac`) signs and
+  publishes the Mac package to `/srv/state/t3code-mac-release/current.json`. On the MacBook, the
+  `com.therealrishabh.t3code-update` LaunchAgent checks every 30 minutes, verifies the Nix
+  signature and `codesign --verify --strict`, and atomically updates its user profile without
+  interrupting active sessions. Run `t3code-restart` on the MacBook when ready to restart the
+  server onto a newly downloaded nightly.
+- **Runtime service and state:** The `com.therealrishabh.t3code` LaunchAgent runs `t3code-server`,
+  which binds strictly to loopback (`127.0.0.1:3773`) with `T3CODE_HOME=~/.local/state/t3code`
+  (keeping the backend isolated from any stale `~/.t3` state and free of spaces in worktree paths).
+  Package profiles and logs live under `~/Library/Application Support/Homelab/t3code`. Activation
+  links the Nix-managed iOS-only `agent-device` and `expo-device-hub` helpers into
+  `~/.local/state/t3code/tools/` and keeps `/opt/homebrew/bin` out of the service `PATH` so a
+  standalone Homebrew `adb` does not trigger broken Android SDK probes.
+- **Tailscale Serve HTTPS:** By default `t3code-server` passes `--tailscale-serve` on HTTPS port
+  443, publishing the loopback backend exclusively on the tailnet at
+  `https://macbook.tail2f4d27.ts.net` (leaving the existing HTTP port 80 Serve route untouched).
+- **Activation and pairing:**
+  1. Deploy the MacBook configuration explicitly with `MACBOOK_DEPLOY_CONFIRM=deploy just darwin-deploy`.
+  2. On the MacBook, verify the server and mint a pairing code:
+     ```bash
+     t3 status
+     t3 pair --tailscale
+     ```
+  3. Add `https://macbook.tail2f4d27.ts.net` directly from the T3 mobile/web UI, or link the two
+     servers so agents on `nixos-pc` can delegate directly to the MacBook environment:
+     ```bash
+     t3 environment link --base-dir /srv/state/t3code https://macbook.tail2f4d27.ts.net
+     ```
+

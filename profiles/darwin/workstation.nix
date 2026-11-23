@@ -5,6 +5,7 @@
     ../../components/codex/darwin.nix
     ../../components/claude/darwin.nix
     ../../components/antigravity/darwin.nix
+    ../../components/t3code/darwin.nix
     ../../components/projects/darwin.nix
     ../../components/tabby/darwin.nix
     ../../components/vscodium/darwin.nix
