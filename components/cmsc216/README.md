@@ -63,12 +63,19 @@ cmsc216 next-project
 cmsc216 auth
 cmsc216 auth-status
 cmsc216 sync
+cmsc216 pull
 cmsc216 test
 cmsc216 test make test
 cmsc216 shell
 cmsc216 auth-clear
 cmsc216 exam-check
 ```
+
+`cmsc216 pull` (aliased as `cmsc216 reverse-sync`) downloads files from
+Zaratan's `~/216-sync` directory back into the local
+`~/Projects/fall-2026/cmsc216` workspace without deleting local files. Like
+`cmsc216 sync`, it excludes `.DS_Store`, `.git/`, `.vscode/`, and
+`.cmsc216-sftp-backups/`. The editor also offers **Pull from Zaratan**.
 
 `cmsc216 next-lab` reads the public course schedule and follows lab-page links
 to find the lowest-numbered lab not already present in the local course root.
@@ -105,7 +112,7 @@ the complete exam rules.
 
 `homelab.coursework.cmsc216.remoteEnvironment` defaults to `"course"`.
 The Mac host currently selects `"system"` to bypass the stalled CVMFS software
-filesystem. After redeployment, the existing sync, run, test, shell, and doctor
+filesystem. After redeployment, the existing sync, pull, run, test, shell, and doctor
 commands use a clean remote environment with `/usr/bin:/bin`. The shell skips
 login/startup files so the course modules are not loaded again. File permissions
 remain private (`umask 077`) and test concurrency remains `PARALLEL=8`.

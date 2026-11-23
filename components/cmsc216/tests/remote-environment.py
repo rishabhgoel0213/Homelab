@@ -105,7 +105,7 @@ class RemoteEnvironmentTests(unittest.TestCase):
         result = self.execute_polluted(command + " --server --sender . 'directory with spaces'")
         self.assertEqual(result.stdout.splitlines(), ["--server", "--sender", ".", "directory with spaces"])
 
-    def test_sync_uses_isolated_rsync(self):
+    def capture_rsync(self, action, mode="system"):
         rsync = self.root / "rsync"
         log = self.root / "rsync-args"
         rsync.write_text('#!' + BASH + '\nprintf "%s\\n" "$@" > "$RSYNC_LOG"\n')
@@ -113,15 +113,51 @@ class RemoteEnvironmentTests(unittest.TestCase):
         ssh = self.root / "ssh"
         ssh.write_text("#!" + BASH + "\nexit 0\n")
         ssh.chmod(0o755)
-        subprocess.run(["bash", CLI, "sync"], check=True, capture_output=True,
-                       env=dict(self.env, HOME=str(self.root / "home"),
-                                PATH=str(self.root) + ":" + os.environ["PATH"],
-                                CMSC216_SSH_BIN=str(ssh), RSYNC_LOG=str(log)))
-        remote = next(arg.removeprefix("--rsync-path=") for arg in log.read_text().splitlines()
+        env = dict(self.env, HOME=str(self.root / "home"),
+                   CMSC216_REMOTE_ROOT="/home/test-user/216-sync",
+                   CMSC216_REMOTE_ENVIRONMENT=mode,
+                   PATH=str(self.root) + ":" + os.environ["PATH"],
+                   CMSC216_SSH_BIN=str(ssh), RSYNC_LOG=str(log))
+        subprocess.run(["bash", CLI, action], check=True, capture_output=True, env=env)
+        return log.read_text().splitlines()
+
+    def test_sync_uses_isolated_rsync(self):
+        args = self.capture_rsync("sync")
+        remote = next(arg.removeprefix("--rsync-path=") for arg in args
                       if arg.startswith("--rsync-path="))
         self.assertIn("env -i", remote)
         self.assertIn("rsync", remote)
-        self.assertNotIn("--delete", log.read_text().splitlines())
+        self.assertNotIn("--delete", args)
+        self.assertEqual(args[-2:], [f"{self.directory}/", "cmsc216-zaratan:/home/test-user/216-sync/"])
+
+    def test_pull_uses_isolated_rsync_from_zaratan_to_local(self):
+        for action in ("pull", "reverse-sync"):
+            with self.subTest(action=action):
+                args = self.capture_rsync(action)
+                remote = next(arg.removeprefix("--rsync-path=") for arg in args
+                              if arg.startswith("--rsync-path="))
+                self.assertIn("env -i", remote)
+                self.assertIn("rsync", remote)
+                self.assertNotIn("--delete", args)
+                for excluded in (".DS_Store", ".git/", ".vscode/", ".cmsc216-sftp-backups/"):
+                    self.assertIn(f"--exclude={excluded}", args)
+                self.assertEqual(args[-2:], ["cmsc216-zaratan:/home/test-user/216-sync/", f"{self.directory}/"])
+
+    def test_pull_uses_plain_rsync_in_course_mode(self):
+        args = self.capture_rsync("pull", mode="course")
+        remote = next(arg.removeprefix("--rsync-path=") for arg in args
+                      if arg.startswith("--rsync-path="))
+        self.assertEqual(remote, "rsync")
+        self.assertNotIn("--delete", args)
+        self.assertEqual(args[-2:], ["cmsc216-zaratan:/home/test-user/216-sync/", f"{self.directory}/"])
+
+    def test_sync_and_pull_reject_extra_arguments(self):
+        for action in ("sync", "pull", "reverse-sync"):
+            with self.subTest(action=action):
+                result = subprocess.run(["bash", CLI, action, "unexpected"],
+                                        env=self.env, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("usage: cmsc216 ", result.stderr)
 
 
 if __name__ == "__main__":

@@ -142,6 +142,10 @@ let
                 args = [ "sync" ];
               }
               {
+                label = "CMSC 216: Pull from Zaratan";
+                args = [ "pull" ];
+              }
+              {
                 label = "CMSC 216: Test on Zaratan";
                 args = [ "test" ];
               }

@@ -41,6 +41,7 @@ Commands:
   next-lab        Download the next missing published lab ZIP
   next-project    Download the next missing published project ZIP
   sync             Upload the course workspace without deleting remote files
+  pull             Download the course workspace without deleting local files
   shell            Open a login shell in Zaratan's ~/216-sync
   run COMMAND...   Sync, then run COMMAND in the matching Zaratan directory
   test [COMMAND]   Sync, then run COMMAND (default: make test) on Zaratan
@@ -189,11 +190,10 @@ build_remote_command() {
   wrap_remote_command "$command_text"
 }
 
-sync_to_zaratan() {
-  ensure_local_directories
-  ensure_authenticated
+run_rsync() {
+  local source="$1"
+  local destination="$2"
 
-  note "Uploading $sync_root to $ssh_alias:$CMSC216_REMOTE_ROOT without remote deletion."
   rsync \
     --archive \
     --compress \
@@ -205,7 +205,23 @@ sync_to_zaratan() {
     --exclude=.cmsc216-sftp-backups/ \
     --rsync-path="$(remote_rsync_command)" \
     --rsh="$ssh_bin" \
-    "$sync_root/" "$ssh_alias:$CMSC216_REMOTE_ROOT/"
+    "$source" "$destination"
+}
+
+sync_to_zaratan() {
+  ensure_local_directories
+  ensure_authenticated
+
+  note "Uploading $sync_root to $ssh_alias:$CMSC216_REMOTE_ROOT without remote deletion."
+  run_rsync "$sync_root/" "$ssh_alias:$CMSC216_REMOTE_ROOT/"
+}
+
+sync_from_zaratan() {
+  ensure_local_directories
+  ensure_authenticated
+
+  note "Downloading $ssh_alias:$CMSC216_REMOTE_ROOT to $sync_root without local deletion."
+  run_rsync "$ssh_alias:$CMSC216_REMOTE_ROOT/" "$sync_root/"
 }
 
 run_remote() {
@@ -393,7 +409,12 @@ case "$command" in
     auth_clear
     ;;
   sync)
+    [[ "$#" -eq 0 ]] || die "usage: cmsc216 sync"
     sync_to_zaratan
+    ;;
+  pull|reverse-sync)
+    [[ "$#" -eq 0 ]] || die "usage: cmsc216 pull"
+    sync_from_zaratan
     ;;
   shell)
     ensure_local_directories

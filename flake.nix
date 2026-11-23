@@ -464,7 +464,7 @@
                 ${cmsc216CheckPackages.workspace} >/dev/null
               jq -e '.extensions.unwantedRecommendations | index("PhilipDaoud.sftp-neo") != null' \
                 ${cmsc216CheckPackages.workspace} >/dev/null
-              jq -e '[.tasks.tasks[].args[0]] | contains(["auth", "auth-status", "auth-clear", "sync", "test", "shell", "run", "format", "exam-check"])' \
+              jq -e '[.tasks.tasks[].args[0]] | contains(["auth", "auth-status", "auth-clear", "sync", "pull", "test", "shell", "run", "format", "exam-check"])' \
                 ${cmsc216CheckPackages.workspace} >/dev/null
 
               fingerprint="$(ssh-keygen -lf ${./components/cmsc216/config/zaratan-known-hosts} -E sha256 | awk '{print $2}')"
