@@ -254,3 +254,12 @@ antigravity-auto-update:
 
 antigravity-publish-mac:
     tools/admin components/antigravity/bin/publish-mac
+
+apple-dev-status:
+    apple-dev status --mac
+
+apple-dev-archive:
+    apple-dev archive
+
+apple-dev-verify:
+    apple-dev verify

@@ -50,6 +50,10 @@ This Codex home is managed by Homelab. Edit this file in
   (`canvas-bridge courses`, `canvas-bridge upcoming`, `canvas-bridge outline
   <course-id>`, `canvas-bridge docs`, `canvas-bridge doc`, `canvas-bridge
   search <query>`, `canvas-bridge sync`).
+- Use the shared CLIs on `PATH` instead of Codex-specific plugins: `gh`
+  (GitHub), `cfctl`/`wrangler` (Cloudflare), `gog` (Gmail/Calendar/Drive/Docs/
+  Sheets — never send email or delete/modify files or events without explicit
+  confirmation), and `apple-dev` (on-demand Mac Xcode/iOS Simulator cache).
 
 ## Codex Configuration
 

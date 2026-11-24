@@ -107,3 +107,14 @@
   (`canvas-bridge courses`, `canvas-bridge upcoming`, `canvas-bridge outline
   <course-id>`, `canvas-bridge docs`, `canvas-bridge doc`, `canvas-bridge
   search <query>`, `canvas-bridge sync`).
+- Harness-neutral external CLIs available on `PATH` for all agents:
+  - GitHub: `gh` (authenticated as `rishabhgoel0213`).
+  - Cloudflare: `cfctl`, `wrangler`, `flarectl`.
+  - Google Workspace (Gmail, Calendar, Drive, Docs, Sheets): `gog`
+    (`gog gmail search`, `gog calendar events`, `gog drive ls`, etc., with
+    `--json` for scripting; state in `/srv/state/google-workspace`). Read
+    freely when asked; never send email, trash/delete Drive files, or modify
+    Calendar events without explicit user confirmation.
+  - On-demand Mac Xcode & iOS Simulator cache: `apple-dev` (`status`,
+    `archive`, `verify`, `purge`, `hydrate`; server cache in
+    `/var/cache/apple-dev`).

@@ -17,6 +17,8 @@
     ../../components/codex/nixos.nix
     ../../components/claude/nixos.nix
     ../../components/antigravity/nixos.nix
+    ../../components/google-workspace/nixos.nix
+    ../../components/apple-dev/nixos.nix
     ../../components/tasks/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix

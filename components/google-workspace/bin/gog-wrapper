@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${GOG_STATE_DIR:-/srv/state/google-workspace}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$state_dir/config}"
+export GOG_KEYRING_BACKEND="${GOG_KEYRING_BACKEND:-file}"
+
+if [[ "$GOG_KEYRING_BACKEND" == "file" && -z "${GOG_KEYRING_PASSWORD+x}" ]]; then
+  key_file="$state_dir/keyring.key"
+  if [[ ! -s "$key_file" ]]; then
+    install -d -m 0700 "$state_dir" "$XDG_CONFIG_HOME"
+    (
+      umask 077
+      tmp_key="$(mktemp "$state_dir/.keyring.key.XXXXXX")"
+      od -An -tx1 -N32 /dev/urandom | tr -d ' \n' >"$tmp_key"
+      printf '\n' >>"$tmp_key"
+      chmod 0600 "$tmp_key"
+      if [[ ! -s "$key_file" ]]; then
+        mv "$tmp_key" "$key_file"
+      else
+        rm -f "$tmp_key"
+      fi
+    )
+  fi
+  GOG_KEYRING_PASSWORD="$(<"$key_file")"
+  export GOG_KEYRING_PASSWORD
+fi
+
+if [[ -z "${GOG_ACCOUNT+x}" && -r "$state_dir/default-account" ]]; then
+  default_account="$(awk '!/^[[:space:]]*(#|$)/ { gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print; exit }' "$state_dir/default-account")"
+  if [[ -n "$default_account" ]]; then
+    export GOG_ACCOUNT="$default_account"
+  fi
+fi
+
+real_bin="${GOG_REAL_BIN:?GOG_REAL_BIN must be set}"
+exec "$real_bin" "$@"

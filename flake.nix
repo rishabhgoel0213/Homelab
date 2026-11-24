@@ -531,6 +531,44 @@
               unzip -t "${xpiPkg}/share/zen-space-router/zen-space-router.xpi" >/dev/null
               touch "$out"
             '';
+
+        google-workspace =
+          pkgs.runCommand "google-workspace-check"
+            {
+              nativeBuildInputs = [
+                pkgs.bash
+                pkgs.coreutils
+                pkgs.gawk
+                pkgs.python3
+                pkgs.ruff
+                pkgs.shellcheck
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              shellcheck ${./components/google-workspace/bin/gog-wrapper}
+              ruff check ${./components/google-workspace/tests.py}
+              GOG_WRAPPER_SCRIPT=${./components/google-workspace/bin/gog-wrapper} \
+                python3 ${./components/google-workspace/tests.py}
+              touch "$out"
+            '';
+
+        apple-dev =
+          pkgs.runCommand "apple-dev-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              ruff check ${./components/apple-dev/apple-dev.py} ${./components/apple-dev/tests.py}
+              python3 -m py_compile ${./components/apple-dev/apple-dev.py}
+              APPLE_DEV_SCRIPT=${./components/apple-dev/apple-dev.py} \
+                python3 ${./components/apple-dev/tests.py}
+              touch "$out"
+            '';
       };
 
       packages.${system} = {
