@@ -69,7 +69,6 @@
       macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
       macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
-      macbookFirefoxCli = pkgs.callPackage ./components/zen/firefox-cli/archive.nix { };
       macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
       macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
       darwinTabbyPrebuilt = darwinPkgs.callPackage ./components/tabby/prebuilt-package.nix {
@@ -78,13 +77,9 @@
       darwinZenPrebuilt = darwinPkgs.callPackage ./components/zen/prebuilt-package.nix {
         archive = macbookArtifacts.zen;
       };
-      darwinFirefoxCli = darwinPkgs.callPackage ./components/zen/firefox-cli/package.nix {
-        archive = macbookArtifacts.firefoxCli;
-      };
       macbookPackages = {
         tabby = darwinTabbyPrebuilt;
         zen = darwinZenPrebuilt;
-        firefoxCli = darwinFirefoxCli;
       };
       darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
         src = inputs.tabby-terminal;
@@ -167,7 +162,6 @@
       vscodiumRemoteActivationScript = pkgs.writeShellScript "vscodium-remote-activation-check" (
         self.nixosConfigurations.nixos-pc.config.system.activationScripts.vscodiumRemoteExtensions.text
       );
-      firefoxDevtoolsMcp = pkgs.callPackage ./components/zen/devtools-mcp/package.nix { };
     in
     {
       checks.${system} = {
@@ -229,23 +223,6 @@
             '';
         asmhelp = pkgs.callPackage ./components/asmhelp/package.nix { };
         micro = pkgs.callPackage ./components/micro/package.nix { };
-
-        codex-scheduler =
-          pkgs.runCommand "codex-scheduler-check"
-            {
-              nativeBuildInputs = [
-                pkgs.python3
-                pkgs.ruff
-              ];
-            }
-            ''
-              export PYTHONDONTWRITEBYTECODE=1
-              export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
-              ruff check ${./components/codex-scheduler/bin/codex-scheduler.py} ${./components/codex-scheduler/tests/test-scheduler.py}
-              CODEX_SCHEDULER_SCRIPT=${./components/codex-scheduler/bin/codex-scheduler.py} \
-                python3 ${./components/codex-scheduler/tests/test-scheduler.py}
-              touch "$out"
-            '';
 
         tasks =
           pkgs.runCommand "tasks-check"
@@ -311,21 +288,8 @@
           python3 ${./components/workmode}/test_brick.py
           python3 ${./components/workmode}/test_workmode.py
           python3 ${./components/workmode}/workmode.py --config ${./components/workmode/profiles.json} validate
-          touch "$out"
+          touch $out
         '';
-
-        firefox-devtools-mcp =
-          pkgs.runCommand "firefox-devtools-mcp-check"
-            {
-              nativeBuildInputs = [ firefoxDevtoolsMcp ];
-            }
-            ''
-              test "$(firefox-devtools-mcp --version)" = "0.10.2"
-              firefox-devtools-mcp --help | grep -Fq -- "--toolPreset"
-              firefox-devtools-mcp --help | grep -Fq -- "--connectExisting"
-              firefox-devtools-mcp --help | grep -Fq -- "--marionettePort"
-              touch "$out"
-            '';
 
         vscodium =
           pkgs.runCommand "vscodium-check"
@@ -708,7 +672,6 @@
         macbook-tabby-plugins = macbookTabbyPlugins;
         macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
-        macbook-firefox-cli = macbookFirefoxCli;
         macbook-abstand = pkgs.callPackage ./components/workmode/archive.nix { };
       };
 
@@ -724,7 +687,6 @@
         vscodium-local =
           self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.local.package;
         zen = darwinZenPrebuilt;
-        firefox-cli = darwinFirefoxCli;
         macbook-system = self.darwinConfigurations.macbook.system;
       };
 

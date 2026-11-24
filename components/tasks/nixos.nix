@@ -28,7 +28,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # The CLI and MCP server open the same SQLite database directly as rishabh.
+    # The CLI and web server open the same SQLite database directly as rishabh.
     environment.systemPackages = [ tasks ];
 
     systemd.tmpfiles.rules = [

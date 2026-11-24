@@ -20,20 +20,20 @@ need rsync
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$ssh_bin}"
 
 case "$target" in
-  codex|tabby-plugins|firefox-cli|tabby|zen|tabby-source|macbook-system)
+  codex|tabby-plugins|tabby|zen|tabby-source|macbook-system)
     ;;
   system)
     target="macbook-system"
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, firefox-cli, tabby, zen, tabby-source, macbook-system" >&2
+    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, macbook-system" >&2
     exit 2
     ;;
 esac
 
 case "$target" in
-  codex|tabby-plugins|firefox-cli)
+  codex|tabby-plugins)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
       "$ssh_bin" "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'

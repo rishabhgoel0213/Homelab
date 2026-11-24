@@ -7,7 +7,7 @@ Edit all paths below through the corresponding files in
 `/srv/ops` paths describe the deployed copies; do not edit that checkout.
 
 ```text
-/srv/ops/components/codex      desired Codex config and plugin source
+/srv/ops/components/codex      desired Codex config
 /srv/state/codex    live Codex runtime state
 ```
 
@@ -16,14 +16,6 @@ The systemd service uses the Nix-provided `codex` package and sets
 
 Codex-owned implementation caches can include paths such as
 `/srv/state/codex/.tmp/plugins/.agents`. That is acceptable as runtime state.
-The ops repository carries only the local plugin marketplace source at
-`/srv/ops/components/codex/.agents/plugins/marketplace.json`.
-
-The `homelab-local` marketplace registration is declared in
-`/srv/ops/components/codex/config/server.toml`. Keep it there rather than registering it only in
-the live Codex home: service startup replaces the runtime config from the
-repo-owned copy, and the Apps UI cannot enumerate local plugins without the
-marketplace registration even when their cached tools still work.
 
 Useful commands:
 
@@ -46,15 +38,12 @@ them from an older SOPS snapshot can restore an already-used token and force a
 new login.
 
 `codex-bootstrap` seeds config, restores auth from `/run/secrets` only when the
-corresponding runtime file is missing or empty, registers the local plugin
-marketplace, and installs enabled plugins declared in
-`/srv/ops/components/codex/config/server.toml`. The curated Cloudflare plugin owns the Cloudflare
-API MCP server.
+corresponding runtime file is missing or empty, and installs enabled curated
+plugins declared in `/srv/ops/components/codex/config/server.toml`. The curated
+Cloudflare plugin owns the Cloudflare API MCP server.
 
-Durable MCP integrations should normally be wrapped as plugins in
-`/srv/ops/components/codex/plugins` and exposed through the `homelab-local` marketplace.
-Top-level `[mcp_servers.*]` config is reserved for short-lived experiments or
-cases where a plugin wrapper would add no durable value.
+Prefer plain CLIs over harness-specific MCP servers or local plugins so every
+agent harness shares the same tools.
 
 `just codex-update` pins the complete official Linux and provisioned Mac
 release archives in Homelab's `components/codex/release.nix` to the latest

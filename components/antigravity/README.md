@@ -72,11 +72,11 @@ the only update path.
 
 ## MCP and rules
 
-`~/.gemini/config/mcp_config.json` is merged from Codex's checked-in
-`mcp_servers` and the UMD Canvas plugin's `.mcp.json`, like Claude's. Stdio
-servers keep `command`/`args`/`env`; HTTP servers use `serverUrl`/`headers`.
-Codex-only policy keys are omitted. The shared agent policy is installed as the
-global rule `~/.gemini/config/AGENTS.md`. The Mac gets neither, matching Claude.
+Homelab tools (`tasks`, `canvas-bridge`) are exposed as plain CLIs rather than
+MCP servers. Activation prunes retired Homelab-managed entries from
+`~/.gemini/config/mcp_config.json` while keeping any user-configured servers
+intact. The shared agent policy is installed as the global rule
+`~/.gemini/config/AGENTS.md`. The Mac gets neither, matching Claude.
 
 Checks: `just check`, Linux system build, `just darwin-eval`, native CLI probes.
 End-to-end model requests require Google sign-in.

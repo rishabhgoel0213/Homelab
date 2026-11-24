@@ -59,18 +59,6 @@ rendered = update.render({"linux": update.cli_release("linux", linux), "mac": ("
 assert 'version = "1.5.14";' in rendered.splitlines()[1] and 'acpVersion = "1.4.5";' in rendered
 
 with tempfile.TemporaryDirectory() as temporary:
-    config = Path(temporary) / "config.toml"
-    plugin = Path(temporary) / ".mcp.json"
-    config.write_text('[mcp_servers.local]\ncommand="/bin/tool"\nargs=["mcp"]\nrequired=false\n[mcp_servers.off]\ncommand="off"\nenabled=false\n[mcp_servers.remote]\nurl="https://example.com/mcp"\nhttp_headers={A="b"}\n')
-    plugin.write_text(json.dumps({"mcpServers": {"canvas": {"command": "/bin/canvas"}}}))
-    translated = json.loads(subprocess.check_output(["python3", str(root / "mcp.py"), str(config), str(plugin)], text=True))
-    assert translated == {"mcpServers": {
-        "local": {"command": "/bin/tool", "args": ["mcp"]},
-        "remote": {"serverUrl": "https://example.com/mcp", "headers": {"A": "b"}},
-        "canvas": {"command": "/bin/canvas"},
-    }}
-
-with tempfile.TemporaryDirectory() as temporary:
     settings = Path(temporary) / "settings.json"
     settings.write_text(json.dumps({"idleCompaction": True, "providerInstances": {
         "claudeAgent": {"driver": "claudeAgent", "config": {"binaryPath": "/bin/claude"}},

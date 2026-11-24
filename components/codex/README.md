@@ -29,13 +29,9 @@ they do not require sudo or replace running Codex processes.
 - `AGENTS.md` is the Codex-specific guidance seeded into `/srv/state/codex`.
   It points server-aware chats at the deployed harness-neutral policy under
   `/etc/agents` and at durable projects under `/home/rishabh/Projects`.
-- `plugins/` is reserved for local plugin source owned by this repository.
-- `.agents/plugins/marketplace.json` is the repo-local Codex plugin marketplace
-  used by bootstrap for Homelab-owned plugins.
 
-Prefer wrapping durable MCP integrations as local plugins instead of adding
-top-level `mcp_servers` entries. Use direct MCP config only for short-lived
-experiments or when a plugin wrapper would add no durable value.
+Prefer plain CLIs (`tasks`, `canvas-bridge`, etc.) over harness-specific MCP
+servers or local Codex plugins so every agent harness shares the same tools.
 
 Live Codex state, sessions, caches, auth materialization, and installed plugin
 artifacts belong under `/srv/state/codex`.

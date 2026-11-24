@@ -6,9 +6,6 @@ let
   # agy always uses $HOME/.gemini; keep that home in managed state like Claude's.
   stateDir = "${paths.stateRoot}/antigravity";
   geminiHome = "${paths.userHome}/.gemini";
-  mcp = pkgs.runCommand "antigravity-mcp.json" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-    python3 ${./mcp.py} ${../codex/config/server.toml} ${../codex/plugins/umd-canvas/.mcp.json} > "$out"
-  '';
   runuser = "${pkgs.util-linux}/bin/runuser -u rishabh --";
 in
 {
@@ -30,7 +27,7 @@ in
         echo "warning: ${geminiHome} is not a link to ${stateDir}; agy will not use managed state" >&2
       fi
       install -m 0600 -o rishabh -g users ${../codex/AGENTS.md} ${stateDir}/config/AGENTS.md
-      ${runuser} ${pkgs.python3}/bin/python3 ${../claude/install-mcp.py} ${stateDir}/config/mcp_config.json ${mcp}
+      ${runuser} ${pkgs.python3}/bin/python3 ${../claude/prune-mcp.py} ${stateDir}/config/mcp_config.json codex-scheduler tasks zen-live umd-canvas
     '';
   };
   system.activationScripts.antigravityT3 = {

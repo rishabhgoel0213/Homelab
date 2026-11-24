@@ -15,39 +15,6 @@ let
     export HOME=${lib.escapeShellArg cfg.paths.userHome}
     exec ${codexBin} "$@"
   '';
-  zenLiveDevtoolsMcpRemote = pkgs.writeShellApplication {
-    name = "zen-live-devtools-mcp-remote";
-    runtimeInputs = [ pkgs.openssh ];
-    text = ''
-      exec ssh \
-        -T \
-        -o BatchMode=yes \
-        -o ClearAllForwardings=yes \
-        -o ConnectTimeout=10 \
-        -o ServerAliveInterval=15 \
-        -o ServerAliveCountMax=3 \
-        -o LogLevel=ERROR \
-        rishabhgoel@macbook.tail2f4d27.ts.net \
-        /run/current-system/sw/bin/zen-live-devtools-mcp
-    '';
-  };
-  zenFirefoxCliRemote = pkgs.writeShellApplication {
-    name = "zen-firefox-cli";
-    runtimeInputs = [ pkgs.openssh ];
-    text = ''
-      printf -v remote_command '%q ' /run/current-system/sw/bin/firefox-cli "$@"
-      exec ssh \
-        -T \
-        -o BatchMode=yes \
-        -o ClearAllForwardings=yes \
-        -o ConnectTimeout=10 \
-        -o ServerAliveInterval=15 \
-        -o ServerAliveCountMax=3 \
-        -o LogLevel=ERROR \
-        rishabhgoel@macbook.tail2f4d27.ts.net \
-        "$remote_command"
-    '';
-  };
   prepareCodexHome = pkgs.writeShellScript "prepare-codex-home" ''
     set -euo pipefail
 
@@ -91,8 +58,6 @@ in
 {
   environment.systemPackages = [
     codexWrapper
-    zenLiveDevtoolsMcpRemote
-    zenFirefoxCliRemote
   ];
 
   # Refresh managed client configuration on activation without restarting

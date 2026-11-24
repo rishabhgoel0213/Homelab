@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Weekly task board shared by a tailnet web page, a CLI, and a stdio MCP server.
+"""Weekly task board shared by a tailnet web page and the `tasks` CLI.
 
 Every interface reads and writes one SQLite database. Weeks start on Sunday and
 are identified by that Sunday's ISO date (for example 2026-11-15).
@@ -357,7 +357,10 @@ def carry_over(db, from_week=None, to_week=None):
             "tasks": [task_value(get_row(db, row["id"])) for row in rows]}
 
 
-# ---------------------------------------------------------------- MCP tools
+# ---------------------------------------------------------------- Structured CLI actions
+
+
+ACTIONS = ("list_tasks", "add_tasks", "update_task", "delete_task", "carry_over")
 
 
 def dispatch(db, name, args, source="agent"):
@@ -375,92 +378,7 @@ def dispatch(db, name, args, source="agent"):
         return delete_task(db, args.get("task_id"))
     if name == "carry_over":
         return carry_over(db, args.get("from_week"), args.get("to_week"))
-    raise ValueError(f"Unknown tool {name!r}")
-
-
-WEEK = {"type": "string", "description": "Week to use: 'this' (default), 'next', 'last', '+N'/'-N', or any YYYY-MM-DD date inside the week. Weeks run Sunday-Saturday."}
-DAY = {"type": ["string", "integer", "null"], "description": "Weekday name or abbreviation (sun..sat), 0=Sunday..6=Saturday, 'today', 'tomorrow', a YYYY-MM-DD date, or null/'anytime' for 'sometime this week'."}
-TASK_ID = {"task_id": {"type": "string", "description": "Task id from list_tasks or add_tasks"}}
-
-
-def tool(name, description, properties, required=(), readonly=False, destructive=False):
-    return {"name": name, "description": description,
-            "inputSchema": {"type": "object", "properties": properties,
-                            "required": list(required), "additionalProperties": False},
-            "annotations": {"readOnlyHint": readonly, "destructiveHint": destructive,
-                            "idempotentHint": readonly, "openWorldHint": False}}
-
-
-TOOLS = [
-    tool("list_tasks", "Read one week of the user's to-do board, grouped by day, with ids, done state and who added each task.",
-         {"week": WEEK, "include_done": {"type": "boolean", "description": "Include completed tasks (default true)"}},
-         readonly=True),
-    tool("add_tasks", "Add one or more tasks to the user's weekly to-do board. They appear on the web board immediately, marked as added by an agent.",
-         {"week": WEEK,
-          "tasks": {"type": "array", "minItems": 1, "maxItems": 200, "items": {
-              "type": "object", "additionalProperties": False, "required": ["title"],
-              "properties": {"title": {"type": "string", "description": "Short actionable task text"},
-                             "notes": {"type": "string", "description": "Optional details, links or context"},
-                             "day": DAY, "week": WEEK}}}},
-         ("tasks",)),
-    tool("update_task", "Edit a task: rename it, change notes, move it to another day or week, or mark it done/undone.",
-         {**TASK_ID, "title": {"type": "string"}, "notes": {"type": "string"}, "day": DAY, "week": WEEK,
-          "done": {"type": "boolean"}}, ("task_id",)),
-    tool("delete_task", "Permanently delete one task. Prefer update_task(done=true) for finished work.",
-         TASK_ID, ("task_id",), destructive=True),
-    tool("carry_over", "Move every unfinished task from one week into another week's 'anytime' lane. Defaults: last week into this week.",
-         {"from_week": WEEK, "to_week": WEEK}),
-]
-
-INSTRUCTIONS = (
-    "The user's weekly to-do board" + (f" ({URL})" if URL else "") + ". Weeks run Sunday-Saturday. "
-    "Call list_tasks before planning so you do not duplicate existing tasks. Use add_tasks with one "
-    "batch for a week's plan; give each task a short actionable title, put details in notes, and set day "
-    "only when the work belongs to a specific day. Do not delete, complete or move the user's tasks "
-    "unless they ask.")
-
-
-def mcp():
-    db = connect()
-    try:
-        for line in sys.stdin:
-            request_id = None
-            try:
-                message = json.loads(line)
-                if not isinstance(message, dict):
-                    raise ValueError("Request must be a JSON object")
-                if "id" not in message:
-                    continue
-                request_id, method = message["id"], message.get("method")
-                params = message.get("params") or {}
-                if method == "initialize":
-                    version = params.get("protocolVersion")
-                    result = {"protocolVersion": version if version in ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25") else "2025-06-18",
-                              "capabilities": {"tools": {"listChanged": False}},
-                              "serverInfo": {"name": "tasks", "version": VERSION},
-                              "instructions": INSTRUCTIONS}
-                elif method == "ping":
-                    result = {}
-                elif method == "tools/list":
-                    result = {"tools": TOOLS}
-                elif method == "tools/call":
-                    try:
-                        value = dispatch(db, params.get("name"), params.get("arguments") or {})
-                        result = {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}],
-                                  "structuredContent": value, "isError": False}
-                    except (ValueError, LookupError, sqlite3.Error) as error:
-                        result = {"content": [{"type": "text", "text": str(error)}], "isError": True}
-                else:
-                    print(json.dumps({"jsonrpc": "2.0", "id": request_id,
-                                      "error": {"code": -32601, "message": "Method not found"}}), flush=True)
-                    continue
-                response = {"jsonrpc": "2.0", "id": request_id, "result": result}
-            except Exception as error:
-                response = {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32600, "message": str(error)}}
-            print(json.dumps(response, ensure_ascii=False), flush=True)
-    finally:
-        db.close()
-    return 0
+    raise ValueError(f"Unknown action {name!r}")
 
 
 # ---------------------------------------------------------------- HTTP
@@ -611,7 +529,6 @@ def main():
     run = sub.add_parser("serve", help="serve the web board and JSON API")
     run.add_argument("--host", default="127.0.0.1")
     run.add_argument("--port", type=int, default=8740)
-    sub.add_parser("mcp", help="serve MCP tools over stdin/stdout")
     show = sub.add_parser("list", help="show a week (default: this week)")
     show.add_argument("week", nargs="?")
     show.add_argument("--json", action="store_true")
@@ -629,15 +546,13 @@ def main():
     carry = sub.add_parser("carry", help="move unfinished tasks from last week into this week")
     carry.add_argument("--from", dest="from_week")
     carry.add_argument("--to", dest="to_week")
-    call = sub.add_parser("call", help="invoke an MCP tool with JSON arguments")
-    call.add_argument("name", choices=[t["name"] for t in TOOLS])
+    call = sub.add_parser("call", help="invoke a structured task action with JSON arguments")
+    call.add_argument("name", choices=ACTIONS)
     call.add_argument("--arguments", default="{}", help="JSON object; use '-' to read stdin")
     args = parser.parse_args()
 
     if args.command == "serve":
         return serve(args.host, args.port)
-    if args.command == "mcp":
-        return mcp()
     db = connect()
     try:
         if args.command == "list":

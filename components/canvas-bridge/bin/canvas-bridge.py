@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only UMD Canvas bridge with a private web bootstrap and MCP tools."""
+"""Read-only UMD Canvas bridge with a private web bootstrap and CLI."""
 
 from __future__ import annotations
 
@@ -1434,183 +1434,6 @@ def upcoming(db: sqlite3.Connection, days: int = 21, course_id: str | None = Non
     return [dict(row) for row in rows]
 
 
-TOOLS = [
-    {
-        "name": "canvas_connection_status",
-        "description": "Check whether UMD Canvas is connected and when the local course mirror last synchronized.",
-        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
-    },
-    {
-        "name": "canvas_sync",
-        "description": "Synchronize UMD Canvas courses, home pages, modules, assignments, announcements, linked pages, and files into the local read-only mirror. Optionally limit the refresh to one course.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"course_id": {"type": "string"}},
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_list_courses",
-        "description": "List synchronized active Canvas courses and their term metadata.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"include_inactive": {"type": "boolean", "default": False}},
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_get_course_outline",
-        "description": "Return the instructor-curated module sequence and module items for one course.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"course_id": {"type": "string"}},
-            "required": ["course_id"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_list_documents",
-        "description": "List synchronized assignments, announcements, pages (including configured course home pages), syllabi, or files, optionally limited to one course and kind.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "course_id": {"type": "string"},
-                "kind": {"type": "string", "enum": ["assignment", "announcement", "page", "syllabus", "file"]},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
-            },
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_get_document",
-        "description": "Get the full normalized text and metadata for one synchronized Canvas object.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "course_id": {"type": "string"},
-                "kind": {"type": "string", "enum": ["assignment", "announcement", "page", "syllabus", "file"]},
-                "object_id": {"type": "string"},
-            },
-            "required": ["course_id", "kind", "object_id"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_search_materials",
-        "description": "Search normalized course pages, assignments, announcements, syllabi, and extracted document text.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "course_id": {"type": "string"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25},
-            },
-            "required": ["query"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "name": "canvas_get_upcoming_assignments",
-        "description": "List assignments due within a future time window.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 21},
-                "course_id": {"type": "string"},
-            },
-            "additionalProperties": False,
-        },
-    },
-]
-
-
-def execute_tool(db: sqlite3.Connection, name: str, arguments: dict[str, Any]) -> Any:
-    if name == "canvas_connection_status":
-        return connection_status(db)
-    if name == "canvas_sync":
-        course_id = arguments.get("course_id")
-        return SyncEngine(db).run([str(course_id)] if course_id is not None else None)
-    if name == "canvas_list_courses":
-        return list_courses(db, bool(arguments.get("include_inactive", False)))
-    if name == "canvas_get_course_outline":
-        return course_outline(db, str(arguments["course_id"]))
-    if name == "canvas_list_documents":
-        return list_documents(
-            db,
-            str(arguments["course_id"]) if arguments.get("course_id") is not None else None,
-            str(arguments["kind"]) if arguments.get("kind") is not None else None,
-            int(arguments.get("limit", 100)),
-        )
-    if name == "canvas_get_document":
-        return get_document(db, str(arguments["course_id"]), str(arguments["kind"]), str(arguments["object_id"]))
-    if name == "canvas_search_materials":
-        return search_materials(
-            db,
-            str(arguments["query"]),
-            str(arguments["course_id"]) if arguments.get("course_id") is not None else None,
-            int(arguments.get("limit", 25)),
-        )
-    if name == "canvas_get_upcoming_assignments":
-        return upcoming(
-            db,
-            int(arguments.get("days", 21)),
-            str(arguments["course_id"]) if arguments.get("course_id") is not None else None,
-        )
-    raise RuntimeError(f"Unknown tool: {name}")
-
-
-def run_mcp() -> int:
-    db = connect_db()
-    for raw_line in sys.stdin:
-        try:
-            message = json.loads(raw_line)
-            if "id" not in message:
-                continue
-            request_id = message["id"]
-            method = message.get("method")
-            params = message.get("params") or {}
-            if method == "initialize":
-                result = {
-                    "protocolVersion": "2025-06-18",
-                    "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "umd-canvas-bridge", "version": APP_VERSION},
-                }
-            elif method == "ping":
-                result = {}
-            elif method == "tools/list":
-                result = {"tools": TOOLS}
-            elif method == "tools/call":
-                try:
-                    value = execute_tool(db, str(params.get("name")), params.get("arguments") or {})
-                    result = {
-                        "content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False, indent=2)}],
-                        "structuredContent": value if isinstance(value, dict) else {"items": value},
-                        "isError": False,
-                    }
-                except Exception as error:
-                    result = {
-                        "content": [{"type": "text", "text": str(error)}],
-                        "isError": True,
-                    }
-            else:
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": -32601, "message": f"Method not found: {method}"},
-                }
-                print(compact_json(response), flush=True)
-                continue
-            response = {"jsonrpc": "2.0", "id": request_id, "result": result}
-        except Exception as error:
-            response = {
-                "jsonrpc": "2.0",
-                "id": message.get("id") if isinstance(locals().get("message"), dict) else None,
-                "error": {"code": -32603, "message": str(error)},
-            }
-        print(compact_json(response), flush=True)
-    return 0
-
-
 PAGE_STYLE = """
 :root{color-scheme:dark;--bg:#0b1020;--panel:#141b2d;--muted:#9ca8bf;--text:#f6f7fb;--accent:#e21833;--line:#29334d;--ok:#46c37b;--warn:#f3b63f}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#080d19,#101a31);color:var(--text);font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
@@ -2056,8 +1879,13 @@ def run_doctor() -> int:
     return 0 if all(ok for _, ok, _ in required) else 1
 
 
+def print_json(value: Any) -> int:
+    print(json.dumps(value, ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(prog="canvas-bridge", description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("serve", help="run the private web service")
     subparsers.add_parser("pair", help="generate a one-time web UI pairing code")
@@ -2069,12 +1897,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="limit the sync to one course ID; repeat to select multiple courses",
     )
     subparsers.add_parser("doctor", help="check local state and Canvas mobile OAuth compatibility")
-    subparsers.add_parser("mcp", help="run the Codex MCP server over stdio")
+
+    courses_parser = subparsers.add_parser("courses", help="list synchronized Canvas courses")
+    courses_parser.add_argument("--all", action="store_true", help="include inactive courses")
+
+    outline_parser = subparsers.add_parser("outline", help="show modules and module items for one course")
+    outline_parser.add_argument("course_id", help="Canvas course ID")
+
+    docs_parser = subparsers.add_parser("docs", help="list synchronized assignments, announcements, pages, syllabi, or files")
+    docs_parser.add_argument("--course-id", help="filter by Canvas course ID")
+    docs_parser.add_argument("--kind", choices=["assignment", "announcement", "page", "syllabus", "file"])
+    docs_parser.add_argument("--limit", type=int, default=100)
+
+    doc_parser = subparsers.add_parser("doc", help="get full normalized text and metadata for one document")
+    doc_parser.add_argument("course_id", help="Canvas course ID")
+    doc_parser.add_argument("kind", choices=["assignment", "announcement", "page", "syllabus", "file"])
+    doc_parser.add_argument("object_id", help="Canvas document/object ID")
+
+    search_parser = subparsers.add_parser("search", help="search synchronized course materials")
+    search_parser.add_argument("query", help="search terms")
+    search_parser.add_argument("--course-id", help="limit search to one Canvas course ID")
+    search_parser.add_argument("--limit", type=int, default=25)
+
+    upcoming_parser = subparsers.add_parser("upcoming", help="list assignments due within a future window")
+    upcoming_parser.add_argument("--days", type=int, default=21)
+    upcoming_parser.add_argument("--course-id", help="limit to one Canvas course ID")
     return parser
 
 
-def main() -> int:
-    args = build_parser().parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     if args.command == "serve":
         return run_server()
     if args.command == "pair":
@@ -2085,8 +1937,23 @@ def main() -> int:
         return run_sync(args.course_id)
     if args.command == "doctor":
         return run_doctor()
-    if args.command == "mcp":
-        return run_mcp()
+    try:
+        with db_session() as db:
+            if args.command == "courses":
+                return print_json(list_courses(db, include_inactive=args.all))
+            if args.command == "outline":
+                return print_json(course_outline(db, args.course_id))
+            if args.command == "docs":
+                return print_json(list_documents(db, args.course_id, args.kind, args.limit))
+            if args.command == "doc":
+                return print_json(get_document(db, args.course_id, args.kind, args.object_id))
+            if args.command == "search":
+                return print_json(search_materials(db, args.query, args.course_id, args.limit))
+            if args.command == "upcoming":
+                return print_json(upcoming(db, args.days, args.course_id))
+    except RuntimeError as error:
+        print(f"canvas-bridge: {error}", file=sys.stderr)
+        return 2
     return 2
 
 

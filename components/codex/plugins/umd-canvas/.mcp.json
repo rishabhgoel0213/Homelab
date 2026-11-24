@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "umd-canvas": {
-      "command": "/run/current-system/sw/bin/canvas-bridge-mcp"
-    }
-  }
-}

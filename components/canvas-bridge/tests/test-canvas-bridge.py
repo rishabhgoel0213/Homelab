@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import os
 import sys
@@ -542,6 +543,38 @@ class CanvasBridgeTests(unittest.TestCase):
                 RuntimeError("Remote service returned HTTP 500: retry")
             )
         )
+
+    def test_cli_query_subcommands(self):
+        with self.bridge.db_session() as db:
+            db.execute(
+                """
+                INSERT INTO courses(id, name, course_code, active, json, synced_at)
+                VALUES('10', 'MATH 410', 'MATH410', 1, '{}', '2026-01-01T00:00:00+00:00')
+                """
+            )
+            db.execute(
+                """
+                INSERT INTO documents(
+                    kind, course_id, object_id, title, body, metadata_json, synced_at
+                ) VALUES('page', '10', 'syllabus', 'Course Syllabus', 'Real analysis topics', '{}', '2026-01-01T00:00:00+00:00')
+                """
+            )
+            db.commit()
+
+        buf = io.StringIO()
+        with mock.patch.object(sys, "stdout", buf):
+            self.assertEqual(0, self.bridge.main(["courses"]))
+        self.assertEqual("MATH 410", json.loads(buf.getvalue())[0]["name"])
+
+        buf = io.StringIO()
+        with mock.patch.object(sys, "stdout", buf):
+            self.assertEqual(0, self.bridge.main(["search", "analysis", "--course-id", "10"]))
+        self.assertEqual("Course Syllabus", json.loads(buf.getvalue())[0]["title"])
+
+        buf = io.StringIO()
+        with mock.patch.object(sys, "stdout", buf):
+            self.assertEqual(0, self.bridge.main(["doc", "10", "page", "syllabus"]))
+        self.assertEqual("Real analysis topics", json.loads(buf.getvalue())["body"])
 
 
 if __name__ == "__main__":

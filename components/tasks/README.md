@@ -2,9 +2,8 @@
 
 A sticky-note to-do board for the week at
 `https://tasks.internal.therealrishabh.com` (tailnet only). Weeks run Sunday to
-Saturday. The web page, the `tasks` CLI and the `tasks` stdio MCP server all
-use one SQLite database, so anything an agent adds appears on the page within a
-few seconds.
+Saturday. The web page and the `tasks` CLI share one SQLite database, so
+anything an agent adds appears on the page within a few seconds.
 
 Python's standard library is the only dependency. The server listens on
 `127.0.0.1:8740` and Caddy publishes it on the internal route with ACME HTTPS.
@@ -22,23 +21,10 @@ Python's standard library is the only dependency. The server listens on
 - Tasks added by agents are tinted green with an `agent` badge.
 - Keys: `/` add, `[` and `]` change week, `t` this week.
 
-## Agents
+## Agents and CLI
 
-Codex and Claude get the MCP server from `components/codex/config/server.toml`.
-The tools are:
-
-- `list_tasks(week?, include_done?)`
-- `add_tasks(tasks[{title, notes?, day?, week?}], week?)`
-- `update_task(task_id, title?, notes?, day?, week?, done?)`
-- `delete_task(task_id)`
-- `carry_over(from_week?, to_week?)`
-
-A `week` can be `this`, `next`, `last`, `+N`/`-N`, or any `YYYY-MM-DD` date in
-that week. A `day` can be `sun`..`sat`, `0`..`6` (Sunday is 0), `today`,
-`tomorrow`, a date, or `null` for "anytime".
-
-Pi and shell scripts use the CLI, which records tasks as added by an agent
-unless `--source me` is given:
+All agents and shell scripts use the `tasks` CLI directly, which records tasks
+as added by an agent unless `--source me` is given:
 
 ```sh
 tasks list                    # this week; `tasks list next`, `--json`
@@ -48,6 +34,12 @@ tasks move 3fa9c1 thu
 tasks carry                   # last week's unfinished tasks into this week
 echo '{"tasks":[{"title":"Plan week","day":"sun"}]}' | tasks call add_tasks --arguments -
 ```
+
+A `week` can be `this`, `next`, `last`, `+N`/`-N`, or any `YYYY-MM-DD` date in
+that week. A `day` can be `sun`..`sat`, `0`..`6` (Sunday is 0), `today`,
+`tomorrow`, a date, or `null` for "anytime". Structured batch operations are
+also available via `tasks call` (`list_tasks`, `add_tasks`, `update_task`,
+`delete_task`, `carry_over`).
 
 ## State and safety
 

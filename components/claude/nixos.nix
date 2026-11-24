@@ -1,9 +1,6 @@
 { config, pkgs, ... }:
 let
   package = pkgs.callPackage ./package.nix { };
-  mcp = pkgs.runCommand "claude-mcp.json" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-    python3 ${./mcp.py} ${../codex/config/server.toml} ${../codex/plugins/umd-canvas/.mcp.json} > "$out"
-  '';
   launcher = pkgs.writeShellScriptBin "claude" ''
     export CLAUDE_CONFIG_DIR=/srv/state/claude
     export DISABLE_AUTOUPDATER=1
@@ -17,7 +14,7 @@ in
     text = ''
       install -d -m 0700 -o rishabh -g users /srv/state/claude
       install -m 0600 -o rishabh -g users ${../codex/AGENTS.md} /srv/state/claude/CLAUDE.md
-      ${pkgs.util-linux}/bin/runuser -u rishabh -- ${pkgs.python3}/bin/python3 ${./install-mcp.py} /srv/state/claude/.claude.json ${mcp}
+      ${pkgs.util-linux}/bin/runuser -u rishabh -- ${pkgs.python3}/bin/python3 ${./prune-mcp.py} /srv/state/claude/.claude.json codex-scheduler tasks zen-live umd-canvas
     '';
   };
   system.activationScripts.claudeT3 = {

@@ -17,7 +17,6 @@
     ../../components/codex/nixos.nix
     ../../components/claude/nixos.nix
     ../../components/antigravity/nixos.nix
-    ../../components/codex-scheduler/nixos.nix
     ../../components/tasks/nixos.nix
     ../../components/pi/nixos.nix
     ../../platform/nixos/containers.nix

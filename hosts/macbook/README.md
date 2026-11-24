@@ -13,38 +13,12 @@ keep manually installed apps outside them. Finish active Study sessions before
 deploying the initial folder migration, then check Abstand permissions and run
 `workmode setup` and `workmode doctor`.
 
-The MacBook profile installs the pinned upstream Zen Browser bundle, Firefox
-DevTools MCP for optional live-session debugging, Firefox CLI 0.3.0, and its
-matching signed Firefox extension.
+The MacBook profile installs the pinned upstream Zen Browser bundle.
 Zen's tabs, Spaces, history, cookies, and logins are ordinary browser state.
 No Space, folder, pin, or route is declared by Nix. The Nix profile also
 installs the pinned Tabby archive and the VSCodium presets described below.
 
-The Zen extension policy continues to force-install Bitwarden. Firefox CLI's
-matching signed extension is in the Nix store; `zen-firefox-cli-xpi` prints its
-exact path. It is installed and paired in the Nix-managed Zen profile. The
-native messaging host is registered for the Mac user during nix-darwin
-activation. Keeping Firefox CLI out of the system-wide browser policy leaves
-extension installation scoped to that profile.
-
-## Browser control from server Codex
-
-All browser tooling runs on the Mac. Codex reaches it through the existing
-Tailscale SSH connection; no browser debugging port is exposed on the tailnet.
-
-- `zen-firefox-cli` controls the paired, already-running Nix-managed Zen
-  browser. It can list tabs, take page snapshots, click, type, navigate, capture
-  screenshots, and inspect supported page state. Run `zen-firefox-cli doctor`
-  after activation and approve the pairing in Zen.
-- `zen-live` is Mozilla Firefox DevTools MCP attached to the running browser.
-  It adds WebDriver BiDi, console, network, and debugger tools. Quit the
-  Nix-managed Zen instance and start it with `zen-automation` when these tools
-  are needed. Both Marionette and the remote debugging agent remain bound to
-  Mac loopback. Restart Zen normally afterward; Marionette changes browser
-  fingerprinting while enabled.
-The live-session tools can access signed-in pages. Use them for the sites and
-actions the user requests. A new Codex session is needed after changing MCP
-configuration because its tool catalog is loaded at startup.
+The Zen extension policy continues to force-install Bitwarden.
 
 - Tabby's current third-party plugins are pinned in
   `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
@@ -140,14 +114,13 @@ private key or decrypted archive to the Mac merely to inspect it.
 
 Build targets are exported independently so package failures can be isolated
 without activating nix-darwin or launching either app. The complete signed
-Apple-silicon Codex release is packaged on Linux; the pinned application and Firefox CLI archives and
+Apple-silicon Codex release is packaged on Linux; the pinned application archives and
 locked Tabby plugins are also realized there. Native archive extraction happens
 on the Mac:
 
 ```sh
 just darwin-build codex
 just darwin-build tabby-plugins
-just darwin-build firefox-cli
 just darwin-build tabby
 just darwin-build zen
 just darwin-build macbook-system
@@ -168,9 +141,9 @@ chmod 0700 /private/tmp/build-mac-apps
 /private/tmp/build-mac-apps codex
 ```
 
-Repeat the final command for `tabby-plugins` or `firefox-cli`. The helper refuses
+Repeat the final command for `tabby-plugins`. The helper refuses
 a dirty server worktree, builds the Linux-hosted target on the server, and
-prints the Mac staging path. Tabby, Zen, and Firefox CLI first require their
+prints the Mac staging path. Tabby and Zen first require their
 signed payloads to be copied with `just darwin-copy-apps`; their final Darwin
 build targets then extract them natively.
 None of these actions activates a profile, runs Homebrew, launches apps, or
@@ -189,16 +162,16 @@ The server signing key is root-readable at
 without adding the regular user to `trusted-users` or disabling signature
 checks.
 
-`components/darwin-deploy/artifacts.nix` records the five signed output paths
+`components/darwin-deploy/artifacts.nix` records the four signed output paths
 consumed by Darwin evaluation: Codex, Tabby plugins, the upstream Tabby ZIP,
-the upstream Zen DMG, and the Firefox CLI archive. This
+and the upstream Zen DMG. This
 prevents the Mac from evaluating or realizing Linux build-tool derivations
 merely to discover their output paths.
 `hosts/macbook/copy-apps` refuses deployment if a newly built output does not
 match the committed manifest.
 
 Run `just darwin-prepare-artifacts` on the server after changing the manifest.
-It verifies all five outputs and roots them under
+It verifies all four outputs and roots them under
 `/srv/state/macbook-deploy/gcroots` so server garbage collection does not
 discard them while Mac deployment is pending. It does not contact the Mac.
 
@@ -220,7 +193,7 @@ the prompt prefix, and the substitute policy that the Lix installer placed in
 If the custom file differs from the known bootstrap result, deployment stops
 without moving it.
 
-Before inbound SSH is enabled, import all five signed payloads from the Mac:
+Before inbound SSH is enabled, import all four signed payloads from the Mac:
 
 ```sh
 scp nixos-pc:/srv/ops/hosts/macbook/pull-apps-from-mac /private/tmp/pull-mac-apps
@@ -259,10 +232,10 @@ Re-running the bootstrap is not part of normal Darwin deployment.
 
 ## Server-driven activation
 
-The Linux server packages the complete signed Codex release and pinned application and
-Firefox CLI archives, signs their Nix store paths, and copies them over the
-tailnet. The remaining Darwin derivations extract the application bundles and
-Firefox CLI package on the Mac from the committed server revision.
+The Linux server packages the complete signed Codex release and pinned application
+archives, signs their Nix store paths, and copies them over the
+tailnet. The remaining Darwin derivations extract the application bundles
+on the Mac from the committed server revision.
 `hosts/macbook/deploy` then activates that exact result over SSH.
 
 If activation stops after selecting the system profile but before creating
@@ -321,10 +294,7 @@ course workspace so all CMSC 216 tasks remain available.
 
 ## Application cutover
 
-Launch the Nix-managed Zen from `/Applications/Nix Apps`, install the packaged
-FF-CLI Bridge XPI into that browser, and approve its pairing. Run
-`zen-firefox-cli doctor` from the server, and verify a tab snapshot. The user's
-separate, non-Nix Zen installation is outside this deployment. Preserve Tabby's
+Launch the Nix-managed Zen from `/Applications/Nix Apps`. Preserve Tabby's
 existing state when checking its Nix-managed app.
 
 Tailscale remains outside this configuration after the application cutover.

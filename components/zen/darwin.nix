@@ -7,44 +7,6 @@
 
 let
   selectedPackage = macbookPackages.zen;
-  firefoxCli = macbookPackages.firefoxCli;
-  nativeHostManifest = pkgs.writeText "firefox-cli-native-host.json" (
-    builtins.toJSON {
-      name = "firefox_cli";
-      description = "Native messaging host for firefox-cli.";
-      path = "${firefoxCli}/bin/firefox-cli";
-      type = "stdio";
-      allowed_extensions = [ "ff-cli-bridge@respawn.pro" ];
-    }
-  );
-  devtoolsMcpPackage = pkgs.callPackage ./devtools-mcp/package.nix { };
-  zenLiveDevtoolsMcp = pkgs.writeShellApplication {
-    name = "zen-live-devtools-mcp";
-    runtimeInputs = [
-      devtoolsMcpPackage
-      pkgs.geckodriver
-    ];
-    text = ''
-      exec firefox-devtools-mcp \
-        --connectExisting \
-        --marionettePort 2828 \
-        --toolPreset developer \
-        "$@"
-    '';
-  };
-  zenAutomation = pkgs.writeShellApplication {
-    name = "zen-automation";
-    text = ''
-      exec ${lib.escapeShellArg "${selectedPackage}/Applications/Zen.app/Contents/MacOS/zen"} \
-        --no-remote \
-        --marionette \
-        --remote-debugging-port \
-        "$@"
-    '';
-  };
-  zenFirefoxCliXpi = pkgs.writeShellScriptBin "zen-firefox-cli-xpi" ''
-    printf '%s\n' ${lib.escapeShellArg "${firefoxCli}/share/firefox-cli/firefox-cli.xpi"}
-  '';
   zenSpaceRouterExtension = pkgs.callPackage ./space-router/package.nix { };
   zenSpaceRouterXpi = pkgs.writeShellScriptBin "zen-space-router-xpi" ''
     printf '%s\n' ${lib.escapeShellArg "${zenSpaceRouterExtension}/share/zen-space-router/zen-space-router.xpi"}
@@ -54,23 +16,17 @@ in
   config = {
     environment.systemPackages = [
       selectedPackage
-      firefoxCli
-      zenAutomation
-      zenFirefoxCliXpi
       zenSpaceRouterXpi
-      zenLiveDevtoolsMcp
     ];
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
-      native_host_dir="/Users/rishabhgoel/Library/Application Support/Mozilla/NativeMessagingHosts"
-      native_host_manifest="$native_host_dir/firefox_cli.json"
-      install -d -m 0755 -o rishabhgoel -g staff "$native_host_dir"
-      if [[ -e "$native_host_manifest" && ! -L "$native_host_manifest" ]]; then
-        echo "Refusing to replace unmanaged Firefox CLI native host: $native_host_manifest" >&2
-        exit 1
+      native_host_manifest="/Users/rishabhgoel/Library/Application Support/Mozilla/NativeMessagingHosts/firefox_cli.json"
+      if [[ -L "$native_host_manifest" ]]; then
+        target="$(readlink "$native_host_manifest" || true)"
+        if [[ "$target" == /nix/store/*firefox-cli* ]]; then
+          rm -f "$native_host_manifest"
+        fi
       fi
-      ln -sfn ${nativeHostManifest} "$native_host_manifest"
-      chown -h rishabhgoel:staff "$native_host_manifest"
     '';
 
     # Gecko's macOS enterprise policy reader queries NSUserDefaults for the

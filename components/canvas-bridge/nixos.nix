@@ -9,7 +9,7 @@ let
 in
 {
   options.homelab.canvasBridge = {
-    enable = mkEnableOption "read-only UMD Canvas course mirror and Codex connector";
+    enable = mkEnableOption "read-only UMD Canvas course mirror and CLI";
 
     port = mkOption {
       type = types.port;

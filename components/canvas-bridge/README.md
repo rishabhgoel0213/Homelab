@@ -1,9 +1,9 @@
 # UMD Canvas Bridge
 
 The Canvas bridge creates a read-only local mirror of current UMD courses and
-exposes that mirror to Codex through the `umd-canvas` local plugin. It follows
-the Canvas Student Android OAuth flow because UMD does not issue ordinary
-developer keys to student accounts.
+exposes that mirror to agents and scripts through the `canvas-bridge` CLI. It
+follows the Canvas Student Android OAuth flow because UMD does not issue
+ordinary developer keys to student accounts.
 
 The bridge never accepts or stores a UMD password. UMD login and Duo approval
 happen on UMD's real pages. The resulting Canvas OAuth access and refresh tokens
@@ -48,7 +48,7 @@ On the managed server, the bridge marks its outbound sockets so Canvas traffic
 uses the normal uplink instead of the host-wide Mullvad exit node. This requires
 only `CAP_NET_RAW`; the rest of the service hardening remains in place.
 
-Normalized Canvas HTML retains safe link destinations so Codex can inspect
+Normalized Canvas HTML retains safe link destinations so agents can inspect
 linked resources. Sensitive URL query parameters are removed before links are
 stored, and external links are exposed without being fetched automatically.
 
@@ -56,13 +56,20 @@ PDF text is extracted with `pdftotext`. Text, HTML, Markdown, CSV, JSON, DOCX,
 PPTX, and XLSX files receive lightweight local text extraction. Videos and
 other large binary files remain metadata-only.
 
-Useful operator commands:
+Useful operator and agent commands:
 
 ```bash
 just canvas-doctor
 just canvas-status
 just canvas-sync
 just canvas-pair
+
+canvas-bridge courses [--all]
+canvas-bridge outline <course_id>
+canvas-bridge docs [--course-id <id>] [--kind <kind>] [--limit <n>]
+canvas-bridge doc <course_id> <kind> <object_id>
+canvas-bridge search <query> [--course-id <id>] [--limit <n>]
+canvas-bridge upcoming [--days <n>] [--course-id <id>]
 ```
 
 For a quick targeted refresh while working in one class:
@@ -87,14 +94,14 @@ read course content.
   revocation during disconnect.
 - OAuth client material is requested from Canvas's mobile verification service
   when needed and is not persisted.
-- Signed Canvas file-download URLs and OAuth tokens are excluded from tool
+- Signed Canvas file-download URLs and OAuth tokens are excluded from CLI
   output and application logs.
 
 The Android-compatible mobile verification protocol is not a documented
 third-party integration contract. It can change or be disabled by Instructure
-or UMD. The MCP and local-mirror boundary is deliberately independent of that
+or UMD. The CLI and local-mirror boundary is deliberately independent of that
 authentication transport so a future UMD-issued developer key can replace it
-without changing the Codex tools.
+without changing the query interface.
 
 The bridge's mobile-protocol provenance and the license of the implementation
 used as an interoperability reference are documented in

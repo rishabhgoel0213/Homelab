@@ -1,5 +1,4 @@
 import importlib.util
-import io
 import json
 import os
 import sys
@@ -139,34 +138,19 @@ class StoreTests(Base):
         self.assertEqual(len(tasks.list_week(self.db, "last")["tasks"]), 1)
 
 
-class McpTests(Base):
-    def run_mcp(self, *messages):
-        stdin = io.StringIO("".join(json.dumps(m) + "\n" for m in messages))
-        stdout = io.StringIO()
-        with mock.patch.object(sys, "stdin", stdin), mock.patch.object(sys, "stdout", stdout):
-            tasks.mcp()
-        return [json.loads(line) for line in stdout.getvalue().splitlines()]
-
-    def test_initialize_list_and_call(self):
-        responses = self.run_mcp(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18"}},
-            {"jsonrpc": "2.0", "method": "notifications/initialized"},
-            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
-            {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "add_tasks", "arguments": {
-                "tasks": [{"title": "Laundry", "day": "sat"}, {"title": "Read paper", "notes": "arXiv"}]}}},
-            {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "list_tasks", "arguments": {}}},
-            {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "update_task", "arguments": {
-                "task_id": "nope", "done": True}}},
-        )
-        self.assertEqual([r["id"] for r in responses], [1, 2, 3, 4, 5])
-        self.assertEqual(responses[0]["result"]["serverInfo"]["name"], "tasks")
-        names = {t["name"] for t in responses[1]["result"]["tools"]}
-        self.assertEqual(names, {"list_tasks", "add_tasks", "update_task", "delete_task", "carry_over"})
-        created = responses[2]["result"]["structuredContent"]["created"]
-        self.assertEqual([t["source"] for t in created], ["agent", "agent"])
-        listed = responses[3]["result"]["structuredContent"]
+class DispatchTests(Base):
+    def test_structured_actions(self):
+        self.assertEqual(set(tasks.ACTIONS), {"list_tasks", "add_tasks", "update_task", "delete_task", "carry_over"})
+        added = tasks.dispatch(self.db, "add_tasks", {
+            "tasks": [{"title": "Laundry", "day": "sat"}, {"title": "Read paper", "notes": "arXiv"}]
+        })
+        self.assertEqual([t["source"] for t in added["created"]], ["agent", "agent"])
+        listed = tasks.dispatch(self.db, "list_tasks", {})
         self.assertEqual(listed["summary"]["total"], 2)
-        self.assertTrue(responses[4]["result"]["isError"])
+        with self.assertRaises(tasks.NotFound):
+            tasks.dispatch(self.db, "update_task", {"task_id": "nope", "done": True})
+        with self.assertRaises(ValueError):
+            tasks.dispatch(self.db, "unknown_action", {})
 
 
 class HttpTests(Base):

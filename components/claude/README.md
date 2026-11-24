@@ -42,17 +42,14 @@ future binary updates do not require another full Darwin activation.
 
 ## MCP compatibility
 
-The MCP JSON is generated from Codex's checked-in `mcp_servers` entries and the
-local UMD Canvas plugin's `.mcp.json`. This currently shares codex-scheduler,
-zen-live and umd-canvas on the server. Claude's user MCP config is merged during
-activation so T3's additional MCP servers can coexist with these definitions.
-The Mac Codex config currently defines no MCP servers.
+Homelab tools (`tasks`, `canvas-bridge`) are exposed as plain CLIs rather than
+MCP servers. Activation prunes retired Homelab-managed MCP server entries from
+`/srv/state/claude/.claude.json` while preserving credentials, preferences,
+sessions, and any user-added MCP servers.
 
-Codex-only policy fields are omitted. OpenAI connected apps, curated Codex
-plugins, and their OAuth sessions are not portable Claude MCP definitions.
-No copied login or substitute integration is created for them. T3 supplies its
-own orchestration tools to its provider sessions independently.
+OpenAI connected apps, curated Codex plugins, and their OAuth sessions are not
+portable Claude MCP definitions. T3 supplies its own orchestration tools to its
+provider sessions independently.
 
-Checks: `just check`, Linux system build, `just darwin-eval`, native CLI probes,
-and post-deployment MCP discovery. End-to-end model requests require initial
-Anthropic login.
+Checks: `just check`, Linux system build, `just darwin-eval`, and native CLI
+probes. End-to-end model requests require initial Anthropic login.
