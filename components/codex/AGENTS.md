@@ -54,6 +54,19 @@ This Codex home is managed by Homelab. Edit this file in
   (GitHub), `cfctl`/`wrangler` (Cloudflare), `gog` (Gmail/Calendar/Drive/Docs/
   Sheets — never send email or delete/modify files or events without explicit
   confirmation), and `apple-dev` (on-demand Mac Xcode/iOS Simulator cache).
+- Curated cross-agent user memory is managed at
+  https://memory.internal.therealrishabh.com and auto-injected below under
+  `## User Memory`. Use the `memory` CLI (`memory list`, `memory add -c
+  <identity|preferences|ongoing|workflow> "..."`, `memory update <id> "..."`,
+  `memory forget <id>`) only when the user explicitly asks to remember/forget
+  something or shares a clearly durable personal preference/context. Prefer
+  `memory update` over duplicates; never store secrets, temporary tasks (use
+  `tasks`), one-off debugging details, or repo internals.
+- To recall past T3 Code conversations across all projects (including archived
+  threads) from any agent or terminal, use the read-only `t3-history` CLI
+  (`t3-history search "<query>"`, `t3-history list`, `t3-history read
+  <thread-id>`, `t3-history projects`). Inside T3 Code, use `t3_thread_read`
+  when you need T3's clickable thread `link` format.
 
 ## Codex Configuration
 

@@ -225,6 +225,25 @@
               touch "$out"
             '';
 
+        memory =
+          pkgs.runCommand "memory-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              export PYTHONTZPATH=${pkgs.tzdata}/share/zoneinfo
+              ruff check ${./components/memory/bin/memory.py} ${./components/memory/bin/t3-history.py} ${./components/memory/tests/test-memory.py}
+              MEMORY_SCRIPT=${./components/memory/bin/memory.py} \
+                T3_HISTORY_SCRIPT=${./components/memory/bin/t3-history.py} \
+                MEMORY_WEB_DIR=${./components/memory/web} \
+                python3 ${./components/memory/tests/test-memory.py}
+              touch "$out"
+            '';
+
         codex-update =
           pkgs.runCommand "codex-update-check"
             {

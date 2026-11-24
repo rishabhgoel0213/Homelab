@@ -1,6 +1,7 @@
 {
   stdenvNoCC,
   fetchurl,
+  python3,
   unzip,
 }:
 let
@@ -28,8 +29,14 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     install -Dm755 agy_acp_server.par "$out/libexec/antigravity-acp/agy_acp_server.par"
     install -Dm755 localharness_external "$out/libexec/antigravity-acp/localharness_external"
-    # T3 resolves this link and expects localharness_external beside the target.
+    # Install the transparent ACP wrapper right beside localharness_external so
+    # T3's sibling-harness check passes while every session receives AGENTS.md + User Memory.
+    {
+      echo "#!${python3}/bin/python3"
+      tail -n +2 ${./acp-wrapper.py}
+    } > "$out/libexec/antigravity-acp/agy-acp-wrapper"
+    chmod 755 "$out/libexec/antigravity-acp/agy-acp-wrapper"
     mkdir -p "$out/bin"
-    ln -s ../libexec/antigravity-acp/agy_acp_server.par "$out/bin/agy-acp-server"
+    ln -s ../libexec/antigravity-acp/agy-acp-wrapper "$out/bin/agy-acp-server"
   '';
 }

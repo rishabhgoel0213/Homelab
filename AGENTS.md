@@ -107,6 +107,12 @@
   (`canvas-bridge courses`, `canvas-bridge upcoming`, `canvas-bridge outline
   <course-id>`, `canvas-bridge docs`, `canvas-bridge doc`, `canvas-bridge
   search <query>`, `canvas-bridge sync`).
+- Curated cross-agent user memory lives at
+  https://memory.internal.therealrishabh.com (`memory` CLI: `show`, `list`,
+  `add`, `update`, `forget`, `consolidate`, `sync`; state in
+  `/srv/state/memory`). Read-only search/transcript access across all T3 Code
+  threads (including archived) is provided by `t3-history` (`search`, `list`,
+  `read`, `projects`).
 - Harness-neutral external CLIs available on `PATH` for all agents:
   - GitHub: `gh` (authenticated as `rishabhgoel0213`).
   - Cloudflare: `cfctl`, `wrangler`, `flarectl`.

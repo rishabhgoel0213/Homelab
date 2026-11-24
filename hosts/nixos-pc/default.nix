@@ -20,6 +20,7 @@
     ../../components/google-workspace/nixos.nix
     ../../components/apple-dev/nixos.nix
     ../../components/tasks/nixos.nix
+    ../../components/memory/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
     ../../components/projects/nixos.nix
@@ -87,6 +88,7 @@
     syncthing.enable = true;
     samba.enable = true;
     tasks.enable = true;
+    memory.enable = true;
     zenSpaceRouter.enable = true;
   };
 

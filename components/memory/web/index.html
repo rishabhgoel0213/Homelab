@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agent Memory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='6' fill='%23dff0ea'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%232b6a58' stroke-width='2.6'/%3E%3Ccircle cx='16' cy='16' r='2.4' fill='%232b6a58'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --surface: #fbfaf6;
+  --panel: #ebe6da;
+  --ink: #26231d;
+  --muted: #736b5c;
+  --line: #d8d1c1;
+  --accent: #2b6a58;
+  --accent-soft: #dff0ea;
+  --accent-edge: #a9d2c4;
+  --accent-ink: #ffffff;
+  --warm: #b7791f;
+  --warm-soft: #fff3b8;
+  --warm-edge: #ecd97f;
+  --danger: #b4412f;
+  --shadow: 0 1px 1px rgb(60 50 20 / .07), 0 2px 6px rgb(60 50 20 / .06);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #171613;
+    --surface: #211f1b;
+    --panel: #1c1a16;
+    --ink: #ece6d8;
+    --muted: #a39a88;
+    --line: #36322a;
+    --accent: #74c2aa;
+    --accent-soft: #1f3530;
+    --accent-edge: #2f5249;
+    --accent-ink: #10201b;
+    --warm: #e0a64a;
+    --warm-soft: #3b3420;
+    --warm-edge: #574c2a;
+    --danger: #e27866;
+    --shadow: 0 1px 2px rgb(0 0 0 / .35);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.pill.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-edge);
+}
+.pill.warm {
+  background: var(--warm-soft);
+  color: var(--warm);
+  border-color: var(--warm-edge);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button, select, input, textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .12s, border-color .12s, opacity .12s;
+}
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+button.danger {
+  color: var(--danger);
+}
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 7px;
+  color: var(--muted);
+}
+button.ghost:hover:not(:disabled) {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: transparent;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.card-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.summary-text {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.summary-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+.meta-bar {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.add-form {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.add-extras {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+input[type="text"], input[type="date"], select, textarea {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 82px;
+}
+.section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 20px 2px 8px;
+  display: flex;
+  justify-content: space-between;
+}
+.mem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mem-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mem-item.pinned {
+  border-left: 3px solid var(--warm);
+}
+.mem-item.from-agent {
+  border-left: 3px solid var(--accent);
+}
+.mem-item.pinned.from-agent {
+  border-left: 3px solid var(--warm);
+}
+.mem-body {
+  flex: 1;
+  min-width: 0;
+}
+.mem-content {
+  margin: 0 0 6px;
+  word-break: break-word;
+}
+.mem-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mem-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  opacity: .8;
+}
+.mem-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+.tab.active {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.event-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.event-row:last-child { border-bottom: none; }
+.event-row.reverted { opacity: .55; text-decoration: line-through; }
+.event-detail { color: var(--muted); font-size: 12px; margin-top: 3px; }
+pre.prompt-box {
+  margin: 0;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+}
+.toast.show { opacity: 1; }
+.edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.hidden { display: none !important; }
+@media (max-width: 680px) {
+  .add-form {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title-row">
+      <h1>Agent Memory</h1>
+      <span id="capPill" class="pill">0 / 60</span>
+    </div>
+    <div class="header-actions">
+      <button id="syncBtn" type="button">Sync from T3 chats</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">High-Level Overview</h2>
+      <button id="editSummaryBtn" type="button" class="ghost">Edit</button>
+    </div>
+    <div id="summaryView">
+      <p id="summaryText" class="summary-text summary-empty">No overview yet. Add memories below or run Sync from T3 chats.</p>
+    </div>
+    <div id="summaryEdit" class="edit-box hidden">
+      <textarea id="summaryInput" maxlength="1200" placeholder="2-4 sentences summarizing who you are, current focus, and preferences..."></textarea>
+      <div class="edit-row">
+        <button id="saveSummaryBtn" type="button" class="primary">Save overview</button>
+        <button id="cancelSummaryBtn" type="button">Cancel</button>
+      </div>
+    </div>
+    <div id="metaBar" class="meta-bar"></div>
+  </section>
+
+  <section class="card">
+    <form id="addForm">
+      <div class="add-form">
+        <select id="addCategory" aria-label="Category"></select>
+        <input id="addContent" type="text" maxlength="300" placeholder="Add a concise, durable fact about yourself..." required>
+        <button type="submit" class="primary">Remember</button>
+      </div>
+      <div class="add-extras">
+        <label><input id="addPinned" type="checkbox"> Pin (never auto-prune)</label>
+        <label>Expires: <input id="addExpires" type="date"></label>
+        <span id="charCount">0 / 300</span>
+      </div>
+    </form>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="memories" type="button">Memories</button>
+    <button class="tab" data-tab="history" type="button">Recent Changes</button>
+    <button class="tab" data-tab="prompt" type="button">Agent Prompt</button>
+  </nav>
+
+  <section id="tab-memories"></section>
+  <section id="tab-history" class="card hidden"></section>
+  <section id="tab-prompt" class="card hidden">
+    <div class="card-head">
+      <h2 class="card-title">Exact Markdown Injected Into Codex, Claude &amp; Antigravity</h2>
+    </div>
+    <pre id="promptPreview" class="prompt-box"></pre>
+  </section>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let state = null;
+let activeTab = "memories";
+let editingId = null;
+
+const $ = (id) => document.getElementById(id);
+
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+async function api(path, method = "GET", body = null) {
+  const opts = { method, headers: {} };
+  if (body !== null) {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(path, opts);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
+
+function esc(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function render() {
+  if (!state) return;
+  $("capPill").textContent = `${state.count} / ${state.max_items}`;
+  $("capPill").className = state.count >= state.max_items - 5 ? "pill warm" : "pill";
+
+  const syncBtn = $("syncBtn");
+  syncBtn.disabled = !!state.consolidating;
+  syncBtn.textContent = state.consolidating ? "Syncing from T3 chats..." : "Sync from T3 chats";
+
+  const sumEl = $("summaryText");
+  if (state.summary && state.summary.trim()) {
+    sumEl.textContent = state.summary;
+    sumEl.classList.remove("summary-empty");
+  } else {
+    sumEl.textContent = "No overview yet. Add memories below or click 'Sync from T3 chats'.";
+    sumEl.classList.add("summary-empty");
+  }
+
+  const metaParts = [];
+  const ls = state.last_consolidate_status || {};
+  if (ls.ran_at) {
+    if (ls.ok === false) {
+      metaParts.push(`Last sync failed (${fmtDate(ls.ran_at)}): ${ls.error || "unknown error"}`);
+    } else if (ls.skipped) {
+      metaParts.push(`Last sync ${fmtDate(ls.ran_at)}: up to date`);
+    } else {
+      metaParts.push(
+        `Last sync ${fmtDate(ls.ran_at)}: ${ls.threads_scanned || 0} chat(s) scanned (+${ls.added || 0} / ~${ls.updated || 0} / -${(ls.deleted || 0) + (ls.expired || 0)})`
+      );
+    }
+  } else {
+    metaParts.push("Not yet consolidated from T3 chats");
+  }
+  $("metaBar").textContent = metaParts.join(" · ");
+
+  const catSel = $("addCategory");
+  if (!catSel.options.length) {
+    for (const c of state.categories) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.label.split(" & ")[0];
+      catSel.appendChild(opt);
+    }
+    catSel.value = "preferences";
+  }
+
+  renderMemories();
+  renderHistory();
+  $("promptPreview").textContent = state.profile_markdown || "";
+}
+
+function renderMemories() {
+  const container = $("tab-memories");
+  container.innerHTML = "";
+  if (!state.memories.length) {
+    container.innerHTML = `<div class="card"><p class="summary-empty" style="margin:0">No saved memories yet.</p></div>`;
+    return;
+  }
+  for (const cat of state.categories) {
+    const items = state.memories.filter((m) => m.category === cat.id);
+    if (!items.length) continue;
+    const head = document.createElement("div");
+    head.className = "section-label";
+    head.innerHTML = `<span>${esc(cat.label)}</span><span>${items.length}</span>`;
+    container.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "mem-list";
+    for (const item of items) {
+      const el = document.createElement("div");
+      el.className = `mem-item ${item.pinned ? "pinned" : ""} ${item.source !== "me" ? "from-agent" : ""}`;
+
+      if (editingId === item.id) {
+        const opts = state.categories
+          .map((c) => `<option value="${c.id}" ${c.id === item.category ? "selected" : ""}>${esc(c.label)}</option>`)
+          .join("");
+        el.innerHTML = `
+          <div class="edit-box">
+            <textarea id="edit-content-${item.id}" maxlength="300" rows="2">${esc(item.content)}</textarea>
+            <div class="edit-row">
+              <select id="edit-cat-${item.id}">${opts}</select>
+              <label style="font-size:13px"><input id="edit-pin-${item.id}" type="checkbox" ${item.pinned ? "checked" : ""}> Pin</label>
+              <label style="font-size:13px">Expires: <input id="edit-exp-${item.id}" type="date" value="${esc(item.expires_at || "")}"></label>
+              <button type="button" class="primary" data-save="${item.id}">Save</button>
+              <button type="button" data-cancel="${item.id}">Cancel</button>
+            </div>
+          </div>`;
+      } else {
+        const badges = [];
+        badges.push(`<span class="mem-id">${esc(item.id)}</span>`);
+        if (item.pinned) badges.push(`<span class="pill warm">pinned</span>`);
+        if (item.source === "agent") badges.push(`<span class="pill accent">agent</span>`);
+        if (item.source === "consolidator") badges.push(`<span class="pill accent">auto</span>`);
+        if (item.expires_at) badges.push(`<span class="pill">until ${esc(item.expires_at)}</span>`);
+        badges.push(`<span>${esc(fmtDate(item.updated_at))}</span>`);
+
+        el.innerHTML = `
+          <div class="mem-body">
+            <p class="mem-content">${esc(item.content)}</p>
+            <div class="mem-tags">${badges.join("")}</div>
+          </div>
+          <div class="mem-actions">
+            <button type="button" class="ghost" title="${item.pinned ? "Unpin" : "Pin"}" data-pin="${item.id}">${item.pinned ? "Unpin" : "Pin"}</button>
+            <button type="button" class="ghost" data-edit="${item.id}">Edit</button>
+            <button type="button" class="ghost danger" data-del="${item.id}">Delete</button>
+          </div>`;
+      }
+      list.appendChild(el);
+    }
+    container.appendChild(list);
+  }
+}
+
+function renderHistory() {
+  const container = $("tab-history");
+  const events = state.events || [];
+  if (!events.length) {
+    container.innerHTML = `<p class="summary-empty" style="margin:0">No history yet.</p>`;
+    return;
+  }
+  const rows = events.map((ev) => {
+    const canUndo = !ev.reverted && ["add", "update", "delete", "summary"].includes(ev.action);
+    let detail = "";
+    if (ev.action === "add" && ev.after) detail = `+ ${ev.after.content}`;
+    else if (ev.action === "delete" && ev.before) detail = `- ${ev.before.content}`;
+    else if (ev.action === "update" && ev.after) detail = `${ev.before?.content || ""} → ${ev.after.content}`;
+    else if (ev.action === "summary" && ev.after) detail = ev.after.summary || "(cleared)";
+    const reason = ev.reason ? ` · ${ev.reason}` : "";
+    const undoBtn = canUndo
+      ? `<div style="display:flex;gap:6px;flex-shrink:0">
+           <button type="button" class="ghost" data-undo-event="${ev.id}">Undo</button>
+           ${ev.batch_id.startsWith("cons-") ? `<button type="button" class="ghost" data-undo-batch="${esc(ev.batch_id)}">Undo batch</button>` : ""}
+         </div>`
+      : "";
+    return `
+      <div class="event-row ${ev.reverted ? "reverted" : ""}">
+        <div>
+          <strong>${esc(ev.action)}</strong>
+          <span class="pill">${esc(ev.actor)}</span>
+          <span class="mem-id">${esc(ev.memory_id || ev.batch_id)}</span>
+          <span style="color:var(--muted);font-size:12px"> · ${esc(fmtDate(ev.created_at))}${esc(reason)}</span>
+          ${detail ? `<div class="event-detail">${esc(detail)}</div>` : ""}
+        </div>
+        ${undoBtn}
+      </div>`;
+  });
+  container.innerHTML = `<div class="card-head"><h2 class="card-title">Audit Log &amp; One-Click Undo</h2></div>${rows.join("")}`;
+}
+
+async function refresh() {
+  try {
+    state = await api("/api/state");
+    render();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+$("addContent").addEventListener("input", (e) => {
+  $("charCount").textContent = `${e.target.value.length} / 300`;
+});
+
+$("addForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const content = $("addContent").value.trim();
+  if (!content) return;
+  try {
+    await api("/api/memories", "POST", {
+      category: $("addCategory").value,
+      content,
+      pinned: $("addPinned").checked,
+      expires_at: $("addExpires").value || null,
+    });
+    $("addContent").value = "";
+    $("addPinned").checked = false;
+    $("addExpires").value = "";
+    $("charCount").textContent = "0 / 300";
+    toast("Saved memory");
+    await refresh();
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+$("editSummaryBtn").addEventListener("click", () => {
+  $("summaryInput").value = state?.summary || "";
+  $("summaryView").classList.add("hidden");
+  $("summaryEdit").classList.remove("hidden");
+  $("summaryInput").focus();
+});
+
+$("cancelSummaryBtn").addEventListener("click", () => {
+  $("summaryEdit").classList.add("hidden");
+  $("summaryView").classList.remove("hidden");
+});
+
+$("saveSummaryBtn").addEventListener("click", async () => {
+  try {
+    await api("/api/summary", "PUT", { summary: $("summaryInput").value });
+    $("summaryEdit").classList.add("hidden");
+    $("summaryView").classList.remove("hidden");
+    toast("Overview updated");
+    await refresh();
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+$("syncBtn").addEventListener("click", async () => {
+  try {
+    await api("/api/consolidate", "POST", {});
+    toast("Syncing memories from recent T3 chats...");
+    await refresh();
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
+    ["memories", "history", "prompt"].forEach((t) => {
+      $(`tab-${t}`).classList.toggle("hidden", t !== activeTab);
+    });
+  });
+});
+
+$("tab-memories").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  try {
+    if (btn.dataset.edit) {
+      editingId = btn.dataset.edit;
+      renderMemories();
+    } else if (btn.dataset.cancel) {
+      editingId = null;
+      renderMemories();
+    } else if (btn.dataset.save) {
+      const id = btn.dataset.save;
+      await api(`/api/memories/${id}`, "PATCH", {
+        content: $(`edit-content-${id}`).value,
+        category: $(`edit-cat-${id}`).value,
+        pinned: $(`edit-pin-${id}`).checked,
+        expires_at: $(`edit-exp-${id}`).value || null,
+      });
+      editingId = null;
+      toast("Memory updated");
+      await refresh();
+    } else if (btn.dataset.pin) {
+      const id = btn.dataset.pin;
+      const item = state.memories.find((m) => m.id === id);
+      if (!item) return;
+      await api(`/api/memories/${id}`, "PATCH", { pinned: !item.pinned });
+      toast(item.pinned ? "Unpinned" : "Pinned");
+      await refresh();
+    } else if (btn.dataset.del) {
+      await api(`/api/memories/${btn.dataset.del}`, "DELETE", {});
+      toast("Memory deleted");
+      await refresh();
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+$("tab-history").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  try {
+    if (btn.dataset.undoEvent) {
+      await api("/api/revert", "POST", { event_id: Number(btn.dataset.undoEvent) });
+      toast("Reverted change");
+      await refresh();
+    } else if (btn.dataset.undoBatch) {
+      await api("/api/revert", "POST", { batch_id: btn.dataset.undoBatch });
+      toast("Reverted consolidation batch");
+      await refresh();
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+setInterval(async () => {
+  if (!state || document.hidden || editingId) return;
+  try {
+    const status = await api("/api/rev");
+    if (status.rev !== state.rev || !!status.consolidating !== !!state.consolidating) {
+      await refresh();
+    }
+  } catch {}
+}, 3500);
+
+refresh();
+</script>
+</body>
+</html>

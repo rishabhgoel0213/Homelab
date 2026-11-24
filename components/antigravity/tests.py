@@ -74,3 +74,32 @@ with tempfile.TemporaryDirectory() as temporary:
     subprocess.run(["python3", str(root / "t3-settings.py"), str(settings), "/nix/store/acp/bin/agy-acp-server"], check=True)
     assert json.loads(settings.read_text())["providerInstances"]["antigravity"] == {
         "driver": "antigravity", "enabled": True, "config": {"binaryPath": "/nix/store/acp/bin/agy-acp-server"}}
+
+    wrapper = load("acp_wrapper", "acp-wrapper.py")
+    inst = Path(temporary) / "AGENTS.md"
+    inst.write_text("# Policy\n\n## User Memory\n- Prefers concise answers\n", encoding="utf-8")
+
+    # Appends after existing systemPrompt.append on session/new and session/resume
+    req = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "session/new",
+        "params": {"cwd": "/tmp", "_meta": {"antigravity": {"systemPrompt": {"append": "<pr/>"}}}},
+    }).encode() + b"\n"
+    out = json.loads(wrapper.transform_line(req, inst))
+    appended = out["params"]["_meta"]["antigravity"]["systemPrompt"]["append"]
+    assert appended.startswith("<pr/>\n\n# Policy")
+    assert "Prefers concise answers" in appended
+
+    # Creates _meta.antigravity.systemPrompt when absent on session/load
+    load_req = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "session/load", "params": {"sessionId": "abc"}}).encode() + b"\n"
+    out_load = json.loads(wrapper.transform_line(load_req, inst))
+    assert "Prefers concise answers" in out_load["params"]["_meta"]["antigravity"]["systemPrompt"]["append"]
+
+    # Non-session messages pass through untouched byte-for-byte
+    prompt_req = b'{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"text":"hi"}}\n'
+    assert wrapper.transform_line(prompt_req, inst) == prompt_req
+
+    # Missing instructions file fails open verbatim
+    assert wrapper.transform_line(req, Path(temporary) / "missing.md") == req
+
