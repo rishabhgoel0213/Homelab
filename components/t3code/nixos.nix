@@ -33,6 +33,14 @@ let
       exec t3 project add --base-dir ${lib.escapeShellArg stateDir} --title="$title" "$workspace"
     '';
   };
+  browserCookieReceive = pkgs.writeShellScriptBin "t3-browser-cookie-receive" ''
+    exec ${pkgs.python3}/bin/python3 ${./browser-cookie-receive.py} \
+      --state-dir ${lib.escapeShellArg stateDir} \
+      --playwright-path ${lib.escapeShellArg "${package}/libexec/t3code/node_modules/playwright-core"} \
+      --node ${lib.escapeShellArg "${pkgs.nodejs}/bin/node"} \
+      --injector ${lib.escapeShellArg "${./browser-cookie-inject.mjs}"} \
+      "$@"
+  '';
   mobileIndex = pkgs.writeText "t3code-nightly-download.html" ''
     <!doctype html>
     <html lang="en"><meta charset="utf-8">
@@ -76,7 +84,11 @@ in
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ package projectImport ];
+    environment.systemPackages = [
+      package
+      projectImport
+      browserCookieReceive
+    ];
     # Upstream downloads version-matched Chrome headless shell binaries.
     programs.nix-ld.enable = true;
     programs.nix-ld.libraries = with pkgs; [

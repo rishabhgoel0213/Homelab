@@ -483,6 +483,7 @@
                 pkgs.shellcheck
                 pkgs.python3
                 pkgs.ruff
+                pkgs.nodejs
                 pkgs.bash
                 pkgs.coreutils
                 pkgs.jq
@@ -492,11 +493,15 @@
             ''
               export PYTHONDONTWRITEBYTECODE=1
               shellcheck ${./components/t3code/bin/update} ${./components/t3code/bin/auto-update} ${./components/t3code/bin/doctor} ${./components/t3code/bin/publish-mac}
-              ruff check ${./components/t3code/mac-client.py} ${./components/t3code/tests/mac_client.py}
+              ruff check ${./components/t3code/mac-client.py} ${./components/t3code/tests/mac_client.py} ${./components/t3code/zen-cookie-sync.py} ${./components/t3code/browser-cookie-receive.py} ${./components/t3code/tests/browser_cookie_sync.py}
+              node --check ${./components/t3code/browser-cookie-inject.mjs}
               T3CODE_UPDATE_SCRIPT=${./components/t3code/bin/update} \
                 python3 ${./components/t3code/tests/update.py}
               T3CODE_MAC_CLIENT=${./components/t3code/mac-client.py} \
                 python3 ${./components/t3code/tests/mac_client.py}
+              T3CODE_ZEN_COOKIE_SYNC=${./components/t3code/zen-cookie-sync.py} \
+              T3CODE_BROWSER_COOKIE_RECEIVE=${./components/t3code/browser-cookie-receive.py} \
+                python3 ${./components/t3code/tests/browser_cookie_sync.py}
               touch "$out"
             '';
 

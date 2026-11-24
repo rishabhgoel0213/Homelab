@@ -144,3 +144,31 @@ work directly without relying on SSH.
      t3 environment link --base-dir /srv/state/t3code https://macbook.tail2f4d27.ts.net
      ```
 
+## Zen Browser session cookie sync
+
+T3 Code's server-side browser on `nixos-pc` uses `chrome-headless-shell`, which Google and some
+other SSO providers reject during interactive login. To keep T3's in-app browser signed into your
+existing sessions without exposing saved passwords to `nixos-pc`:
+
+- **Cookies only, never passwords:** `t3-browser-sync` on the MacBook reads only a private temporary
+  copy of Zen's `cookies.sqlite` (+ WAL/SHM sidecars), never touching `logins.json`, `key4.db`,
+  history, or macOS Keychain. Internal/tailnet hosts (`localhost`, `*.internal.therealrishabh.com`,
+  `*.ts.net`, `*.local`), expired cookies, private-browsing cookies, and partitioned third-party
+  cookies are skipped automatically. Add extra domain suffixes to exclude (one per line) in
+  `~/Library/Application Support/Homelab/t3-browser-sync/exclude-domains.txt`.
+- **Continuous background sync:** The `com.therealrishabh.t3code-browser-sync` LaunchAgent runs
+  `t3-browser-sync --background` at login and every 30 minutes. It hashes the active cookie set
+  locally (skipping SSH entirely when nothing changed) and streams updates over SSH stdin to
+  `t3-browser-cookie-receive` on `nixos-pc`, which applies them via T3's bundled `playwright-core`
+  only when `chrome-headless-shell` is stopped or idle for at least 10 minutes.
+- **One-time backup / immediate sync (run on MacBook):**
+  ```bash
+  t3-browser-sync                     # sync all active Zen logins now (refreshes T3's browser process)
+  t3-browser-sync --domain google.com # sync only Google cookies now
+  t3-browser-sync --dry-run           # preview cookie/domain counts without touching nixos-pc
+  t3-browser-sync --status            # show detected Zen profile and last sync summary
+  ```
+  Refreshing T3's browser stops only the `chrome-headless-shell` child process — `t3code.service`,
+  active chats, agents, and terminals stay running, and the next tab open loads the fresh cookies.
+
+

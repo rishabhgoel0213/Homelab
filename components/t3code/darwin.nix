@@ -38,6 +38,20 @@ let
   serverLauncher = command "t3code-server" "serve";
   updater = command "t3code-update" "update";
   restarter = command "t3code-restart" "restart";
+  browserSyncStateDir = "${userHome}/Library/Application Support/Homelab/t3-browser-sync";
+  browserSyncConfig = pkgs.writeText "t3code-browser-sync.json" (
+    builtins.toJSON {
+      stateDir = browserSyncStateDir;
+      zenRoot = "${userHome}/Library/Application Support/zen";
+      ssh = "${pkgs.openssh}/bin/ssh";
+      sshHost = "rishabh@nixos-pc";
+      remoteCommand = "t3-browser-cookie-receive";
+      idleSeconds = cfg.browserSync.idleSeconds;
+    }
+  );
+  browserSync = pkgs.writeShellScriptBin "t3-browser-sync" ''
+    exec ${pkgs.python3}/bin/python3 ${./zen-cookie-sync.py} --config ${browserSyncConfig} "$@"
+  '';
   serverBinPath = lib.makeBinPath [
     pkgs.bash
     pkgs.coreutils
@@ -81,6 +95,23 @@ in
       default = "${userHome}/.local/state/t3code";
       description = "T3 Code data directory (T3CODE_HOME).";
     };
+    browserSync = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Continuously sync Zen Browser session cookies (never passwords) to nixos-pc T3 browser.";
+      };
+      intervalSeconds = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 1800;
+        description = "Background LaunchAgent sync interval in seconds.";
+      };
+      idleSeconds = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 600;
+        description = "Minimum nixos-pc T3 browser idle seconds before background sync refreshes it.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -90,6 +121,7 @@ in
       serverLauncher
       updater
       restarter
+      browserSync
     ];
 
     launchd.user.agents.t3code.serviceConfig = {
@@ -128,9 +160,29 @@ in
       }:/usr/bin:/bin";
     };
 
+    launchd.user.agents.t3code-browser-sync = lib.mkIf cfg.browserSync.enable {
+      serviceConfig = {
+        Label = "com.therealrishabh.t3code-browser-sync";
+        ProgramArguments = [
+          "${browserSync}/bin/t3-browser-sync"
+          "--background"
+        ];
+        RunAtLoad = true;
+        StartInterval = cfg.browserSync.intervalSeconds;
+        ProcessType = "Background";
+        StandardOutPath = "${browserSyncStateDir}/sync.log";
+        StandardErrorPath = "${browserSyncStateDir}/sync.err";
+        EnvironmentVariables = {
+          HOME = userHome;
+          PATH = "${lib.makeBinPath [ pkgs.openssh ]}:/usr/bin:/bin";
+        };
+      };
+    };
+
     system.activationScripts.preActivation.text = lib.mkAfter ''
       /usr/bin/codesign --verify --strict ${macbookArtifacts.t3code}/libexec/t3code/t3
       /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg stateDir}
+      /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg browserSyncStateDir}
       /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg cfg.dataDir}
     '';
   };
