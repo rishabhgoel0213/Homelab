@@ -52,7 +52,6 @@ let
             ];
             claude = [ "/run/current-system/sw/bin/claude" ];
             antigravity = [ "/run/current-system/sw/bin/agy" ];
-            pi = [ "/run/current-system/sw/bin/pi" ];
           }
         )
       }

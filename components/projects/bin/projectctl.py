@@ -1203,7 +1203,7 @@ def strip_separator(arguments: list[str]) -> list[str]:
 def harness_config() -> dict[str, list[str]]:
     raw = os.environ.get(
         "PROJECTCTL_HARNESSES_JSON",
-        json.dumps({"codex": ["codex", "-C", "{project}"], "pi": ["pi"]}),
+        json.dumps({"codex": ["codex", "-C", "{project}"]}),
     )
     try:
         decoded = json.loads(raw)

@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-repo="${HOMELAB_DEV_ROOT:-${PI_OPS_ROOT:-/home/rishabh/Projects/Homelab}}"
-export HOMELAB_DEV_ROOT="$repo"
-exec "$repo/tools/auto-update" pi "${1:-latest}"

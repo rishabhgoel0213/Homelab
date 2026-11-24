@@ -33,24 +33,6 @@ let
       exec t3 project add --base-dir ${lib.escapeShellArg stateDir} --title="$title" "$workspace"
     '';
   };
-  deviceTools = pkgs.callPackage ./device-tools { t3Package = package; };
-  deviceVersions = (builtins.fromJSON (builtins.readFile ./device-tools/package.json)).dependencies;
-  androidSdk = (pkgs.androidenv.composeAndroidPackages {
-    platformVersions = [ "35" ];
-    buildToolsVersions = [ "35.0.0" ];
-    includeEmulator = true;
-    includeSystemImages = true;
-    systemImageTypes = [ "google_apis" ];
-    abiVersions = [ "x86_64" ];
-  }).androidsdk.overrideAttrs (old: {
-    # T3 probes this literal path; androidenv installs a versioned directory.
-    postInstall = (old.postInstall or "") + ''
-      toolsDir=("$out"/libexec/android-sdk/cmdline-tools/*)
-      test "''${#toolsDir[@]}" -eq 1
-      ln -s "$(basename "''${toolsDir[0]}")" "$out/libexec/android-sdk/cmdline-tools/latest"
-      test -x "$out/libexec/android-sdk/cmdline-tools/latest/bin/avdmanager"
-    '';
-  });
   mobileIndex = pkgs.writeText "t3code-nightly-download.html" ''
     <!doctype html>
     <html lang="en"><meta charset="utf-8">
@@ -94,9 +76,8 @@ in
     };
   };
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ package androidSdk deviceTools projectImport ];
-    nixpkgs.config.android_sdk.accept_license = true;
-    # Upstream downloads version-matched Chrome and device helper binaries.
+    environment.systemPackages = [ package projectImport ];
+    # Upstream downloads version-matched Chrome headless shell binaries.
     programs.nix-ld.enable = true;
     programs.nix-ld.libraries = with pkgs; [
       nss nspr glib atk at-spi2-atk at-spi2-core dbus
@@ -104,35 +85,7 @@ in
       libXrandr libxkbcommon mesa libgbm alsa-lib expat cups pango cairo
       libdrm libGL zlib fontconfig freetype
     ];
-    systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ]
-      ++ lib.concatMap (name: let version = deviceVersions.${name}; in [
-        "d ${stateDir}/tools/${name} 0700 rishabh users - -"
-        "L+ ${stateDir}/tools/${name}/${version} - - - - ${deviceTools}/tools/${name}/${version}"
-      ]) [ "agent-device" "expo-device-hub" ];
-    systemd.services.t3code-android-avd = {
-      description = "Provision the T3 Code Android virtual device";
-      wantedBy = [ "multi-user.target" ];
-      before = [ "t3code.service" ];
-      environment = {
-        HOME = homelab.paths.userHome;
-        ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
-        JAVA_HOME = "${pkgs.jdk}";
-      };
-      serviceConfig = {
-        Type = "oneshot";
-        User = "rishabh";
-        Group = "users";
-        RemainAfterExit = true;
-        UMask = "0077";
-      };
-      script = ''
-        if [ ! -e "$HOME/.android/avd/t3code_pixel_9_api35.ini" ]; then
-          printf 'no\n' | ${androidSdk}/bin/avdmanager create avd \
-            --name t3code_pixel_9_api35 \
-            --package 'system-images;android-35;google_apis;x86_64' --device pixel_9
-        fi
-      '';
-    };
+    systemd.tmpfiles.rules = [ "d ${stateDir} 0700 rishabh users - -" ];
     systemd.services.t3code = {
       description = "Official T3 Code nightly server";
       # Keep active sessions alive across deployments, as with Codex.
@@ -145,8 +98,6 @@ in
         ffmpeg
         poppler-utils
         nodejs
-        jdk
-        android-tools
         procps
         unzip
         curl
@@ -164,12 +115,9 @@ in
         ripgrep
       ];
       environment = {
-        ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
-        JAVA_HOME = "${pkgs.jdk}";
         CODEX_HOME = homelab.paths.codexHome;
         CLAUDE_CONFIG_DIR = "/srv/state/claude";
         DISABLE_AUTOUPDATER = "1";
-        EXPO_DEVICE_HUB_EMULATOR_EXTRA_ARGS = "-gpu swiftshader";
         HOME = homelab.paths.userHome;
         SHELL = "${pkgs.bash}/bin/bash";
         T3CODE_HOME = stateDir;
@@ -188,10 +136,7 @@ in
     systemd.services.t3code-auto-update = {
       description = "Update T3 Code to the latest official nightly";
       wants = [ "network-online.target" ];
-      after = [
-        "network-online.target"
-        "pi-auto-update.service"
-      ];
+      after = [ "network-online.target" ];
       path = with pkgs; [
         bash
         coreutils

@@ -64,11 +64,6 @@ in
     systemd.services."qwen-image-2.1" = {
       description = "Qwen-Image 2.1 local image editing API";
       after = [ "nvidia-container-toolkit-cdi-generator.service" ];
-      conflicts = [
-        "docker-bonsai-ternary-27b.service"
-        "docker-mach1-additive-35b.service"
-        "docker-nemotron-3.5-lightning-30b-a3b.service"
-      ];
       unitConfig.ConditionPathExists = [
         "${modelState}/models/.qwen-image-2.1-manifest.json"
         "${modelState}/models/diffusion_models/qwen_image_2.1_int8_convrot.safetensors"

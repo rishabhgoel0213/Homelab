@@ -11,7 +11,6 @@ let
   stateDir = "${homelab.paths.stateRoot}/jupyterlab";
   fqdn = "lab.${homelab.internalSubdomain}.${homelab.domain}";
   pythonEnv = import ./packages.nix { inherit pkgs; };
-  codexAcp = pkgs.callPackage ./codex-acp.nix { };
   jupyterArgs = [
     "--no-browser"
     "--ServerApp.ip=127.0.0.1"
@@ -64,11 +63,9 @@ in
         nix
         openssh
         ripgrep
-        codexAcp
         pythonEnv
       ];
       environment = {
-        CODEX_HOME = homelab.paths.codexHome;
         HOME = homelab.paths.userHome;
         SHELL = "${pkgs.bash}/bin/bash";
         JUPYTER_CONFIG_DIR = "${stateDir}/config";

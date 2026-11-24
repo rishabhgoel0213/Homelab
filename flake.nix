@@ -16,11 +16,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    tabby-terminal = {
-      url = "git+file:///home/rishabh/Projects/tabby?ref=master";
-      flake = false;
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -47,7 +42,6 @@
         system = darwinSystem;
         config = {
           allowUnfree = true;
-          permittedInsecurePackages = [ "electron-38.8.4" ];
         };
       };
       fenixPackages = inputs.fenix.packages.${system};
@@ -66,27 +60,16 @@
         darwinRustTarget.rust-std
       ];
       macbookCodex = pkgs.callPackage ./components/codex/cross-package.nix { };
-      macbookTabbyPlugins = pkgs.callPackage ./components/tabby/plugins/package.nix { };
-      macbookTabby = pkgs.callPackage ./components/tabby/prebuilt-archive.nix { };
       macbookZen = pkgs.callPackage ./components/zen/prebuilt-archive.nix { };
       macbookArtifactPathStrings = import ./components/darwin-deploy/artifacts.nix;
       macbookArtifacts = builtins.mapAttrs (_: path: builtins.storePath path) macbookArtifactPathStrings;
-      darwinTabbyPrebuilt = darwinPkgs.callPackage ./components/tabby/prebuilt-package.nix {
-        archive = macbookArtifacts.tabby;
-      };
       darwinZenPrebuilt = darwinPkgs.callPackage ./components/zen/prebuilt-package.nix {
         archive = macbookArtifacts.zen;
       };
       macbookPackages = {
-        tabby = darwinTabbyPrebuilt;
         zen = darwinZenPrebuilt;
       };
-      darwinTabbySource = darwinPkgs.callPackage ./components/tabby/package.nix {
-        src = inputs.tabby-terminal;
-        tabbyPlugins = macbookTabbyPlugins;
-      };
-      pythonWithWebsocket = pkgs.python3.withPackages (ps: [ ps.websocket-client ]);
-      pythonForBlog = pkgs.python3.withPackages (ps: [
+      pythonForProjectPages = pkgs.python3.withPackages (ps: [
         ps.aiohttp
         ps.pyyaml
       ]);
@@ -215,7 +198,7 @@
             }
             ''
               export PYTHONDONTWRITEBYTECODE=1
-              shellcheck ${./tools/deploy} ${./tools/auto-update} ${./components/pi/bin/auto-update}
+              shellcheck ${./tools/deploy} ${./tools/auto-update}
               HOMELAB_DEPLOY_SCRIPT=${./tools/deploy} \
                 HOMELAB_AUTO_UPDATE_SCRIPT=${./tools/auto-update} \
                 python3 ${./tools/tests/workflow.py}
@@ -436,34 +419,6 @@
               touch "$out"
             '';
 
-        bonsai-ternary =
-          pkgs.runCommand "bonsai-ternary-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodejs_24
-                pkgs.shellcheck
-              ];
-            }
-            ''
-              shellcheck ${./components/local-models/bonsai/download-model.sh}
-              node --check ${./components/local-models/bonsai/proxy.mjs}
-              touch "$out"
-            '';
-
-        nemotron-lightning =
-          pkgs.runCommand "nemotron-lightning-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodejs_24
-                pkgs.shellcheck
-              ];
-            }
-            ''
-              shellcheck ${./components/local-models/nemotron-lightning/download-model.sh}
-              node --check ${./components/local-models/nemotron-lightning/proxy.mjs}
-              touch "$out"
-            '';
-
         qwen-image-2-1 =
           pkgs.runCommand "qwen-image-2.1-check"
             {
@@ -477,22 +432,6 @@
               python3 -m py_compile ${./components/local-models/qwen-image-2.1/qwen_image_edit.py}
               QWEN_IMAGE_EDIT_SCRIPT=${./components/local-models/qwen-image-2.1/qwen_image_edit.py} \
                 python3 ${./components/local-models/qwen-image-2.1/tests/test_qwen_image_edit.py}
-              touch "$out"
-            '';
-
-        mach1-additive =
-          pkgs.runCommand "mach1-additive-check"
-            {
-              nativeBuildInputs = [ pkgs.nodejs_24 ];
-            }
-            ''
-              node --check ${./components/local-models/mach1/app/server.mjs}
-              node --check ${./components/local-models/mach1/app/web/runtime.js}
-              node --check ${./components/local-models/mach1/app/web/reasoning.mjs}
-              node --check ${./components/local-models/mach1/app/web/tool-calls.mjs}
-              node --check ${./components/local-models/mach1/download-model.mjs}
-              node ${./components/local-models/mach1}/tests/test-tool-calls.mjs
-              node ${./components/local-models/mach1}/tests/test-reasoning.mjs
               touch "$out"
             '';
 
@@ -513,32 +452,13 @@
             '';
 
         project-pages = pkgs.runCommand "project-pages-check"
-          { nativeBuildInputs = [ pythonForBlog pkgs.ruff ]; }
+          { nativeBuildInputs = [ pythonForProjectPages pkgs.ruff ]; }
           ''
             ruff check ${./components/projects/bin/project-pages.py} ${./components/projects/tests/test-project-pages.py}
             PROJECT_PAGES_SCRIPT=${./components/projects/bin/project-pages.py} \
               python3 ${./components/projects/tests/test-project-pages.py}
             touch "$out"
           '';
-
-        blog-admin =
-          pkgs.runCommand "blog-admin-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodejs_24
-                pythonForBlog
-                pkgs.ruff
-              ];
-            }
-            ''
-              node --check ${./components/blog/assets/app.js}
-              ruff check ${./components/blog/bin/blog-admin.py} ${./components/blog/tests/test-blog-admin.py}
-              python3 -m py_compile ${./components/blog/bin/blog-admin.py} ${./components/blog/tests/test-blog-admin.py}
-              BLOG_ADMIN_SCRIPT=${./components/blog/bin/blog-admin.py} \
-                BLOG_ADMIN_ASSETS=${./components/blog/assets} \
-                python3 ${./components/blog/tests/test-blog-admin.py}
-              touch "$out"
-            '';
 
         canvas-bridge =
           pkgs.runCommand "canvas-bridge-check"
@@ -553,38 +473,6 @@
               python3 -m py_compile ${./components/canvas-bridge/bin/canvas-bridge.py}
               CANVAS_BRIDGE_SCRIPT=${./components/canvas-bridge/bin/canvas-bridge.py} \
                 python3 ${./components/canvas-bridge/tests/test-canvas-bridge.py}
-              touch "$out"
-            '';
-
-        singlemail =
-          pkgs.runCommand "singlemail-check"
-            {
-              nativeBuildInputs = [
-                pkgs.nodejs_24
-                pkgs.python3
-                pkgs.ruff
-                pkgs.shellcheck
-                pkgs.typescript
-                pkgs.wrangler
-              ];
-            }
-            ''
-              export HOME="$TMPDIR/home"
-              export XDG_CACHE_HOME="$TMPDIR/cache"
-              export XDG_CONFIG_HOME="$TMPDIR/config"
-              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
-
-              ruff check ${./components/singlemail/bin/singlemail.py} ${./components/singlemail/tests/test-singlemail.py}
-              python3 -m py_compile ${./components/singlemail/bin/singlemail.py}
-              SINGLEMAIL_SCRIPT=${./components/singlemail/bin/singlemail.py} \
-                python3 ${./components/singlemail/tests/test-singlemail.py}
-              shellcheck ${./components/singlemail/bin/cloudflare-deploy} \
-                ${./components/singlemail/bin/store-token}
-              cp -R ${./components/singlemail/worker} "$TMPDIR/worker"
-              chmod -R u+w "$TMPDIR/worker"
-              cd "$TMPDIR/worker"
-              tsc --noEmit
-              wrangler deploy --dry-run --outdir "$TMPDIR/worker-build"
               touch "$out"
             '';
 
@@ -609,22 +497,6 @@
                 python3 ${./components/t3code/tests/update.py}
               T3CODE_MAC_CLIENT=${./components/t3code/mac-client.py} \
                 python3 ${./components/t3code/tests/mac_client.py}
-              touch "$out"
-            '';
-
-        remote-phone-mic =
-          pkgs.runCommand "remote-phone-mic-check"
-            {
-              nativeBuildInputs = [
-                pkgs.ruff
-                pythonWithWebsocket
-              ];
-            }
-            ''
-              ruff check ${./components/remote-phone/bin/remote-phone-mic.py} ${./components/remote-phone/tests/test-remote-phone-mic.py}
-              python3 -m py_compile ${./components/remote-phone/bin/remote-phone-mic.py}
-              REMOTE_PHONE_SCRIPT=${./components/remote-phone/bin/remote-phone-mic.py} \
-                python3 ${./components/remote-phone/tests/test-remote-phone-mic.py}
               touch "$out"
             '';
 
@@ -669,8 +541,6 @@
         antigravity-acp = pkgs.callPackage ./components/antigravity/acp-package.nix { };
         t3code = pkgs.callPackage ./components/t3code/package.nix { };
         macbook-t3code = pkgs.callPackage ./components/t3code/package.nix { target = "darwin-arm64"; };
-        macbook-tabby-plugins = macbookTabbyPlugins;
-        macbook-tabby = macbookTabby;
         macbook-zen = macbookZen;
         macbook-abstand = pkgs.callPackage ./components/workmode/archive.nix { };
       };
@@ -679,9 +549,6 @@
         cmsc216 = self.darwinConfigurations.macbook.config.homelab.coursework.cmsc216.package;
         cmsc216-cli = self.darwinConfigurations.macbook.config.homelab.coursework.cmsc216.cliPackage;
         codex = macbookCodex;
-        tabby-plugins = macbookTabbyPlugins;
-        tabby = darwinTabbyPrebuilt;
-        tabby-source = darwinTabbySource;
         vscodium-general =
           self.darwinConfigurations.macbook.config.homelab.apps.vscodium.generated.general.package;
         vscodium-local =

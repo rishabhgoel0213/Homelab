@@ -28,9 +28,6 @@ rollback:
 darwin-eval:
     nix eval --impure --raw '.#darwinConfigurations.{{darwin_host}}.system.drvPath'
 
-darwin-lock-sources:
-    nix flake lock --impure --update-input tabby-terminal
-
 # Builds one isolated target on the server or locally on the Mac without activation.
 darwin-build target="macbook-system":
     hosts/macbook/build "{{target}}" "{{darwin_host}}"
@@ -99,24 +96,6 @@ backup-now:
 recovery-kit:
     tools/admin tools/recovery/create-vps-recovery-kit
 
-blog-list:
-    blogctl list
-
-blog-new title slug="":
-    blogctl new --title "{{title}}" {{ if slug == "" { "" } else { "--slug \"" + slug + "\"" } }}
-
-blog-import-notebook notebook title slug="":
-    blogctl import-notebook "{{notebook}}" --title "{{title}}" {{ if slug == "" { "" } else { "--slug \"" + slug + "\"" } }}
-
-blog-preview:
-    blogctl preview
-
-blog-build:
-    blogctl build
-
-blog-deploy:
-    blogctl build
-
 codex-bootstrap:
     components/codex/bin/bootstrap
 
@@ -129,12 +108,6 @@ codex-auto-update:
 # Publish the already-pinned signed Mac CLI; does not contact the Mac.
 codex-publish-mac:
     tools/admin components/codex/bin/publish-mac
-
-pi-update:
-    nix shell --inputs-from . nixpkgs#git nixpkgs#jq nixpkgs#perl --command components/pi/bin/update
-
-pi-auto-update:
-    tools/admin components/pi/bin/auto-update
 
 codex-store-auth:
     components/codex/bin/store-auth
@@ -172,15 +145,6 @@ cloudflare-zones:
 cloudflare-dns:
     cfctl dns
 
-singlemail-deploy:
-    components/singlemail/bin/cloudflare-deploy
-
-singlemail-store-token:
-    components/singlemail/bin/store-token
-
-singlemail-doctor:
-    singlemail doctor --json
-
 tailscale-ip:
     tailscale ip -4
 
@@ -204,12 +168,6 @@ tailscale-apply-internal-dns:
 
 mullvad-is-connected:
     curl https://am.i.mullvad.net/connected
-
-remote-phone-doctor:
-    remote-phone-mic doctor
-
-remote-phone-check:
-    remote-phone-mic check
 
 canvas-doctor:
     canvas-bridge doctor
@@ -245,9 +203,6 @@ matrix-imessage-export-config:
     @echo "This writes a secret-bearing Mac config to stdout; redirect it to a mode-0600 file." >&2
     tools/admin matrix-imessage-export-config
 
-matrix-pi-logs:
-    journalctl -u pi-courier.service -f
-
 t3code-doctor:
     components/t3code/bin/doctor
 
@@ -268,17 +223,6 @@ t3code-auto-update:
 
 t3code-publish-mac:
     tools/admin components/t3code/bin/publish-mac
-
-local-model-fetch model:
-    tools/admin systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".fetchUnit')"
-
-local-model-use model:
-    tools/admin systemctl start "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".serviceUnit')"
-    curl --fail --silent --show-error --retry 600 --retry-delay 1 --retry-all-errors "$(nix eval --raw --impure '.#nixosConfigurations.{{host}}.config.homelab.pi.localModels."{{model}}".healthUrl')" >/dev/null
-    local-model-doctor "{{model}}"
-
-local-model-doctor model="":
-    local-model-doctor "{{model}}"
 
 qwen-image-fetch:
     tools/admin systemctl start qwen-image-2.1-download.service

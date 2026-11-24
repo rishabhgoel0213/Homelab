@@ -127,28 +127,6 @@ puppeting for `@rishabh:therealrishabh.com`, and backfills up to 100 messages
 for conversations active in the previous 30 days. Protect the Mac bridge's
 SQLite database and configuration as secrets.
 
-## Talk to the Server Pi Agent
-
-Start an encrypted direct chat in Element with:
-
-```text
-@pi:therealrishabh.com
-```
-
-The bot auto-joins the invite. Only `@rishabh:therealrishabh.com` is trusted;
-messages from other users and unapproved group rooms are ignored. Send a normal
-message to run Pi, or use `//status`, `//new`, `//model`, and `//thinking` in
-Element when you need a literal Pi slash command.
-
-Courier launches Pi in `/etc/agents`, a neutral root-owned, Nix-managed working
-directory that ordinary Pi edit/write calls cannot modify. Its session and
-Matrix encryption state live under `/srv/state/pi/courier`, separate from other
-Pi sessions. The child agent uses `openai-codex/gpt-5.6-sol` at `medium`
-thinking and runs as `rishabh`, including the server's passwordless sudo access.
-That means a message accepted by this bot can administer the entire server;
-keep the room encrypted, keep the bot account private, and do not enable it in
-group rooms.
-
 ## Checks and Logs
 
 ```bash
@@ -157,7 +135,6 @@ just matrix-doctor
 just matrix-whatsapp-logs
 just matrix-gmessages-logs
 just matrix-imessage-proxy-logs
-just matrix-pi-logs
 ```
 
 The bridges store their session and encryption state under

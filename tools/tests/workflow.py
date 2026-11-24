@@ -31,14 +31,20 @@ class WorkflowTests(unittest.TestCase):
         self.git(self.root, "init", "--initial-branch=main", str(self.source))
         self.identity(self.source)
         (self.source / "config").write_text("base\n")
-        package = self.source / "components/pi/package.nix"
-        package.parent.mkdir(parents=True)
-        package.write_text('version = "1.0.0";\n')
-        update = package.parent / "bin/update"
+        release = self.source / "components/claude/release.nix"
+        release.parent.mkdir(parents=True)
+        release.write_text('version = "1.0.0";\n')
+        artifacts = self.source / "components/darwin-deploy/artifacts.nix"
+        artifacts.parent.mkdir(parents=True)
+        artifacts.write_text('{ claude = "/nix/store/base"; }\n')
+        update = release.parent / "bin/update"
         update.parent.mkdir()
-        self.script(update, 'printf \'version = "%s";\\n\' "${1:-2.0.0}" > "$PI_OPS_ROOT/components/pi/package.nix"')
+        self.script(update, 'printf \'version = "%s";\\n\' "${1:-2.0.0}" > "$HOMELAB_DEV_ROOT/components/claude/release.nix"')
+        publish = release.parent / "bin/publish-mac"
+        self.script(publish, 'printf "%s:publish-mac\\n" "$CLAUDE_OPS_ROOT" >> "$WORKFLOW_CALLS"')
         (self.source / "tools").mkdir()
         self.script(self.source / "tools/deploy", DEPLOY.read_text().split("\n", 1)[1])
+        self.script(self.source / "tools/admin", 'exec "$@"')
         self.git(self.source, "add", ".")
         self.git(self.source, "commit", "-m", "base")
         self.base = self.head(self.source)
@@ -78,7 +84,7 @@ class WorkflowTests(unittest.TestCase):
                               capture_output=True, text=True)
 
     def run_auto(self, version="2.0.0"):
-        return subprocess.run(["bash", str(AUTO), "pi", version], env=self.env,
+        return subprocess.run(["bash", str(AUTO), "claude", version], env=self.env,
                               capture_output=True, text=True)
 
     def test_publishes_and_deploys_the_same_commit(self):
@@ -162,7 +168,7 @@ class WorkflowTests(unittest.TestCase):
         result = self.run_auto()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.head(self.source), self.base)
-        self.assertEqual((self.source / "components/pi/package.nix").read_text(), 'version = "1.0.0";\n')
+        self.assertEqual((self.source / "components/claude/release.nix").read_text(), 'version = "1.0.0";\n')
 
     def test_auto_update_retries_an_unpublished_commit(self):
         revision = self.change(self.source)

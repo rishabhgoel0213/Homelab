@@ -45,8 +45,8 @@ Nix also installs as `/etc/agents/AGENTS.md`. The retired directory is removed.
 
 Edit and commit in Homelab, then run `just deploy`: validate the clean commit,
 push origin/main, fast-forward `/srv/ops` to the same commit, and activate it.
-Dirty or diverged checkouts are rejected. Codex, Pi, and T3 automatic updates
-use this same flow, defer while a checkout is dirty, and share its lock.
+Dirty or diverged checkouts are rejected. Codex, Claude, Antigravity, and T3
+automatic updates use this same flow, defer while a checkout is dirty, and share its lock.
 
 ## Common commands
 
@@ -58,18 +58,14 @@ just route-add demo public http://127.0.0.1:3000
 just route-add vault internal http://127.0.0.1:8222
 just cloudflare-store-token
 just tailscale-store-oauth
-just remote-phone-doctor
-just remote-phone-check
 just canvas-doctor
 just canvas-pair
 just t3code-doctor
-just local-model-use bonsai-ternary-27b
-just local-model-doctor mach1-additive-35b
+just qwen-image-use
 just project-list
 just project-create linear-algebra
 just project-session linear-algebra codex
 just project-jupyter linear-algebra
-just blog-build
 just github-profile-sync
 just rollback
 ```
@@ -87,14 +83,12 @@ can be bootstrapped in this order:
 ## Runbooks
 
 - [First-time setup](docs/bootstrap/server.md)
-- [Notebook blog](components/blog/README.md)
 - [Cloudflare administration](components/cloudflare/README.md)
 - [Backups](docs/recovery/backups.md)
 - [Vaultwarden and sops](docs/security/bitwarden-sops.md)
 - [Codex integration](components/codex/RUNBOOK.md)
-- [T3 Code and Pi](components/t3code/README.md)
-- [Local models in Pi](components/local-models/README.md)
-- [Remote Phone microphone capture](components/remote-phone/README.md)
+- [T3 Code](components/t3code/README.md)
+- [Local models](components/local-models/README.md)
 - [UMD Canvas bridge](components/canvas-bridge/README.md)
 - [Agent workflow and environment](AGENTS.md)
 - [Durable projects](components/projects/README.md)

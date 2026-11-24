@@ -40,9 +40,9 @@
   origin/main, fast-forwards `/srv/ops` to that exact commit, and runs
   `just switch` there. Never force-push, reset dirty checkouts, or deploy
   uncommitted changes. Fix failed checks or divergence without losing work.
-- Codex, Pi, and T3 automatic package updates use the same development clone,
-  commit/push/deploy sequence, and deployment lock. They defer while either
-  checkout is dirty. A failed push or deployment leaves its commit for retry.
+- Codex, Claude, Antigravity, and T3 automatic package updates use the same
+  development clone, commit/push/deploy sequence, and deployment lock. They defer
+  while either checkout is dirty. A failed push or deployment leaves its commit for retry.
 - Server deployment, Darwin evaluation/builds, and Mac activation are distinct.
   Activate the Mac only when requested using the existing Darwin runbooks.
   Do not restart Codex or another live service unless requested or unavoidable
@@ -66,8 +66,9 @@
   `create` adds `project.toml`, a standard layout, and a project-owned Nix
   environment without overwriting existing `flake.nix`, `AGENTS.md`, or
   `.gitignore`.
-- Launch with `projectctl session <name> codex` or `pi`; run commands with
-  `projectctl exec <name> -- <command>` or use `projectctl shell <name>`.
+- Launch with `projectctl session <name> codex` (or `claude` / `antigravity`);
+  run commands with `projectctl exec <name> -- <command>` or use
+  `projectctl shell <name>`.
   Projects with a flake use their development shell by default. Use `--direct`
   only when the host environment is intended. The Nix-managed harness registry
   can add providers without changing project metadata.
@@ -76,8 +77,7 @@
   `--no-kernel` prints the link without changing Jupyter runtime state.
 - `/srv/state` is runtime service data, not configuration source. Do not edit
   live service state unless a runbook calls for it or the user explicitly asks.
-  Native Codex state is `/srv/state/codex`; Pi sessions are under
-  `/srv/state/pi/agent/sessions`. Do not create second global agent homes.
+  Native Codex state is `/srv/state/codex`. Do not create second global agent homes.
 - `/srv/workspace` is retired. `/home/rishabh/Documents/Codex` is a legacy
   artifact collection, not the native Codex session store; add no projects there.
 
@@ -95,15 +95,8 @@
   secret values into policy, command arguments, logs, or task output. Prefer
   `just secrets-edit`, `just cloudflare-store-token`, `just tailscale-store-oauth`,
   and `just codex-store-auth` over ad hoc secret handling.
-- Desired Codex configuration is `components/codex` in Homelab; desired Pi
-  guidance/settings are `components/pi/config`. Deploy these through Git and
-  Nix rather than changing runtime copies. Pi sessions, credentials, extensions,
-  skills, prompts, and models stay in its managed agent directory. Manage Pi
-  integrations independently; do not add Codex MCP configuration to Pi.
-- For authorized signup/login/verification, use
-  `singlemail create --purpose "..." --ttl 1h --json`, then `singlemail code`
-  or `singlemail links`. Promote an inbox before using it for account recovery.
-  Never use it to evade bans, account limits, identity checks, or site terms.
+- Desired Codex configuration is `components/codex` in Homelab. Deploy changes
+  through Git and Nix rather than editing runtime copies.
 - The user's weekly to-do board is at https://tasks.internal.therealrishabh.com
   (weeks run Sunday-Saturday). Use the `tasks` CLI (`tasks list`,
   `tasks add "fri: call dentist"`, `tasks done <id>`, `tasks call add_tasks

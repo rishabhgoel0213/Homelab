@@ -81,7 +81,6 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "sops-nix": "sops-nix",
-        "tabby-terminal": "tabby-terminal",
         "vaultwarden-nixpkgs": "vaultwarden-nixpkgs"
       }
     },
@@ -120,23 +119,6 @@
         "owner": "Mic92",
         "repo": "sops-nix",
         "type": "github"
-      }
-    },
-    "tabby-terminal": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1783933043,
-        "narHash": "sha256-6v64gYXXF8i6qJ49tMjrXsov8ePiSQR8YQ8c3b/0JKo=",
-        "ref": "master",
-        "rev": "14e2d60b9b6dee84a53c37f05eefeb803787de04",
-        "revCount": 6513,
-        "type": "git",
-        "url": "file:///home/rishabh/Projects/tabby"
-      },
-      "original": {
-        "ref": "master",
-        "type": "git",
-        "url": "file:///home/rishabh/Projects/tabby"
       }
     },
     "vaultwarden-nixpkgs": {

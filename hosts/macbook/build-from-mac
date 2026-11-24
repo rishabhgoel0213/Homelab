@@ -20,20 +20,20 @@ need rsync
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-$ssh_bin}"
 
 case "$target" in
-  codex|tabby-plugins|tabby|zen|tabby-source|macbook-system)
+  codex|zen|macbook-system)
     ;;
   system)
     target="macbook-system"
     ;;
   *)
     echo "Unknown Darwin build target: $target" >&2
-    echo "Expected one of: codex, tabby-plugins, tabby, zen, tabby-source, macbook-system" >&2
+    echo "Expected one of: codex, zen, macbook-system" >&2
     exit 2
     ;;
 esac
 
 case "$target" in
-  codex|tabby-plugins)
+  codex)
     remote_installable=".#packages.x86_64-linux.macbook-$target"
     output="$({
       "$ssh_bin" "$server" bash -s -- "$ops_repo" "$remote_installable" <<'REMOTE'
@@ -61,42 +61,22 @@ esac
 
 need "$nix_bin"
 
-revision_data="$({
+ops_rev="$({
   "$ssh_bin" "$server" bash -s -- "$ops_repo" <<'REMOTE'
 set -euo pipefail
 repo="$1"
 cd "$repo"
 test -z "$(git status --porcelain)"
-printf '%s\n' \
-  "$(git rev-parse HEAD)" \
-  "$(jq -r '.nodes["tabby-terminal"].locked.rev' flake.lock)"
+git rev-parse HEAD
 REMOTE
 })"
 
-revisions=()
-while IFS= read -r revision; do
-  revisions+=("$revision")
-done <<<"$revision_data"
-if [[ "${#revisions[@]}" -ne 2 ]]; then
-  echo "Unable to resolve the committed server and source revisions" >&2
+if [[ -z "$ops_rev" ]]; then
+  echo "Unable to resolve the committed server revision" >&2
   exit 1
 fi
 
-ops_rev="${revisions[0]}"
-tabby_rev="${revisions[1]}"
-
-empty_source="$(mktemp -d "${TMPDIR:-/tmp}/darwin-empty-source.XXXXXX")"
-trap 'rm -rf "$empty_source"' EXIT
-
 flake="git+ssh://${server}${ops_repo}?rev=${ops_rev}&shallow=1"
-tabby="path:${empty_source}"
-
-case "$target" in
-  tabby-source)
-    tabby="git+ssh://${server}/home/rishabh/Projects/tabby?ref=master&rev=${tabby_rev}&shallow=1"
-    ;;
-esac
-
 installable="${flake}#packages.aarch64-darwin.${target}"
 
 echo "Building committed $installable locally without activation" >&2
@@ -105,5 +85,4 @@ echo "Building committed $installable locally without activation" >&2
   --impure \
   --no-link \
   --print-out-paths \
-  --override-input tabby-terminal "$tabby" \
   "$installable"

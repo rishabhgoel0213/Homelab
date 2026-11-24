@@ -1,13 +1,10 @@
-"""Offline failure handling and real byte-relay tests; no Mac or audio access."""
+"""Offline failure handling tests for Mac-side Codex selection and updates."""
 
 import importlib.util
 import json
 from pathlib import Path
-import shutil
-import socketserver
 import subprocess
 import tempfile
-import threading
 import unittest
 from unittest.mock import patch
 
@@ -127,68 +124,10 @@ class ClientTests(unittest.TestCase):
                 client.update(self.config)
             execute.assert_not_called()
 
-    def test_real_relay_reconnects_and_preserves_cli_arguments(self):
-        class Echo(socketserver.BaseRequestHandler):
-            def handle(self):
-                while data := self.request.recv(65536):
-                    self.request.sendall(data)
-
-        socket_path = self.root / "remote.sock"
-        remote = socketserver.ThreadingUnixStreamServer(str(socket_path), Echo)
-        thread = threading.Thread(target=remote.serve_forever, daemon=True)
-        thread.start()
-        self.addCleanup(remote.server_close)
-        self.addCleanup(remote.shutdown)
-        ssh = self.root / "ssh"
-        # Emulate authenticated execution, retaining the real relay and sockets.
-        ssh.write_text(f'#!{shutil.which("bash")}\nexec bash -c "${{@: -1}}"\n')
-        ssh.chmod(0o755)
-        bootstrap = Path(self.config["bootstrap"])
-        (bootstrap / "bin").mkdir()
-        cli = bootstrap / "bin/codex"
-        cli.write_text(
-            f"#!{shutil.which('python3')}\n"
-            + """
-import socket, sys
-assert sys.argv[3:] == ['resume', '--config', 'test=value'], sys.argv
-for _ in range(2):
-    with socket.socket(socket.AF_UNIX) as connection:
-        connection.settimeout(5)
-        connection.connect(sys.argv[2].removeprefix('unix://'))
-        payload = b'websocket-byte-stream' * 2000
-        connection.sendall(payload)
-        received = b''
-        while len(received) < len(payload):
-            received += connection.recv(65536)
-        assert received == payload
-sys.exit(7)
-"""
-        )
-        cli.chmod(0o755)
-        config = self.config | {"ssh": str(ssh), "remoteSocket": str(socket_path)}
-        # Use the test interpreter on platforms without the NixOS global path.
-        original = client.REMOTE_RELAY
-        with (
-            patch.object(client, "ssh_args", return_value=[str(ssh)]),
-            patch.object(
-                client.shlex,
-                "join",
-                side_effect=lambda args: (
-                    __import__("shlex").quote(shutil.which("python3"))
-                    + " -c "
-                    + __import__("shlex").quote(original)
-                    + " "
-                    + __import__("shlex").quote(str(socket_path))
-                ),
-            ),
-        ):
-            self.assertEqual(
-                client.server(config, ["resume", "--config", "test=value"]), 7
-            )
-
     def test_parser_keeps_codex_config_option(self):
         config_path = self.root / "config.json"
         config_path.write_text(json.dumps(self.config))
+        expected_cli = str(Path(self.config["bootstrap"]) / "bin/codex")
         with (
             patch(
                 "sys.argv",
@@ -196,15 +135,17 @@ sys.exit(7)
                     "client",
                     "--config",
                     str(config_path),
-                    "server",
+                    "run",
                     "--config",
                     "model=test",
                 ],
             ),
-            patch.object(client, "server", return_value=0) as server,
+            patch.object(client.os, "execv") as execv,
         ):
             client.main()
-        server.assert_called_once_with(self.config, ["--config", "model=test"])
+        execv.assert_called_once_with(
+            expected_cli, [expected_cli, "--config", "model=test"]
+        )
 
 
 if __name__ == "__main__":

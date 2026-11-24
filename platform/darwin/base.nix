@@ -43,8 +43,6 @@
 
   nixpkgs.config = {
     allowUnfree = true;
-    # Tabby 1.0.235 currently pins Electron 38 upstream.
-    permittedInsecurePackages = [ "electron-38.8.4" ];
   };
 
   programs.zsh.enable = true;

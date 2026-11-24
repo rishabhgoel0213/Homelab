@@ -16,22 +16,17 @@ deploying the initial folder migration, then check Abstand permissions and run
 The MacBook profile installs the pinned upstream Zen Browser bundle.
 Zen's tabs, Spaces, history, cookies, and logins are ordinary browser state.
 No Space, folder, pin, or route is declared by Nix. The Nix profile also
-installs the pinned Tabby archive and the VSCodium presets described below.
+installs the VSCodium presets described below.
 
 The Zen extension policy continues to force-install Bitwarden.
 
-- Tabby's current third-party plugins are pinned in
-  `components/tabby/plugins/package.json`. Add or update plugins there, regenerate the
-  lockfile, and update the Nix dependency hash.
 - Nix installs the complete upstream-signed Codex CLI bundle packaged on Linux by
   `components/codex/cross-package.nix`. Codex.app itself remains unmanaged.
   Both intentionally share `~/.codex/config.toml` and auth state. The managed
   Mac config trusts `/Users/rishabhgoel` and uses the automatic approval
   reviewer for on-request approvals.
-  `codex-server` starts a native Mac terminal UI against the Linux app-server,
-  keeping voice devices local. `codex-update` downloads the latest signed
-  server-prepared package; a user LaunchAgent does this every 30 minutes.
-  See `components/codex/RUNBOOK.md` for voice permission checks and recovery.
+  `codex-update` downloads the latest signed server-prepared package; a user
+  LaunchAgent does this every 30 minutes.
 - Tailscale is outside the Darwin configuration. The existing standalone app,
   service, node identity, and local state remain unmanaged and untouched. The
   deployment scripts may use its existing network path only as transport.
@@ -107,28 +102,25 @@ private key or decrypted archive to the Mac merely to inspect it.
 5. Review any existing regular `~/.codex/config.toml`. Activation refuses to
    overwrite it; remove it deliberately only after confirming it is unused.
 6. Run `just darwin-eval`. This evaluates only and does not build or activate.
-7. Run a full remote build before switch. The pinned Zen and Tabby bundles are
-   extracted on the Mac from signed, server-staged archives.
+7. Run a full remote build before switch. The pinned Zen bundle is
+   extracted on the Mac from a signed, server-staged archive.
 
 ## Build-only validation
 
 Build targets are exported independently so package failures can be isolated
 without activating nix-darwin or launching either app. The complete signed
-Apple-silicon Codex release is packaged on Linux; the pinned application archives and
-locked Tabby plugins are also realized there. Native archive extraction happens
-on the Mac:
+Apple-silicon Codex release is packaged on Linux; the pinned Zen application
+archive is also realized there. Native archive extraction happens on the Mac:
 
 ```sh
 just darwin-build codex
-just darwin-build tabby-plugins
-just darwin-build tabby
 just darwin-build zen
 just darwin-build macbook-system
 ```
 
-`tabby`, `zen`, and `macbook-system` require a Darwin builder. The prebuilt
-application paths perform native archive extraction and verify the original
-Developer ID signatures. Building or copying these paths does not activate a
+`zen` and `macbook-system` require a Darwin builder. The prebuilt
+application path performs native archive extraction and verifies the original
+Developer ID signature. Building or copying these paths does not activate a
 profile, launch an app, or read mutable app state.
 
 Before inbound SSH is enabled, the Mac can pull a committed server-built
@@ -141,15 +133,14 @@ chmod 0700 /private/tmp/build-mac-apps
 /private/tmp/build-mac-apps codex
 ```
 
-Repeat the final command for `tabby-plugins`. The helper refuses
-a dirty server worktree, builds the Linux-hosted target on the server, and
-prints the Mac staging path. Tabby and Zen first require their
-signed payloads to be copied with `just darwin-copy-apps`; their final Darwin
-build targets then extract them natively.
+The helper refuses a dirty server worktree, builds the Linux-hosted target on
+the server, and prints the Mac staging path. Zen first requires its signed
+payload to be copied with `just darwin-copy-apps`; its final Darwin build target
+then extracts it natively.
 None of these actions activates a profile, runs Homebrew, launches apps, or
 reads mutable app profiles.
 
-The helper can also build `tabby-source` or `macbook-system` locally from pinned
+The helper can also build `macbook-system` locally from pinned
 Git revisions. Those targets require the server-built inputs to be available
 through an explicitly trusted signed-store path; do not weaken the daemon's
 global trust settings to bootstrap them.
@@ -162,16 +153,15 @@ The server signing key is root-readable at
 without adding the regular user to `trusted-users` or disabling signature
 checks.
 
-`components/darwin-deploy/artifacts.nix` records the four signed output paths
-consumed by Darwin evaluation: Codex, Tabby plugins, the upstream Tabby ZIP,
-and the upstream Zen DMG. This
+`components/darwin-deploy/artifacts.nix` records the signed output paths
+consumed by Darwin evaluation: Codex and the upstream Zen DMG. This
 prevents the Mac from evaluating or realizing Linux build-tool derivations
 merely to discover their output paths.
 `hosts/macbook/copy-apps` refuses deployment if a newly built output does not
 match the committed manifest.
 
 Run `just darwin-prepare-artifacts` on the server after changing the manifest.
-It verifies all four outputs and roots them under
+It verifies both outputs and roots them under
 `/srv/state/macbook-deploy/gcroots` so server garbage collection does not
 discard them while Mac deployment is pending. It does not contact the Mac.
 
@@ -193,7 +183,7 @@ the prompt prefix, and the substitute policy that the Lix installer placed in
 If the custom file differs from the known bootstrap result, deployment stops
 without moving it.
 
-Before inbound SSH is enabled, import all four signed payloads from the Mac:
+Before inbound SSH is enabled, import the signed payloads from the Mac:
 
 ```sh
 scp nixos-pc:/srv/ops/hosts/macbook/pull-apps-from-mac /private/tmp/pull-mac-apps
@@ -294,8 +284,7 @@ course workspace so all CMSC 216 tasks remain available.
 
 ## Application cutover
 
-Launch the Nix-managed Zen from `/Applications/Nix Apps`. Preserve Tabby's
-existing state when checking its Nix-managed app.
+Launch the Nix-managed Zen from `/Applications/Nix Apps`.
 
 Tailscale remains outside this configuration after the application cutover.
 Any future Tailscale package or Serve/Funnel migration must be designed,

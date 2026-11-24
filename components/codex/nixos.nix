@@ -61,14 +61,22 @@ in
   ];
 
   # Refresh managed client configuration on activation without restarting
-  # an interactive remote-control session. New clients discover new MCP tools.
+  # interactive Codex sessions.
   system.activationScripts.codexConfig = {
     deps = [ "users" ];
     text = ''
       install -d -m 0700 -o rishabh -g users ${lib.escapeShellArg codexHome}
+      install -d -m 0700 -o rishabh -g users \
+        ${lib.escapeShellArg "${codexHome}/cache"} \
+        ${lib.escapeShellArg "${codexHome}/log"} \
+        ${lib.escapeShellArg "${codexHome}/plugins"} \
+        ${lib.escapeShellArg "${codexHome}/tmp"}
       install -m 0600 -o rishabh -g users \
         ${pkgs.writeText "codex-server-config.toml" (builtins.readFile ./config/server.toml)} \
         ${lib.escapeShellArg "${codexHome}/config.toml"}
+      install -m 0600 -o rishabh -g users \
+        ${pkgs.writeText "codex-server-agents.md" (builtins.readFile ./AGENTS.md)} \
+        ${lib.escapeShellArg "${codexHome}/AGENTS.md"}
     '';
   };
 
@@ -76,43 +84,14 @@ in
     CODEX_HOME = codexHome;
   };
 
-  systemd.services.codex-remote-control = {
-    description = "Codex remote-control app server";
-    restartIfChanged = false;
+  systemd.services.codex-home = {
+    description = "Seed managed Codex runtime home";
     wantedBy = [ "multi-user.target" ];
-    wants = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    after = [
-      "network-online.target"
-      "tailscaled.service"
-    ]
-    ++ lib.optional cfg.secrets.enable "sops-nix.service";
-    path = with pkgs; [
-      bash
-      bubblewrap
-      coreutils
-      git
-      just
-      nix
-      openssh
-      ripgrep
-    ];
-    environment = {
-      CODEX_HOME = codexHome;
-      HOME = cfg.paths.userHome;
-      SHELL = "${pkgs.bash}/bin/bash";
-    };
+    after = lib.optional cfg.secrets.enable "sops-nix.service";
     serviceConfig = {
-      Type = "simple";
-      User = "rishabh";
-      Group = "users";
-      WorkingDirectory = codexHome;
-      ExecStartPre = "${prepareCodexHome}";
-      ExecStart = "${codexBin} app-server --remote-control --listen unix://";
-      Restart = "always";
-      RestartSec = "5s";
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${prepareCodexHome}";
     };
   };
 

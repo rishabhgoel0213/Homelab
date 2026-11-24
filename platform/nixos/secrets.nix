@@ -46,8 +46,7 @@ in
           mode = "0400";
         };
         "restic-password" = { };
-      }
-      // lib.optionalAttrs cfg.remotePhone.enable {
+        # Required by workmode-brick and brick-admin-state to stream Brick state from sensor-server-extended.
         "remote-phone-token" = {
           owner = "rishabh";
           group = "users";
@@ -67,25 +66,6 @@ in
         "matrix-double-puppet-as-token" = { };
         "matrix-double-puppet-hs-token" = { };
         "matrix-double-puppet-sender-localpart" = { };
-      }
-      // lib.optionalAttrs cfg.pi.courier.enable {
-        "matrix-pi-courier-access-token" = {
-          owner = "rishabh";
-          group = "users";
-          mode = "0400";
-        };
-        "matrix-pi-courier-password" = {
-          owner = "root";
-          group = "root";
-          mode = "0400";
-        };
-      }
-      // lib.optionalAttrs cfg.singlemail.enable {
-        "singlemail.env" = {
-          owner = "rishabh";
-          group = "users";
-          mode = "0400";
-        };
       }
       // lib.optionalAttrs (cfg.backrest.sshTarget != null) {
         "restic-ssh-key" = {

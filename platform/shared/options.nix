@@ -65,20 +65,10 @@ in
         default = /home/rishabh/.config/homelab/secrets.yaml;
         description = "Local encrypted SOPS secrets file.";
       };
-      blogSiteSource = mkOption {
-        type = types.str;
-        default = "/home/rishabh/Projects/blog";
-        description = "Editable Quarto blog source directory.";
-      };
-      blogSiteState = mkOption {
-        type = types.str;
-        default = "/srv/state/blog-site";
-        description = "Rendered blog directory served by Caddy.";
-      };
       resumePdf = mkOption {
         type = types.str;
         default = "/home/rishabh/Documents/resume/Resume.pdf";
-        description = "Canonical resume PDF copied into the published blog.";
+        description = "Canonical resume PDF path.";
       };
       githubProfileReadme = mkOption {
         type = types.str;
@@ -110,11 +100,6 @@ in
         default = "/srv/ops/components/codex/plugins";
         description = "Repo-local Codex plugin source root.";
       };
-      piAgentDir = mkOption {
-        type = types.str;
-        default = "/srv/state/pi/agent";
-        description = "Managed Pi coding-agent configuration and session directory.";
-      };
       t3codeState = mkOption {
         type = types.str;
         default = "/srv/state/t3code";
@@ -143,8 +128,6 @@ in
 
     privateDns.enable = mkEnableOption "CoreDNS wildcard DNS for internal tailnet apps";
 
-    remotePhone.enable = mkEnableOption "bounded Remote Phone microphone capture and local transcription";
-
     backrest = {
       enable = mkEnableOption "Backrest private restic web UI";
       repository = mkOption {
@@ -171,7 +154,6 @@ in
 
     vaultwarden.enable = mkEnableOption "Vaultwarden private password vault";
     matrix.enable = mkEnableOption "private Matrix homeserver and chat bridges";
-    kicad.enable = mkEnableOption "KiCad private browser desktop";
     jellyfin.enable = mkEnableOption "Jellyfin private media server";
     syncthing.enable = mkEnableOption "Syncthing private file sync";
     samba.enable = mkEnableOption "Private SMB file share";

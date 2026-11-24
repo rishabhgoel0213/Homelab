@@ -19,7 +19,6 @@ let
       bootstrap = toString codexPackage;
       ssh = "${pkgs.openssh}/bin/ssh";
       sshHost = "rishabh@nixos-pc";
-      remoteSocket = "/srv/state/codex/app-server-control/app-server-control.sock";
       releaseFile = "/srv/state/codex-mac-release/current.json";
       nix = "${config.nix.package}/bin/nix";
       nixEnv = "${config.nix.package}/bin/nix-env";
@@ -32,13 +31,11 @@ let
       exec ${pkgs.python3}/bin/python3 ${./mac-client.py} --config ${clientConfig} ${action} "$@"
     '';
   codexLauncher = command "codex" "run";
-  serverLauncher = command "codex-server" "server";
   updater = command "codex-update" "update";
 in
 {
   environment.systemPackages = [
     codexLauncher
-    serverLauncher
     updater
   ];
 

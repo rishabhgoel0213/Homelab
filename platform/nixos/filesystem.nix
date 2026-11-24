@@ -22,8 +22,6 @@ in
     ${shellVar "homelab_user_home" cfg.paths.userHome}
     ${shellVar "homelab_sops_config" "${cfg.paths.opsRoot}/.sops.yaml"}
     ${shellVar "homelab_secrets_file" cfg.paths.secretsFile}
-    ${shellVar "homelab_blog_site_source" cfg.paths.blogSiteSource}
-    ${shellVar "homelab_blog_site_state" cfg.paths.blogSiteState}
     ${shellVar "homelab_resume_pdf" cfg.paths.resumePdf}
     ${shellVar "homelab_github_profile_readme" cfg.paths.githubProfileReadme}
     ${shellVar "homelab_remote_share" cfg.paths.remoteShare}

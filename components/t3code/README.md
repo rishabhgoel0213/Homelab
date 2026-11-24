@@ -99,59 +99,14 @@ service changes until a manual `brick-admin run systemctl restart t3code.service
 reboot. Restart manually when sessions can safely be interrupted. Automatic
 recovery after a process failure remains enabled.
 
-## Linux web and device dependencies
+## Linux web dependencies
 
 The service provides nix-ld libraries for upstream's version-matched downloaded
 Chrome headless shell, keeping its sandbox enabled. PDF preview is supplied by
-upstream's client; Poppler utilities are also available for PDF processing.
-FFmpeg (including H.264), Node.js, Java, adb, and an Android SDK with API 35,
-build tools, emulator and x86_64 Google APIs image support Android workflows.
-Android SDK licenses are accepted declaratively. No iOS tooling is installed.
-The SDK is exposed through ANDROID_HOME and Java through JAVA_HOME.
-The SDK also provides `cmdline-tools/latest` as an alias to Nix's versioned
-command-line tools. T3 probes that exact path; without the alias it incorrectly
-reports the installed tools as an older, unsupported SDK.
+upstream's client; Poppler utilities and FFmpeg are also available.
 After deployment, finish active turns and run
 `brick-admin run systemctl restart t3code.service` to pick up the new service
 environment (with the phone unbricked).
-
-### Android virtual device
-
-The server user's `t3code_pixel_9_api35` AVD uses the Pixel 9 profile and the
-packaged Android 15 / API 35 Google APIs x86_64 image. AVD data lives in the
-standard `~/.android/avd` directory, separately from the immutable SDK. The
-`t3code-android-avd` oneshot service creates it if absent and preserves existing
-data. T3 starts emulators headlessly with SwiftShader software graphics.
-The equivalent manual provisioning commands (as `rishabh`) are:
-
-```bash
-printf 'no\n' | avdmanager create avd --name t3code_pixel_9_api35 \
-  --package 'system-images;android-35;google_apis;x86_64' --device pixel_9
-emulator -accel-check
-emulator -list-avds
-```
-
-Nix's `latest` alias can produce a harmless duplicate-package warning from
-avdmanager. SDK packages remain managed through Nix, not sdkmanager updates.
-For a headless boot check, use `emulator @t3code_pixel_9_api35 -no-window
--no-audio -no-snapshot -gpu swiftshader`; check `sys.boot_completed` with adb,
-then shut down the test instance before opening the device in T3.
-
-The `device-tools` Nix package supplies locked `agent-device` and
-`expo-device-hub` dependencies, including the patched native WebRTC module and the exact scrcpy server required
-by its capture/input backend. The latter must be present at build time: the
-upstream lazy download otherwise tries to write into the immutable Nix store
-and fails when a stream starts. The package check disables fetch and verifies
-that the scrcpy server resolves locally.
-Tmpfiles links them into T3’s versioned tool directories with its completion
-markers; no runtime npm install is needed. The build checks that their versions
-match the pinned T3 binary. When a future nightly changes those versions, update
-`device-tools/package.json`, regenerate its npm lockfile, and update
-`npmDepsHash` alongside the nightly pin; the build rejects mismatched helpers.
-
-In T3 Settings → Integrations → Devices, enable the local Android host. Agent device access
-is a separate setting that takes effect in a new agent session. The existing
-private T3 HTTPS route carries the device panel; do not expose adb publicly.
 
 ## MacBook backend server and multidevice linking
 
@@ -172,10 +127,7 @@ work directly without relying on SSH.
 - **Runtime service and state:** The `com.therealrishabh.t3code` LaunchAgent runs `t3code-server`,
   which binds strictly to loopback (`127.0.0.1:3773`) with `T3CODE_HOME=~/.local/state/t3code`
   (keeping the backend isolated from any stale `~/.t3` state and free of spaces in worktree paths).
-  Package profiles and logs live under `~/Library/Application Support/Homelab/t3code`. Activation
-  links the Nix-managed iOS-only `agent-device` and `expo-device-hub` helpers into
-  `~/.local/state/t3code/tools/` and keeps `/opt/homebrew/bin` out of the service `PATH` so a
-  standalone Homebrew `adb` does not trigger broken Android SDK probes.
+  Package profiles and logs live under `~/Library/Application Support/Homelab/t3code`.
 - **Tailscale Serve HTTPS:** By default `t3code-server` passes `--tailscale-serve` on HTTPS port
   443, publishing the loopback backend exclusively on the tailnet at
   `https://macbook.tail2f4d27.ts.net` (leaving the existing HTTP port 80 Serve route untouched).

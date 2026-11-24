@@ -40,11 +40,6 @@ This Codex home is managed by Homelab. Edit this file in
   fast-forward `/srv/ops`, and activate the server. Do not edit `/srv/ops` directly.
 - Treat `/srv/state` as runtime state. Do not edit service state directly unless
   a runbook calls for it or the user explicitly asks.
-- For authorized signup, login, and verification workflows, create a scoped
-  inbox with `singlemail create --purpose "..." --ttl 1h --json`, then use
-  `singlemail code` or `singlemail links`. Promote the inbox before relying on
-  it for account recovery. Never use Singlemail to evade bans, account limits,
-  identity checks, or site terms.
 - The user's weekly to-do board is at https://tasks.internal.therealrishabh.com
   (weeks run Sunday-Saturday). Use the `tasks` CLI (`tasks list`,
   `tasks add "fri: call dentist"`, `tasks done <id>`, `tasks call add_tasks

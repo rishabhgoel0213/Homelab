@@ -18,38 +18,28 @@
     ../../components/claude/nixos.nix
     ../../components/antigravity/nixos.nix
     ../../components/tasks/nixos.nix
-    ../../components/pi/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
     ../../components/projects/nixos.nix
     ../../components/darwin-deploy/nixos.nix
     ../../platform/nixos/gpu.nix
-    ../../components/remote-phone/nixos.nix
     ../../components/workmode/nixos.nix
     ../../components/brick-admin/nixos.nix
     ../../platform/nixos/secrets.nix
     ../../components/tailscale/dns.nix
     ../../components/cloudflare/nixos.nix
     ../../components/tailscale/api.nix
-    ../../components/vscode-remote/nixos.nix
 
     ../../components/vaultwarden/nixos.nix
     ../../components/matrix/nixos.nix
     ../../components/backrest/nixos.nix
     ../../components/canvas-bridge/nixos.nix
-    ../../components/kicad/nixos.nix
     ../../components/jellyfin/nixos.nix
-    ../../components/local-models/bonsai/nixos.nix
-    ../../components/local-models/mach1/nixos.nix
-    ../../components/local-models/nemotron-lightning/nixos.nix
     ../../components/local-models/qwen-image-2.1/nixos.nix
     ../../components/jupyterlab/nixos.nix
-    ../../components/mobile-dev/nixos.nix
     ../../components/t3code/nixos.nix
-    ../../components/blog/nixos.nix
     ../../components/vscodium/remote-server.nix
     ../../components/syncthing/nixos.nix
-    ../../components/singlemail/nixos.nix
     ../../components/samba/nixos.nix
     ../../components/zen/space-router/nixos.nix
 
@@ -76,7 +66,6 @@
     };
 
     privateDns.enable = true;
-    remotePhone.enable = true;
     canvasBridge.enable = true;
 
     backrest = {
@@ -88,19 +77,12 @@
 
     vaultwarden.enable = true;
     matrix.enable = true;
-    pi.courier.enable = true;
-    kicad.enable = true;
     jellyfin.enable = true;
-    bonsaiTernary.enable = true;
-    mach1Additive.enable = true;
-    nemotronLightning.enable = true;
     qwenImage21.enable = true;
     jupyterlab.enable = true;
-    blogSite.enable = true;
     projectPages.enable = true;
     t3code.enable = true;
     syncthing.enable = true;
-    singlemail.enable = true;
     samba.enable = true;
     tasks.enable = true;
     zenSpaceRouter.enable = true;

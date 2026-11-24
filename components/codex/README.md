@@ -10,11 +10,6 @@ of binaries to compile. The Mac payload is the complete upstream-provisioned,
 Apple-signed release, packaged on Linux without modifying Mach-O files.
 Package builds check archive completeness and initialize the voice runtime.
 
-`codex-server` runs the native Mac terminal UI against the existing server
-app-server, through a private SSH byte relay. Audio stays on the Mac; server
-workspaces, tools, credentials and sessions stay on Linux. No audio devices
-are forwarded and no public listener is created.
-
 The server updater prepares both platforms, and `bin/publish-mac` signs and
 publishes the Mac Nix output. A Mac user LaunchAgent checks every 30 minutes
 and at login. `codex-update` triggers the same check immediately. Updates

@@ -22,8 +22,6 @@ test -z "$(git status --porcelain)"
 
 installables=(
   .#packages.x86_64-linux.macbook-codex
-  .#packages.x86_64-linux.macbook-tabby-plugins
-  .#packages.x86_64-linux.macbook-tabby
   .#packages.x86_64-linux.macbook-zen
 )
 outputs=()
@@ -45,12 +43,12 @@ while IFS= read -r output; do
   paths+=("$output")
 done <<<"$output_lines"
 
-if [[ "${#paths[@]}" -ne 4 ]]; then
-  echo "Expected four signed application payloads, got ${#paths[@]}." >&2
+if [[ "${#paths[@]}" -ne 2 ]]; then
+  echo "Expected two signed application payloads, got ${#paths[@]}." >&2
   exit 1
 fi
 
-echo "Pulling four signed payloads from $server without activation" >&2
+echo "Pulling two signed payloads from $server without activation" >&2
 "$nix_bin" copy --from "ssh-ng://$server" "${paths[@]}"
 
 root_dir="$HOME/Library/Application Support/Homelab/nix-gcroots"

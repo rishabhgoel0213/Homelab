@@ -12,8 +12,6 @@ let
   userHome = "/Users/${user}";
   stateDir = "${userHome}/Library/Application Support/Homelab/t3code";
   launchdLabel = "com.therealrishabh.t3code";
-  deviceTools = pkgs.callPackage ./device-tools { iosOnly = true; };
-  deviceVersions = (builtins.fromJSON (builtins.readFile ./device-tools/package.json)).dependencies;
   clientConfig = pkgs.writeText "t3code-mac-client.json" (
     builtins.toJSON {
       inherit stateDir launchdLabel;
@@ -40,8 +38,6 @@ let
   serverLauncher = command "t3code-server" "serve";
   updater = command "t3code-update" "update";
   restarter = command "t3code-restart" "restart";
-  # Keep Homebrew out of the service PATH so a standalone Homebrew adb does
-  # not trigger missing Android SDK probes on the Mac's iOS-only device hub.
   serverBinPath = lib.makeBinPath [
     pkgs.bash
     pkgs.coreutils
@@ -94,7 +90,6 @@ in
       serverLauncher
       updater
       restarter
-      deviceTools
     ];
 
     launchd.user.agents.t3code.serviceConfig = {
@@ -137,28 +132,6 @@ in
       /usr/bin/codesign --verify --strict ${macbookArtifacts.t3code}/libexec/t3code/t3
       /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg stateDir}
       /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg cfg.dataDir}
-    '';
-
-    system.activationScripts.postActivation.text = lib.mkAfter ''
-      ${lib.concatMapStringsSep "\n" (
-        name:
-        let
-          version = deviceVersions.${name};
-        in
-        ''
-          /usr/bin/install -d -m 0700 -o ${user} -g staff ${lib.escapeShellArg "${cfg.dataDir}/tools/${name}"}
-          target=${lib.escapeShellArg "${cfg.dataDir}/tools/${name}/${version}"}
-          if [ -e "$target" ] && [ ! -L "$target" ]; then
-            if [ -e "$target.before-nix" ]; then
-              echo "Refusing to overwrite T3 helper backup $target.before-nix" >&2
-              exit 1
-            fi
-            /bin/mv "$target" "$target.before-nix"
-          fi
-          /bin/ln -sfn ${deviceTools}/tools/${name}/${version} "$target"
-          /usr/sbin/chown -h ${user}:staff "$target"
-        ''
-      ) [ "agent-device" "expo-device-hub" ]}
     '';
   };
 }

@@ -5,7 +5,7 @@ if [[ -x /run/wrappers/bin/sudo ]]; then
   export PATH="/run/wrappers/bin:$PATH"
 fi
 
-component="${1:?Expected codex, claude, antigravity, pi, or t3code}"
+component="${1:?Expected codex, claude, antigravity, or t3code}"
 repo="${HOMELAB_DEV_ROOT:-/home/rishabh/Projects/Homelab}"
 deployment="${HOMELAB_DEPLOY_ROOT:-/srv/ops}"
 update_user="${HOMELAB_UPDATE_USER:-rishabh}"
@@ -15,7 +15,6 @@ case "$component" in
   codex) files=(components/codex/release.nix components/darwin-deploy/artifacts.nix) ;;
   claude) files=(components/claude/release.nix components/darwin-deploy/artifacts.nix) ;;
   antigravity) files=(components/antigravity/release.nix components/darwin-deploy/artifacts.nix) ;;
-  pi) files=(components/pi/package.nix) ;;
   t3code) files=(components/t3code/package.nix components/darwin-deploy/artifacts.nix) ;;
   *) echo "Unknown updater: $component" >&2; exit 1 ;;
 esac
@@ -41,7 +40,7 @@ for checkout in "$repo" "$deployment"; do
 done
 git -C "$repo" fetch origin main
 git -C "$repo" merge --ff-only origin/main
-export CODEX_OPS_ROOT="$repo" PI_OPS_ROOT="$repo" T3CODE_OPS_ROOT="$repo"
+export CODEX_OPS_ROOT="$repo" T3CODE_OPS_ROOT="$repo"
 "$repo/components/$component/bin/update" "$target"
 mapfile -t changed < <(git -C "$repo" diff --name-only)
 for path in "${changed[@]}"; do

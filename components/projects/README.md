@@ -17,8 +17,8 @@ project adds `project.toml`, which carries:
 - optional Syncthing targets under `[sync]`.
 
 The filesystem remains the source of truth. The manifest is portable metadata,
-not a database, and native Codex or Pi conversation state remains in each
-harness's own runtime store.
+not a database, and native agent conversation state remains in each harness's
+own runtime store.
 
 ## Create or Adopt
 
@@ -52,7 +52,6 @@ projectctl exec --cwd /home/rishabh/Projects/linear-algebra/src linear-algebra -
 projectctl exec --clean-stdout linear-algebra -- some-jsonl-provider
 projectctl harnesses
 projectctl session linear-algebra codex
-projectctl session linear-algebra pi
 projectctl ide linear-algebra
 projectctl ide fall-2026 --cwd cmsc216 --preset cmsc216
 ```
