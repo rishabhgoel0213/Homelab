@@ -113,6 +113,11 @@
   `/srv/state/memory`). Read-only search/transcript access across all T3 Code
   threads (including archived) is provided by `t3-history` (`search`, `list`,
   `read`, `projects`).
+- Global cross-harness agent skills (Codex, Claude Code, Antigravity) are
+  managed by the `skills` CLI (`list`, `show`, `add`, `update`, `remove`,
+  `promote`, `sync`, `doctor`). Declarative skills are pinned in
+  `components/skills/declarative.nix` and mutable installs live in
+  `/srv/state/skills/installed`.
 - Harness-neutral external CLIs available on `PATH` for all agents:
   - GitHub: `gh` (authenticated as `rishabhgoel0213`).
   - Cloudflare: `cfctl`, `wrangler`, `flarectl`.

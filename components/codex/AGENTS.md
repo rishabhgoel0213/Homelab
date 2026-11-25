@@ -67,6 +67,12 @@ This Codex home is managed by Homelab. Edit this file in
   (`t3-history search "<query>"`, `t3-history list`, `t3-history read
   <thread-id>`, `t3-history projects`). Inside T3 Code, use `t3_thread_read`
   when you need T3's clickable thread `link` format.
+- Global cross-harness agent skills (Codex, Claude Code, Antigravity) are
+  managed with the `skills` CLI (`skills list`, `skills add <source>`,
+  `skills update`, `skills remove <name>`, `skills promote <name>`,
+  `skills sync`, `skills doctor`). Declarative skills live in
+  `components/skills/declarative.nix`; mutable tried skills live in
+  `/srv/state/skills/installed`.
 
 ## Codex Configuration
 

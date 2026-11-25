@@ -21,6 +21,7 @@
     ../../components/apple-dev/nixos.nix
     ../../components/tasks/nixos.nix
     ../../components/memory/nixos.nix
+    ../../components/skills/nixos.nix
     ../../platform/nixos/containers.nix
     ../../platform/nixos/filesystem.nix
     ../../components/projects/nixos.nix
@@ -89,6 +90,7 @@
     samba.enable = true;
     tasks.enable = true;
     memory.enable = true;
+    skills.enable = true;
     zenSpaceRouter.enable = true;
   };
 

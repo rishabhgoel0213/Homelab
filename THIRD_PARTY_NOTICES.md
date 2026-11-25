@@ -44,3 +44,13 @@ Prism ML and builds Prism ML's llama.cpp fork for its Q2_0_g128 CUDA kernels.
 - Runtime: [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp)
 - Model repository license: Apache License 2.0
 - Runtime license: MIT License
+
+## Jane Street `agent_skills`
+
+The declarative `socratic-tutor` skill configured in
+`components/skills/declarative.nix` is fetched directly by Nix from Jane
+Street's open-source `agent_skills` repository:
+
+- Project: [janestreet/agent_skills](https://github.com/janestreet/agent_skills)
+- Skill: `socratic-tutor/SKILL.md`
+- License: MIT License

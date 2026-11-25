@@ -244,6 +244,30 @@
               touch "$out"
             '';
 
+        skills =
+          let
+            skillsPkg = pkgs.callPackage ./components/skills/package.nix {
+              declarativeSkills = import ./components/skills/declarative.nix { inherit pkgs; };
+            };
+          in
+          pkgs.runCommand "skills-check"
+            {
+              nativeBuildInputs = [
+                pkgs.git
+                pkgs.python3
+                pkgs.ruff
+              ];
+            }
+            ''
+              export PYTHONDONTWRITEBYTECODE=1
+              ruff check ${./components/skills/bin/skills.py} ${./components/skills/tests/test-skills.py}
+              python3 -m py_compile ${./components/skills/bin/skills.py}
+              SKILLS_SCRIPT=${./components/skills/bin/skills.py} \
+                python3 ${./components/skills/tests/test-skills.py}
+              test -f ${skillsPkg.declarativeDir}/socratic-tutor/SKILL.md
+              touch "$out"
+            '';
+
         codex-update =
           pkgs.runCommand "codex-update-check"
             {
